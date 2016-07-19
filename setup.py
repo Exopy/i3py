@@ -7,7 +7,7 @@ import os.path
 import sys
 
 sys.path.insert(0, os.path.abspath('.'))
-from ecpy.version import __version__
+from i3py.version import __version__
 
 setup(
     name='i3py',
@@ -33,8 +33,6 @@ setup(
     zip_safe=False,
     packages=find_packages(exclude=['tests', 'tests.*']),
     package_data={'': ['*.yaml']},
-    requires=['future', 'pyqt4', 'atom', 'enaml', 'kiwisolver', 'configobj',
-              'watchdog', 'setuptools', 'qtawesome'],
-    install_requires = ['future', 'funcsigs', 'stringparser'],
-    requires = ['future', 'pyvisa', 'funcsigs', 'stringparser'],
+    requires=['future', 'pyvisa', 'funcsigs', 'stringparser'],
+    install_requires=['future', 'funcsigs', 'stringparser'],
 )

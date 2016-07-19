@@ -16,7 +16,7 @@ from .has_features import AbstractChannel
 from .base_subsystem import SubSystem
 
 
-class Channel(SubSystem, AbstractChannel):
+class Channel(SubSystem):
     """Channels are used to represent instrument channels identified by a id
     (a number generally).
 
@@ -135,3 +135,5 @@ class ChannelContainer(object):
     def __iter__(self):
         for id in self.available:
             yield self[id]
+
+AbstractChannel.register(Channel)

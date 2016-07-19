@@ -20,7 +20,7 @@ from .mapping import Mapping
 from ..unit import get_unit_registry, UNIT_SUPPORT
 from ..util import raise_limits_error
 from ..limits import IntLimitsValidator, FloatLimitsValidator
-from lantz_core.features.feature import set_chain, get_chain
+from .feature import set_chain, get_chain
 
 if UNIT_SUPPORT:
     from pint.quantity import _Quantity

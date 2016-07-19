@@ -17,7 +17,7 @@ from weakref import WeakValueDictionary
 from textwrap import fill
 from inspect import cleandoc
 
-from .errors import TimeoutError
+from .errors import I3pyTimeoutError
 from .has_features import HasFeaturesMeta, HasFeatures
 
 
@@ -72,7 +72,7 @@ class BaseDriver(with_metaclass(InstrumentSigleton, HasFeatures)):
         when securing a communication.
 
     """
-    secure_com_except = (TimeoutError)
+    secure_com_except = (I3pyTimeoutError,)
 
     def __init__(self, *args, **kwargs):
         super(BaseDriver, self).__init__(kwargs.get('caching_allowed', True))

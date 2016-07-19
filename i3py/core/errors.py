@@ -22,13 +22,13 @@ class I3pyError(Exception):
     pass
 
 
-class InvalidCommand(I3pyError):
+class I3pyInvalidCommand(I3pyError):
     pass
 
 
-class TimeoutError(I3pyError):
+class I3pyTimeoutError(I3pyError):
     pass
 
 
-class InterfaceNotSupported(I3pyError):
+class I3pyInterfaceNotSupported(I3pyError):
     pass

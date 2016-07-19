@@ -21,7 +21,7 @@ from future.utils import with_metaclass
 
 from .util import (wrap_custom_feat_method, MethodsComposer, COMPOSERS,
                    AbstractGetSetFactory)
-from ..errors import LantzError
+from ..errors import I3pyError
 from ..util import build_checker
 
 
@@ -252,7 +252,7 @@ class Feature(AbstractFeature):
 
         Raises
         ------
-        LantzError :
+        I3pyError :
             Raised if the driver detects an issue.
 
         """
@@ -276,8 +276,9 @@ class Feature(AbstractFeature):
 
         Raises
         ------
-        LantzError :
+        I3pyError :
             Raised if the driver detects an issue.
+
         """
         res, details = driver.default_check_operation(self, value, i_value,
                                                       response)
@@ -287,7 +288,7 @@ class Feature(AbstractFeature):
                 mess += ':' + str(details)
             else:
                 mess += '.'
-            raise LantzError(mess.format(self.name, value, i_value))
+            raise I3pyError(mess.format(self.name, value, i_value))
 
     def discard_cache(self, driver, value, i_value, response):
         """Empty the cache of the specified values.

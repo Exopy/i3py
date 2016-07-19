@@ -1,0 +1,64 @@
+# -*- coding: utf-8 -*-
+# -----------------------------------------------------------------------------
+# Copyright 2016 by I3py Authors, see AUTHORS for more details.
+#
+# Distributed under the terms of the BSD license.
+#
+# The full license is in the file LICENCE, distributed with this software.
+# -----------------------------------------------------------------------------
+"""Tests for the Alias feature.
+
+"""
+from __future__ import (division, unicode_literals, print_function,
+                        absolute_import)
+
+import pytest
+
+from i3py.core.has_features import subsystem
+from i3py.core.features import Bool
+from i3py.core.features.alias import Alias
+
+from ..testing_tools import DummyParent
+
+
+@pytest.fixture
+def tester():
+    class AliasTester(DummyParent):
+
+        state = Bool(True, True, mapping={True: True, False: False})
+        _state = False
+
+        r_alias = Alias('state')
+
+        sub = subsystem()
+
+        with sub as s:
+            s.rw_alias = Alias('.state', True)
+
+        def _get_state(self, feat):
+            return self._state
+
+        def _set_state(self, feat, value):
+            self._state = value
+
+    return AliasTester()
+
+
+def test_alias_on_same_level(tester):
+
+    assert tester.r_alias is False
+    tester.state = True
+    assert tester.r_alias is True
+
+    with pytest.raises(AttributeError):
+        tester.r_alias = False
+
+
+def test_alias_on_parent(tester):
+
+    assert tester.sub.rw_alias is False
+    tester.state = True
+    assert tester.sub.rw_alias is True
+
+    tester.sub.rw_alias = False
+    assert tester.state is False

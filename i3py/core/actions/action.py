@@ -30,7 +30,15 @@ class AbstractAction(with_metaclass(ABCMeta, object)):
     """Abstract base class for actions.
 
     """
-    pass
+    def __call__(self, func):
+        update_wrapper(self, func)
+        self.func = func
+        return self
+
+    def __get__(self, obj, objtype=None):
+        if obj is None:
+            return self
+        return MethodType(self.func, obj)
 
 
 class Action(AbstractAction):
@@ -81,11 +89,6 @@ class Action(AbstractAction):
         self.sig = signature(func)
         self.func = self.decorate(func, self.kwargs)
         return self
-
-    def __get__(self, obj, objtype=None):
-        if obj is None:
-            return self
-        return MethodType(self.func, obj)
 
     def decorate(self, func, kwargs):
         """Decorate a function according to passed arguments.

@@ -29,7 +29,13 @@ class AbstractFeature(with_metaclass(ABCMeta, property)):
     """Abstract class for Features.
 
     """
-    pass
+    def make_doc(self, doc):
+        """Build a comprehensive docstring from the provided user doc and using
+        the configuration of the feature.
+
+        """
+        # TODO do
+        self.__doc__ = doc
 
 
 class Feature(AbstractFeature):
@@ -325,14 +331,6 @@ class Feature(AbstractFeature):
 
         return p
 
-    def make_doc(self, doc):
-        """Build a comprehensive docstring from the provided user doc and using
-        the configuration of the feature.
-
-        """
-        # TODO do
-        self.__doc__ = doc
-
     def modify_behavior(self, method_name, custom_method, specifiers=(),
                         internal=False):
         """Alter the behavior of the Feature using the provided method.
@@ -567,8 +565,8 @@ def get_chain(feat, driver):
             i += 1
             val = feat.get(driver)
             break
-        except driver.retries_exceptions:
-            if i != feat._retries:
+        except driver.retries_exceptions as e:
+            if i != feat._retries or not driver.check_error(feat.name, e):
                 driver.reopen_connection()
                 continue
             else:

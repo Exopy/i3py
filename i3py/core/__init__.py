@@ -6,7 +6,7 @@
 #
 # The full license is in the file LICENCE, distributed with this software.
 # -----------------------------------------------------------------------------
-"""An instrumentation toolkit with a clean and consistent interface.
+"""Core package of i3py defining the tools used to write the drivers.
 
 """
 from __future__ import (division, unicode_literals, print_function,

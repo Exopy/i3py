@@ -25,17 +25,23 @@ except ImportError:
 
 @yield_fixture
 def teardown():
+    unit.UNIT_RETURN = True
     unit.UNIT_REGISTRY = None
     yield
     unit.UNIT_REGISTRY = None
+    unit.UNIT_RETURN = False
+
+
+# XXX add test for setting UNIT_RETURN
 
 
 @mark.skipif(unit.UNIT_SUPPORT is False, reason="Requires Pint")
 def test_set_unit_registry(teardown):
     ureg = UnitRegistry()
-    set_unit_registry(ureg)
+    set_unit_registry(ureg, False)
 
     assert get_unit_registry() is ureg
+    assert not unit.UNIT_RETURN
 
 
 @mark.skipif(unit.UNIT_SUPPORT is False, reason="Requires Pint")

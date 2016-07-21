@@ -41,7 +41,7 @@ def build_checker(checks, signature, ret=''):
     func_def = 'def check' + str(signature) + ':\n'
     assertions = checks.split(';')
     for assertion in assertions:
-        # XXXX use AST manipulation to provide more infos about assertion
+        # XXX use AST manipulation to provide more infos about assertion
         # failure. Take inspiration from pytest.assertions.rewrite.
         a_mess = '"""Assertion %s failed"""' % assertion
         func_def += '    assert ' + assertion + ', ' + a_mess + '\n'
@@ -108,7 +108,7 @@ def byte_to_dict(byte, mapping):
         Byte value to interpret.
 
     mapping : iterable
-        Name to associate to each bit value. The length of the iterable should
+        Names to associate to each bit value. The length of the iterable should
         match the number of bit to decode.
 
     """

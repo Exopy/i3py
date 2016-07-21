@@ -20,7 +20,7 @@ from __future__ import (division, unicode_literals, print_function,
 import logging
 
 UNIT_SUPPORT = True
-UNIT_RETURN = True  # XXX make this useful
+UNIT_RETURN = True
 
 try:
     from pint import UnitRegistry
@@ -31,18 +31,21 @@ except ImportError:
 UNIT_REGISTRY = None
 
 
-def set_unit_registry(unit_registry):
-    """Set the UnitRegistry used by Lantz.
+def set_unit_registry(unit_registry, return_quantity=True):
+    """Set the UnitRegistry used by I3py.
 
     Given that conversion can only happen for units declared in the same
     UnitRegistry an application should only use a single registry. This method
-    should be called before doing anything else in Lantz (even importing driver
-    ) to avoid the creation of a default registry by Eapii.
+    should be called before doing anything else in I3py (even importing driver)
+    to avoid the creation of a default registry by I3py.
 
     Parameters
     ----------
     unit_registry : UnitRegistry
-        UnitRegistry to use for Lantz.
+        UnitRegistry to use for I3py.
+
+    return_quantity : bool, optional
+        Should a Quantity object be returned when possible or a simple float.
 
     Raises
     ------
@@ -51,15 +54,17 @@ def set_unit_registry(unit_registry):
 
     """
     global UNIT_REGISTRY
+    global UNIT_RETURN
     if UNIT_REGISTRY:
-        mess = 'The unit registry used by Lantz cannot be changed once set.'
+        mess = 'The unit registry used by I3py cannot be changed once set.'
         raise ValueError(mess)
 
     UNIT_REGISTRY = unit_registry
+    UNIT_RETURN = return_quantity
 
 
 def get_unit_registry():
-    """Access the UnitRegistry currently in use by Lantz.
+    """Access the UnitRegistry currently in use by I3py.
 
     If no UnitRegistry has been previously declared using `set_unit_registry`,
     a new UnitRegistry  is created.
@@ -68,7 +73,7 @@ def get_unit_registry():
     global UNIT_REGISTRY
     if not UNIT_REGISTRY:
         logger = logging.getLogger(__name__)
-        logger.debug('Creating default UnitRegistry for Lantz')
+        logger.debug('Creating default UnitRegistry for I3py')
         UNIT_REGISTRY = UnitRegistry()
 
     return UNIT_REGISTRY

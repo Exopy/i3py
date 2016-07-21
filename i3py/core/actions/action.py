@@ -21,7 +21,7 @@ from past.builtins import basestring
 from funcsigs import signature
 
 from ..limits import IntLimitsValidator, FloatLimitsValidator
-from ..unit import UNIT_SUPPORT, get_unit_registry
+from ..unit import UNIT_SUPPORT, UNIT_RETURN, get_unit_registry, to_float
 from ..util import (build_checker, validate_in, validate_limits,
                     get_limits_and_validate)
 
@@ -112,7 +112,16 @@ class Action(AbstractAction):
 
         """
         ureg = get_unit_registry()
-        return ureg.wraps(*units, strict=False)(func)
+        func = ureg.wraps(*units, strict=False)(func)
+        if not UNIT_RETURN:
+            def wrapper(*args, **kwargs):
+                res = func(*args, **kwargs)
+                return to_float(res) if res is not None else res
+
+            update_wrapper(wrapper, func)
+            return wrapper
+
+        return func
 
     def add_checks(self, func, checks):
         """Build a checker function and use it to decorate func.

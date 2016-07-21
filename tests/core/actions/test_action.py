@@ -130,7 +130,7 @@ def test_action_with_overlapping_limits_and_values():
 
 @mark.skipif(UNIT_SUPPORT is False, reason="Requires Pint")
 def test_action_with_unit():
-    """Test defining an action not using units conversions.
+    """Test defining an action using units conversions.
 
     """
     class Dummy(DummyParent):
@@ -143,6 +143,24 @@ def test_action_with_unit():
 
     dummy = Dummy()
     assert dummy.test(2, 3) == get_unit_registry().parse_expression('6 V')
+
+    from i3py.core.actions import action
+
+    try:
+        action.UNIT_RETURN = False
+
+        class Dummy(DummyParent):
+
+            @Action(units=('ohm*A', (None, 'ohm', 'A')))
+            def test(self, r, i):
+                return r*i
+
+    finally:
+        action.UNIT_RETURN = True
+
+    dummy = Dummy()
+
+    assert dummy.test(2, 3) == 6
 
 
 def test_action_with_checks():

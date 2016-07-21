@@ -17,7 +17,7 @@ from future.builtins import str as ustr
 from .enumerable import Enumerable
 from .limits_validated import LimitsValidated
 from .mapping import Mapping
-from ..unit import get_unit_registry, UNIT_SUPPORT
+from ..unit import get_unit_registry, UNIT_SUPPORT, UNIT_RETURN
 from ..util import raise_limits_error
 from ..limits import IntLimitsValidator, FloatLimitsValidator
 from .feature import set_chain, get_chain
@@ -126,7 +126,7 @@ class Float(LimitsValidated, Mapping, Enumerable):
 
         """
         fval = float(value)
-        if self.unit:
+        if self.unit and UNIT_RETURN:
             return fval*self.unit
 
         else:
@@ -140,7 +140,6 @@ class Float(LimitsValidated, Mapping, Enumerable):
             if self.unit:
                 value = value.to(self.unit).magnitude
             else:
-                self.unit = value.units
                 value = value.magnitude
 
         return value

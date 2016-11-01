@@ -12,70 +12,15 @@
 from __future__ import (division, unicode_literals, print_function,
                         absolute_import)
 
-from .has_features import AbstractChannel
 from .base_subsystem import SubSystem
+from .abstracts import AbstractChannel, AbstractChannelContainer
 
 
-class Channel(SubSystem):
-    """Channels are used to represent instrument channels identified by a id
-    (a number generally).
+class ChannelContainer(AbstractChannelContainer):
+    """Default container storing references to the instrument channels.
 
-    They are similar to SubSystems in that they expose a part of the
-    instrument capabilities but multiple instances of the same channel
-    can exist at the same time under the condition that they have different
-    ids.
-
-    By default channels passes their id to their parent when they call
-    default_*_feat as the kwarg 'ch_id' which can be used by the parent
-    to direct the call to the right channel.
-
-    Parameters
-    ----------
-    parent : HasFeat
-        Parent object which can be the concrete driver or a subsystem or
-        channel.
-    id :
-        Id of the channel used by the instrument to correctly route the calls.
-
-    Attributes
-    ----------
-    id :
-        Id of the channel used by the instrument to correctly route the calls.
-
-    """
-    def __init__(self, parent, id, **kwargs):
-        super(Channel, self).__init__(parent, **kwargs)
-        self.id = id
-
-    @property
-    def lock(self):
-        """Access parent lock."""
-        return self.parent.lock
-
-    def default_get_feature(self, feat, cmd, *args, **kwargs):
-        """Channels simply pipes the call to their parent.
-
-        """
-        kwargs['id'] = self.id
-        return self.parent.default_get_feature(feat, cmd, *args, **kwargs)
-
-    def default_set_feature(self, feat, cmd, *args, **kwargs):
-        """Channels simply pipes the call to their parent.
-
-        """
-        kwargs['id'] = self.id
-        return self.parent.default_set_feature(feat, cmd, *args, **kwargs)
-
-    def default_check_operation(self, feat, value, i_value, response):
-        """Channels simply pipes the call to their parent.
-
-        """
-        return self.parent.default_check_operation(feat, value, i_value,
-                                                   response)
-
-
-class ChannelContainer(object):
-    """Container storing references to the instrument channels.
+    Note that is the responsability of the user to check that a channel is
+    available before querying it.
 
     Parameters
     ----------
@@ -135,5 +80,59 @@ class ChannelContainer(object):
     def __iter__(self):
         for id in self.available:
             yield self[id]
+
+
+class Channel(SubSystem):
+    """Channels are used to represent instrument channels identified by a id
+    (a number generally).
+
+    They are similar to SubSystems in that they expose a part of the
+    instrument capabilities but multiple instances of the same channel
+    can exist at the same time under the condition that they have different
+    ids.
+
+    By default channels passes their id to their parent when they call
+    default_*_feat as the kwarg 'ch_id' which can be used by the parent
+    to direct the call to the right channel.
+
+    Parameters
+    ----------
+    parent : HasFeat
+        Parent object which can be the concrete driver or a subsystem or
+        channel.
+    id :
+        Id of the channel used by the instrument to correctly route the calls.
+
+    Attributes
+    ----------
+    id :
+        Id of the channel used by the instrument to correctly route the calls.
+
+    """
+    def __init__(self, parent, id, **kwargs):
+        super(Channel, self).__init__(parent, **kwargs)
+        self.id = id
+
+    def default_get_feature(self, feat, cmd, *args, **kwargs):
+        """Channels simply pipes the call to their parent.
+
+        """
+        kwargs['id'] = self.id
+        return self.parent.default_get_feature(feat, cmd, *args, **kwargs)
+
+    def default_set_feature(self, feat, cmd, *args, **kwargs):
+        """Channels simply pipes the call to their parent.
+
+        """
+        kwargs['id'] = self.id
+        return self.parent.default_set_feature(feat, cmd, *args, **kwargs)
+
+    def default_check_operation(self, feat, value, i_value, response):
+        """Channels simply pipes the call to their parent.
+
+        """
+        return self.parent.default_check_operation(feat, value, i_value,
+                                                   response)
+
 
 AbstractChannel.register(Channel)

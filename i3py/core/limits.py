@@ -17,29 +17,9 @@ from math import modf
 from functools import update_wrapper
 
 from .unit import UNIT_SUPPORT, get_unit_registry
+from .abstracts import AbstractLimitsValidator
 if UNIT_SUPPORT:
     from pint.quantity import _Quantity
-
-
-class AbstractLimitsValidator(object):
-    """ Base class for all limits validators.
-
-    Attributes
-    ----------
-    minimum :
-        Minimal allowed value or None.
-    maximum :
-        Maximal allowed value or None.
-    step :
-        Allowed step between values or None.
-
-    Methods
-    -------
-    validate :
-        Validate a given value against the range.
-
-    """
-    __slots__ = ('minimum', 'maximum', 'step', 'validate')
 
 
 class IntLimitsValidator(AbstractLimitsValidator):

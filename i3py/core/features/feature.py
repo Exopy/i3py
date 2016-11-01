@@ -25,19 +25,6 @@ from ..errors import I3pyError
 from ..util import build_checker
 
 
-class AbstractFeature(with_metaclass(ABCMeta, property)):
-    """Abstract class for Features.
-
-    """
-    def make_doc(self, doc):
-        """Build a comprehensive docstring from the provided user doc and using
-        the configuration of the feature.
-
-        """
-        # TODO do
-        self.__doc__ = doc
-
-
 class Feature(AbstractFeature):
     """Descriptor representing the most basic instrument property.
 

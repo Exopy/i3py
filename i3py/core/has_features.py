@@ -16,299 +16,16 @@ from __future__ import (division, unicode_literals, print_function,
                         absolute_import)
 
 from types import FunctionType
-from inspect import cleandoc, getsourcelines, currentframe
+from inspect import cleandoc, getsourcelines
 from itertools import chain
 from abc import ABCMeta
 from collections import defaultdict
 
 from future.utils import with_metaclass
 
-from .features.feature import AbstractFeature
-
-# Prefixes for Features and Action specially named methods.
-PRE_GET_PREFIX = '_pre_get_'
-GET_PREFIX = '_get_'
-POST_GET_PREFIX = '_post_get_'
-PRE_SET_PREFIX = '_pre_set_'
-SET_PREFIX = '_set_'
-POST_SET_PREFIX = '_post_set_'
-
-CUSTOMIZABLE = ((PRE_GET_PREFIX, 'pre_get'), (GET_PREFIX, 'get'),
-                (POST_GET_PREFIX, 'post_get'),
-                (PRE_SET_PREFIX, 'pre_set'), (SET_PREFIX, 'set'),
-                (POST_SET_PREFIX, 'post_set'))
-
-
-LIMITS_PREFIX = '_limits_'
-
-
-class set_feat(object):
-    """Placeholder used to alter a feature in a subclass.
-
-    This can be used to lightly alter a Feature defined on a parent class
-    by for example changing the retries or the getter but without
-    rewriting everything.
-
-    Parameters
-    ----------
-    **kwargs
-        New keyword arguments to pass to the constructor to alter the Feature.
-
-    """
-    def __init__(self, **kwargs):
-        self.custom_attrs = kwargs
-
-    def customize(self, feat):
-        """Customize a feature using the given kwargs.
-
-        """
-        cls = type(feat)
-        kwargs = feat.creation_kwargs.copy()
-        kwargs.update(self.custom_attrs)
-        new = cls(**kwargs)
-
-        new.copy_custom_behaviors(feat)
-
-        return new
-
-
-class set_action(object):
-    """Placeholder used to alter an action in a subclass.
-
-    This can be used to lightly alter an Action defined on a parent class.
-
-    Parameters
-    ----------
-    **kwargs
-        New keyword arguments to pass to the constructor to alter the Action.
-
-    """
-    def __init__(self, **kwargs):
-        self.custom_attrs = kwargs
-
-    def customize(self, action):
-        """Customize an action using the given kwargs.
-
-        """
-        cls = type(action)
-        kwargs = action.kwargs.copy()
-        kwargs.update(self.custom_attrs)
-        new = cls(**kwargs)
-
-        new(action.func)
-
-        return new
-
-# Sentinel returned when decorating a method with a subpart.
-SUBPART_FUNC = object()
-
-
-class _subpart(object):
-    """Sentinel used to collect declarations or modifications for a subpart.
-
-    Parameters
-    ----------
-    bases : class or tuple of classes, optional
-        Class or classes to use as base class when no matching subpart exists
-        on the driver.
-
-    """
-    def __init__(self, bases=()):
-        self._name_ = ''
-        if not isinstance(bases, tuple):
-            bases = (bases,)
-        self._bases_ = bases
-        self._parent_ = None
-        self._aliases_ = []
-        self._temp_frame_ = None
-
-    def __setattr__(self, name, value):
-        if isinstance(value, _subpart):
-            object.__setattr__(value, '_parent_', self)
-        object.__setattr__(self, name, value)
-
-    def __call__(self, func):
-        """Decorator maker to register functions in the subpart.
-
-        The function is stored in the object under its own name.
-
-        Returns
-        -------
-        ret : SUBPART_FUNC
-            Dummy letting the metaclass to remove this from the class
-            definition.
-
-        """
-        object.__setattr__(self, func.__name__, func)
-        return SUBPART_FUNC
-
-    def __enter__(self):
-        """Using this a context manager helps readability and can allow to
-        use shorter names in declarations.
-
-        """
-        self._temp_frame_ = currentframe().f_back.f_locals.copy()
-        return self
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        """"Using this a context manager helps readability and can allow to
-        use shorter names in declarations.
-
-        When exiting we cleanup the class frame to avoid leaking subpart only
-        declarations into the main class. We also discover the aliases used
-        for this subpart which are later used to collect the docstrings of the
-        features.
-
-        """
-        frame = currentframe().f_back
-        frame_locals = frame.f_locals
-        diff = set(frame_locals) - set(self._temp_frame_)
-        aliases = {k: v for k, v in frame_locals.items()
-                   if k in diff and v is self}
-        self._aliases_.extend(aliases)
-        for k in diff:
-            del frame.f_locals[k]
-        self._temp_frame_ = None
-
-
-class subsystem(_subpart):
-    """Sentinel used to collect declarations or modifications for a subsystem.
-
-    Parameters
-    ----------
-    bases : class or tuple of classes, optional
-        Class or classes to use as base class when no matching subpart exists
-        on the driver.
-
-    """
-    pass
-
-
-class channel(_subpart):
-    """Sentinel used to collect declarations or modifications for a channel.
-
-
-    Parameters
-    ----------
-    available : unicode, tuple or list, optional
-        Name of the parent method to call to know which channels exist or list
-        of channel ids. If absent the channel declaration on the base class is
-        used instead.
-
-    bases : class or tuple of classes, optional
-        Class or classes to use as base class when no matching subpart exists
-        on the driver.
-
-    aliases : dict, optional
-        Dictionary providing aliases for channels ids. Aliases can be simple
-        values, list or tuple.
-
-    """
-    def __init__(self, available=None, bases=(), aliases=None):
-        super(channel, self).__init__(bases)
-        self._available_ = available
-        self._ch_aliases_ = aliases if aliases else {}
-
-
-def make_list_function(available, aliases):
-    """Build the function used to list the available channels.
-
-    """
-    if isinstance(available, (tuple, list)):
-        if aliases:
-            return lambda driver: chain(available, aliases.keys())
-        else:
-            return lambda driver: available
-
-    else:
-        return lambda driver: getattr(driver, available)()
-
-
-def make_cls_from_subpart(parent_name, part_name, part, base, docs):
-    """Dynamically creates a subclass from a subpart object.
-
-    Parameters
-    ----------
-    parent_name : unicode
-        Name of the parent class system. Used to build the name of the new
-        class.
-
-    part_name : unicode
-        Name of the attribute on the parent in which the new class will be
-        stored. The name of the class will be the constraction of the parent
-        name and of this name.
-
-    part : _subpart
-        _subpart object containing the class definition.
-
-    base : type
-        Base type for the new class. Will be prepended to any class specified
-        in the subpart declaration.
-
-    docs : dict
-        Dictionary containing the docstring collected on the parent.
-
-    """
-    # If provided prepend base to declared base classes.
-    if base:
-        bases = tuple([base] + list(part._bases_))
-
-    # Otherwise check that we have a SubSystem or Channel subclass in the
-    # mro and if not prepend it.
-    else:
-        bases = part._bases_
-        if (isinstance(part, subsystem) and
-                (not bases or not issubclass(bases[0], AbstractSubSystem))):
-            from .base_subsystem import SubSystem
-            bases = tuple([SubSystem] + list(bases))
-        elif (isinstance(part, channel) and
-                (not bases or not issubclass(bases[0], AbstractChannel))):
-            from .base_channel import Channel
-            bases = tuple([Channel] + list(bases))
-
-    # Extract the docstring specific to this subpart.
-    part_doc = docs.get(part_name, '')
-    s_docs = {tuple(k.split('.', 1)): v for k, v in docs.items()}
-    docs = {k[-1]: v for k, v in s_docs.items()
-            if k[0] in part._aliases_ and len(k) == 2}
-
-    meta = type(bases[0])
-    # Python 2 fix : class name can't be unicode
-    name = str(parent_name + part_name.capitalize())
-    dct = dict(part.__dict__)
-    del dct['_name_']
-    del dct['_parent_']
-    del dct['_bases_']
-    del dct['_aliases_']
-    dct['_docs_'] = docs
-    new_class = meta(name, bases, dct)
-    new_class.__doc__ = part_doc
-    return new_class
-
-
-class AbstractHasFeatures(with_metaclass(ABCMeta, object)):
-    """Sentinel class for the collections of Features.
-
-    """
-    pass
-
-
-class AbstractSubSystem(with_metaclass(ABCMeta, object)):
-    """Sentinel for subsystem identification.
-
-    """
-    pass
-
-AbstractHasFeatures.register(AbstractSubSystem)
-
-
-class AbstractChannel(with_metaclass(ABCMeta, object)):
-    """Sentinel class for channel identification.
-
-    """
-    pass
-
-AbstractHasFeatures.register(AbstractChannel)
+from .abstracts import (AbstractHasFeatures, AbstractFeature, AbstractAction)
+from .declarative import (set_feat, set_action, SubpartDecl, subsystem,
+                          channel, limit)
 
 
 class HasFeaturesMeta(ABCMeta):
@@ -319,31 +36,24 @@ class HasFeaturesMeta(ABCMeta):
         # Pass over the class dict once and collect the information
         # necessary to implement the various behaviours.
         feats = {}                       # Feature declarations
+        actions = {}                     # Action declarations
         subsystems = {}                  # Subsystem declarations
         channels = {}                    # Channels declaration
         subparts = {}                    # Declared subparts
-        cust_feats = {'pre_get': [],     # Pre get methods _pre_get_*
-                      'get': [],         # Get methods: _get_*
-                      'post_get': [],    # Post get methods: _post_get_*
-                      'pre_set': [],     # Pre set methods: _pre_set_*
-                      'set': [],         # Set methods: _set_*
-                      'post_set': []     # Post set methods: _post_set_*
-                      }
         feat_paras = {}                  # Sentinels changing feats behavior.
         action_paras = {}                # Sentinels changing actions behavior.
-        limits = []                      # Names of the defined limits.
-
-        # List of the entries to remove from the class because they are
-        # destinated to a subpart.
-        to_remove = []
+        limits = {}                      # Defined limits.
 
         docs = dct.pop('_docs_') if '_docs_' in dct else None
+
+        # Names that should be removed from the class body
+        to_remove = set()
 
         # First we identify all elements in the passed dict to clean it up
         # before creating the class.
         for key, value in dct.items():
 
-            if isinstance(value, _subpart):
+            if isinstance(value, SubpartDecl):
                 value._name_ = key
                 subparts[key] = value
 
@@ -351,12 +61,17 @@ class HasFeaturesMeta(ABCMeta):
                 feats[key] = value
                 value.name = key
 
+            elif isinstance(value, AbstractAction):
+                actions[key] = value
+                value.name = name
+
             elif isinstance(value, set_feat):
                 feat_paras[key] = value
 
             elif isinstance(value, set_action):
                 action_paras[key] = value
 
+            # XXX look for modifiers instances as they will be self contained
             elif isinstance(value, FunctionType):
                 startswith = key.startswith
                 if startswith(POST_GET_PREFIX):
@@ -371,11 +86,14 @@ class HasFeaturesMeta(ABCMeta):
                     cust_feats['get'].append(key)
                 elif startswith(SET_PREFIX):
                     cust_feats['set'].append(key)
-                elif startswith(LIMITS_PREFIX):
-                    limits.append(key)
+
+            elif isinstance(value, limit):
+                to_remove.add(key)
+                limit_id = limit.extract_id(key)
+                limits[limit_id] = limit.func
 
         # Clean up class dictionary.
-        for k in chain(feat_paras, action_paras, to_remove, subparts):
+        for k in chain(feat_paras, action_paras, subparts):
             del dct[k]
 
         # Create the class object.
@@ -411,44 +129,38 @@ class HasFeaturesMeta(ABCMeta):
                              for k, v in b.__subsystems__.items()])
         inherited_ch = dict([(k, v) for b in bases
                              for k, v in b.__channels__.items()])
-        for k in subparts:
-            part = subparts[k]
-            part_name = k
+
+        # XXX store channels as cls and part (update part to make it complete)
+        #     so that the signature can be made much more generic
+        for part_name, part in subparts.items():
             if not hasattr(part, 'retries_exceptions'):
                 part.retries_exceptions = cls.retries_exceptions
             # If a subpart with the same name has already been declared on a
             # parent class we use its class as a base class for the one we are
             # about to create.
             if k in inherited_ss:
-                subsystems[part_name] = make_cls_from_subpart(name, part_name,
-                                                              part,
-                                                              inherited_ss[k],
-                                                              docs)
+                subsystems[part_name] = part.build_cls(name, inherited_ss[k],
+                                                       docs)
             elif k in inherited_ch:
-                ch_cls = make_cls_from_subpart(name, part_name,
-                                               part, inherited_ch[k][0],
-                                               docs)
+                ch_cls = part.build_cls(name, inherited_ch[k][0], docs)
 
                 # Must be valid otherwise parent declaration would be messed up
-                available = (part._available if part._available_
-                             else inherited_ch[k][1])
+                available = (part.build_list_channel_function()
+                             if part._available_ else inherited_ch[k][1])
                 aliases = (part._ch_aliases_ if part._ch_aliases_ else
                            inherited_ch[k][2])
                 channels[part_name] = (ch_cls, available, aliases)
 
             else:
                 if isinstance(part, subsystem):
-                    subsystems[part_name] = make_cls_from_subpart(name,
-                                                                  part_name,
-                                                                  part, None,
-                                                                  docs)
+                    subsystems[part_name] = part.build_cls(name, None, docs)
                 elif isinstance(part, channel):
-                    ch_cls = make_cls_from_subpart(name, part_name, part,
-                                                   None, docs)
+                    ch_cls = part.build_cls(name, None, docs)
                     if not part._available_:
-                        msg = 'No way to identify channels defined for {}'
+                        msg = 'No way to identify available channels for {}'
                         raise ValueError(msg.format(k))
-                    channels[part_name] = (ch_cls, part._available_,
+                    channels[part_name] = (ch_cls,
+                                           part.build_list_channel_function(),
                                            part._ch_aliases_)
 
         # Put references to the subsystem and channel classes on the class.
@@ -462,35 +174,34 @@ class HasFeaturesMeta(ABCMeta):
         inherited_ch.update(channels)
         channels = inherited_ch
 
+        # Customize feature (action) for which a set_feat (set_action) has been
+        # declared.
+        # This creates a new instances which are hence owned.
+        for paras, owned in ((feat_paras, feats), (action_paras, actions)):
+            for k, v in paras.items():
+                feat = v.customize(getattr(cls, k))
+                owned[k] = feat
+                setattr(cls, k, feat)
+
         # Walk the mro of the class, excluding itself, in reverse order
-        # collecting all of the feats into a single dict. The reverse
-        # update preserves the mro of overridden features.
+        # collecting all of the features and actions into a single dict. The
+        # reverse update preserves the mro of overridden features and actions.
         base_feats = {}
-        for base in reversed(cls.__mro__[1:-1]):
+        base_actions = {}
+        for base in reversed(cls.__mro__[1:]):
             if base is not AbstractHasFeatures \
                     and issubclass(base, AbstractHasFeatures):
                 base_feats.update(base.__feats__)
+                base_actions.update(base.__actions__)
 
-        # The set of features which live on this class as opposed to a
-        # base class. This enables the code which hooks up the various
-        # static behaviours to only clone a feature when necessary.
-        owned_feats = set(feats.keys())
+        # Clone all features/actions not owned at this stage.
+        for base, owned in ((base_feats, feats), (base_actions, actions)):
+            for k, v in {k: v for k, v in base.items() if k not in owned}:
+                owned[k] = v.clone()
 
-        all_feats = dict(base_feats)
-        all_feats.update(feats)
-
-        # Clone and customize feature for which a set_feat has been
-        # declared.
-        for k, v in feat_paras.items():
-            feat = v.customize(all_feats[k])
-            owned_feats.add(k)
-            all_feats[k] = feat
-            setattr(cls, k, feat)
-
-        # Add the special statically defined behaviours for the features.
-        # If the target feature is defined on a parent class, it is cloned
-        # so that the behaviour of the parent class is not modified.
-
+        # Add the special statically defined behaviours for the
+        # features/actions.
+        # XXX update after the modifier re-write
         def clone_if_needed(feat):
             if feat.name not in owned_feats:
                 feat = feat.clone()
@@ -517,13 +228,11 @@ class HasFeaturesMeta(ABCMeta):
         for prefix, attr in CUSTOMIZABLE:
             customize_feats(cls, cust_feats[attr], prefix, attr)
 
-        for k, v in action_paras.items():
-            action = v.customize(getattr(cls, k))
-            setattr(cls, k, action)
-
-        # Put a reference to the features dict on the class. This is used
-        # by HasFeaturesMeta to query for the features.
+        # Put a reference to the features dict on the class.
         cls.__feats__ = feats
+
+        # Put a reference to the actions dict on the class.
+        cls.__actions__ = actions
 
         # Put a reference to the subsystems in the class.
         # This is used at initialisation to create the appropriate subsystems
@@ -532,8 +241,8 @@ class HasFeaturesMeta(ABCMeta):
         # Put a reference to the channels in the class
         cls.__channels__ = channels
 
-        # Keep a ref to names of the declared limits accessors.
-        cls.__limits__ = set([r[len(LIMITS_PREFIX):] for r in limits])
+        # Put a reference to the limits in the class.
+        cls.__limits__ = limits
 
         return cls
 
@@ -564,10 +273,10 @@ class HasFeatures(with_metaclass(HasFeaturesMeta, object)):
 
         # Creating a channel container for each kind of declared channels.
         for ch, (cls, available, aliases) in channels.items():
-            from .base_channel import ChannelContainer
+            # XXX update after container init refactoring
             listing_function = make_list_function(available, aliases)
-            ch_holder = ChannelContainer(cls, self, ch, listing_function,
-                                         aliases)
+            ch_holder = cls.__container_type__(cls, self, ch, listing_function,
+                                               aliases)
             setattr(self, ch, ch_holder)
 
     def get_feat(self, name):
@@ -711,10 +420,10 @@ class HasFeatures(with_metaclass(HasFeaturesMeta, object)):
     def declared_limits(self):
         """Set of declared limits for the class.
 
-        Ranges are considered declared as soon as a getter has been defined.
+        Limits are considered declared as soon as a getter has been defined.
 
         """
-        return self.__limits__
+        return list(self.__limits__)
 
     def get_limits(self, limits_id):
         """Access the limits object matching the definition.
@@ -733,8 +442,7 @@ class HasFeatures(with_metaclass(HasFeaturesMeta, object)):
 
         """
         if limits_id not in self._limits_cache:
-            self._limits_cache[limits_id] = getattr(self,
-                                                    LIMITS_PREFIX+limits_id)()
+            self._limits_cache[limits_id] = self.__limits__[limits_id](self)
 
         return self._limits_cache[limits_id]
 
@@ -752,6 +460,11 @@ class HasFeatures(with_metaclass(HasFeaturesMeta, object)):
         for lim_id in limits_id:
             if lim_id in self._limits_cache:
                 del self._limits_cache[lim_id]
+
+    def check_errors(self, e):
+        """
+        """
+        pass  # XXX write
 
     def reopen_connection(self):
         """Reopen the connection to the instrument.

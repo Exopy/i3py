@@ -12,11 +12,8 @@
 from __future__ import (division, unicode_literals, print_function,
                         absolute_import)
 
-from abc import ABCMeta
 from functools import update_wrapper, partial
-from types import MethodType
 
-from future.utils import with_metaclass
 from past.builtins import basestring
 from funcsigs import signature
 
@@ -26,21 +23,7 @@ from ..util import (build_checker, validate_in, validate_limits,
                     get_limits_and_validate)
 
 
-class AbstractAction(with_metaclass(ABCMeta, object)):
-    """Abstract base class for actions.
-
-    """
-    def __call__(self, func):
-        update_wrapper(self, func)
-        self.func = func
-        return self
-
-    def __get__(self, obj, objtype=None):
-        if obj is None:
-            return self
-        return MethodType(self.func, obj)
-
-
+# XXX add pre, post call and specific object returned by get
 class Action(AbstractAction):
     """Wraps a method with pre and post processing operations.
 

@@ -32,3 +32,17 @@ class I3pyTimeoutError(I3pyError):
 
 class I3pyInterfaceNotSupported(I3pyError):
     pass
+
+
+class I3pyValueError(ValueError, I3pyError):
+    """I3py specific value error.
+
+    """
+    pass
+
+
+class I3pyLimitsError(ValueError, I3pyError):
+    """Error raised when a value does not fit in the given limits.
+
+    """
+    pass

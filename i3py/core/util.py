@@ -15,6 +15,7 @@ from future.utils import exec_
 from future.builtins import str
 
 from collections import OrderedDict
+from .errors import I3pyValueError, I3pyLimitsError
 
 
 def build_checker(checks, signature, ret=''):
@@ -62,7 +63,7 @@ def validate_in(driver, value, values, name):
     """
     if value not in values:
         mess = 'Allowed value for {} are {}, {} not allowed'
-        raise ValueError(mess.format(name, values, value))
+        raise I3pyValueError(mess.format(name, values, value))
     return value
 
 
@@ -96,7 +97,7 @@ def raise_limits_error(name, value, limits):
         mess += ' Maximum {}.'.format(limits.maximum)
     if limits.step:
         mess += ' Step {}.'.format(limits.step)
-    raise ValueError(mess)
+    raise I3pyLimitsError(mess)
 
 
 def byte_to_dict(byte, mapping):

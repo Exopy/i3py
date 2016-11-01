@@ -19,6 +19,7 @@ from i3py.core.features.scalars import Unicode, Int, Float
 from i3py.core.limits import IntLimitsValidator, FloatLimitsValidator
 from i3py.core.unit import get_unit_registry, UNIT_SUPPORT
 from i3py.core.has_features import set_feat
+from i3py.core.errors import I3pyValueError, I3pyLimitsError
 
 from ..testing_tools import DummyParent
 from .test_mappings import TestMappingInit
@@ -41,7 +42,7 @@ class TestUnicodeInit(TestEnumerableInit, TestMappingInit):
 def test_unicode():
     u = Unicode(setter=True, values=['On', 'Off'])
     assert u.pre_set(None, 'On') == 'On'
-    with raises(ValueError):
+    with raises(I3pyValueError):
         u.pre_set(None, 'TEST')
     assert isinstance(u.post_get(None, 1), type(''))
 
@@ -228,7 +229,7 @@ class TestFloat(object):
     def test_set_with_static_limits(self):
         f = Float(setter=True, limits=(0.0, ))
         assert f.pre_set(None, 0.1) == 0.1
-        with raises(ValueError):
+        with raises(I3pyLimitsError):
             f.pre_set(None, -1.0)
 
     def test_set_with_dynamic_limits(self):

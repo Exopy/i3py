@@ -47,3 +47,4 @@ docs/build
 *.idea
 .spyderproject
 .spyderworkspace
+.spyproject

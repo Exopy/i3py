@@ -15,8 +15,7 @@ to customize Feature behaviour by defining specially named methods.
 from __future__ import (division, unicode_literals, print_function,
                         absolute_import)
 
-from types import FunctionType
-from inspect import cleandoc, getsourcelines
+from inspect import getsourcelines
 from itertools import chain
 from abc import ABCMeta
 from collections import defaultdict
@@ -26,6 +25,7 @@ from future.utils import with_metaclass
 from .abstracts import (AbstractHasFeatures, AbstractFeature, AbstractAction)
 from .declarative import (set_feat, set_action, SubpartDecl, subsystem,
                           channel, limit)
+from .composition import MethodCustomizer
 
 
 class HasFeaturesMeta(ABCMeta):
@@ -42,6 +42,7 @@ class HasFeaturesMeta(ABCMeta):
         subparts = {}                    # Declared subparts
         feat_paras = {}                  # Sentinels changing feats behavior.
         action_paras = {}                # Sentinels changing actions behavior.
+        m_customizers = {}               # Sentinels customizing methods.
         limits = {}                      # Defined limits.
 
         docs = dct.pop('_docs_') if '_docs_' in dct else None
@@ -71,21 +72,8 @@ class HasFeaturesMeta(ABCMeta):
             elif isinstance(value, set_action):
                 action_paras[key] = value
 
-            # XXX look for modifiers instances as they will be self contained
-            elif isinstance(value, FunctionType):
-                startswith = key.startswith
-                if startswith(POST_GET_PREFIX):
-                    cust_feats['post_get'].append(key)
-                elif startswith(PRE_SET_PREFIX):
-                    cust_feats['pre_set'].append(key)
-                elif startswith(POST_SET_PREFIX):
-                    cust_feats['post_set'].append(key)
-                elif startswith(PRE_GET_PREFIX):
-                    cust_feats['pre_get'].append(key)
-                elif startswith(GET_PREFIX):
-                    cust_feats['get'].append(key)
-                elif startswith(SET_PREFIX):
-                    cust_feats['set'].append(key)
+            elif isinstance(value, MethodCustomizer):
+                m_customizers[key] = value
 
             elif isinstance(value, limit):
                 to_remove.add(key)
@@ -93,7 +81,8 @@ class HasFeaturesMeta(ABCMeta):
                 limits[limit_id] = limit.func
 
         # Clean up class dictionary.
-        for k in chain(feat_paras, action_paras, subparts):
+        for k in chain(feat_paras, action_paras, subparts, m_customizers,
+                       to_remove):
             del dct[k]
 
         # Create the class object.
@@ -130,8 +119,7 @@ class HasFeaturesMeta(ABCMeta):
         inherited_ch = dict([(k, v) for b in bases
                              for k, v in b.__channels__.items()])
 
-        # XXX store channels as cls and part (update part to make it complete)
-        #     so that the signature can be made much more generic
+        # Create subsystem and channels classes
         for part_name, part in subparts.items():
             if not hasattr(part, 'retries_exceptions'):
                 part.retries_exceptions = cls.retries_exceptions
@@ -201,32 +189,8 @@ class HasFeaturesMeta(ABCMeta):
 
         # Add the special statically defined behaviours for the
         # features/actions.
-        # XXX update after the modifier re-write
-        def clone_if_needed(feat):
-            if feat.name not in owned_feats:
-                feat = feat.clone()
-                all_feats[feat.name] = feat
-                feats[feat.name] = feat
-                owned_feats.add(feat)
-                setattr(cls, feat.name, feat)
-            return feat
-
-        def customize_feats(cls, feats, prefix, feat_meth):
-            n = len(prefix)
-            for mangled in feats:
-                target = mangled[n:]
-                if target in all_feats:
-                    feat = clone_if_needed(all_feats[target])
-                    meth = getattr(cls, mangled)
-                    feat.modify_behavior(feat_meth, meth,
-                                         getattr(meth, '_composing', ()))
-                else:
-                    mess = cleandoc('''{} has no Feature {} whose behaviour
-                                    can be customised''')
-                    raise AttributeError(mess.format(cls, target))
-
-        for prefix, attr in CUSTOMIZABLE:
-            customize_feats(cls, cust_feats[attr], prefix, attr)
+        for key, cust in m_customizers.items:
+            cust.customize(cls, key)
 
         # Put a reference to the features dict on the class.
         cls.__feats__ = feats
@@ -272,10 +236,8 @@ class HasFeatures(with_metaclass(HasFeaturesMeta, object)):
             setattr(self, ss, subsystem)
 
         # Creating a channel container for each kind of declared channels.
-        for ch, (cls, available, aliases) in channels.items():
-            # XXX update after container init refactoring
-            listing_function = make_list_function(available, aliases)
-            ch_holder = cls.__container_type__(cls, self, ch, listing_function,
+        for ch, (cls, list_avalaible, aliases) in channels.items():
+            ch_holder = cls.__container_type__(cls, self, ch, list_avalaible,
                                                aliases)
             setattr(self, ch, ch_holder)
 

@@ -12,20 +12,17 @@
 from __future__ import (division, unicode_literals, print_function,
                         absolute_import)
 
-from abc import ABCMeta
 from types import MethodType
-from collections import OrderedDict
 
 from stringparser import Parser
-from future.utils import with_metaclass
 
-from .util import (wrap_custom_feat_method, MethodsComposer, COMPOSERS,
-                   AbstractGetSetFactory)
 from ..errors import I3pyError
 from ..util import build_checker
+from ..abstracts import AbstractFeature, AbstractGetSetFactory
+from ..composition import SupportMethodCustomization
 
 
-class Feature(AbstractFeature):
+class Feature(AbstractFeature, SupportMethodCustomization):
     """Descriptor representing the most basic instrument property.
 
     Features should not be used outside the definition of a class to avoid
@@ -309,7 +306,7 @@ class Feature(AbstractFeature):
         for k, v in self.__dict__.items():
             if isinstance(v, MethodType):
                 setattr(p, k, MethodType(v.__func__, p))
-            elif isinstance(v, MethodsComposer):
+            elif hasattr(v, 'clone'):
                 setattr(p, k, v.clone())
             elif isinstance(v, dict):
                 setattr(p, k, v.copy())
@@ -317,166 +314,6 @@ class Feature(AbstractFeature):
                 setattr(p, k, v)
 
         return p
-
-    def modify_behavior(self, method_name, custom_method, specifiers=(),
-                        internal=False):
-        """Alter the behavior of the Feature using the provided method.
-
-        Those operations are logged into the _customs dictionary in OrderedDict
-        for each method so that they can be duplicated by copy_custom_behaviors
-        The storing format is as follow : method, name of the operation, args
-        of the operation.
-
-        Parameters
-        ----------
-        method_name : unicode
-            Name of the Feature behavior which should be modified.
-
-        custom_method : callable|None
-            Method to use when customizing the feature behavior, or None when
-            removing a customization.
-
-        specifiers : tuple, optional
-            Tuple used to determine how the method should be used. If ommitted
-            the method will simply replace the existing behavior otherwise
-            it will be used to update the MethodComposer in the adequate
-            fashion. For get and set MethodComposers are not used and no matter
-            this value the method will replace the existing behavior.
-            ex : ('custom', 'add_after', 'old')
-
-        internal : bool, optional
-            Private flag used to indicate that this method is used for internal
-            purposes and that the modification makes no sense to remember as
-            this won't have to be copied by copy_custom_behaviors.
-
-        """
-        # Make the method a method of the Feature.
-        # The if clause handles the case of 'remove' for which passing None
-        # should work
-        m = (wrap_custom_feat_method(custom_method, self) if custom_method
-             else None)
-
-        # In the absence of specifiers or for get and set we simply replace the
-        # method.
-        if method_name in ('get', 'set') or not specifiers:
-            setattr(self, method_name, m)
-            if not internal:
-                self._customs[method_name] = m
-            return
-
-        # Otherwise we make sure we have a MethopsComposer.
-        composer = getattr(self, method_name)
-        if not isinstance(composer, MethodsComposer):
-            composer = COMPOSERS[method_name]()
-
-        # In case of non internal modifications (ie unrelated to Feature
-        # initialisation) we keep a description of what has been done to be
-        # able to copy those behaviors. If a method already existed we assume
-        # it was meaningful and add it in the composer under the id 'old'.
-        if not internal:
-            if method_name not in self._customs:
-                self._customs[method_name] = OrderedDict()
-            elif not isinstance(self._customs[method_name], OrderedDict):
-                old = self._customs[method_name]
-                composer.prepend('old', old)
-                self._customs[method_name] = OrderedDict(old=(old, 'prepend'))
-
-        # We now update the composer.
-        composer_method_name = specifiers[1]
-        composer_method = getattr(composer, composer_method_name)
-        if composer_method_name in ('add_before', 'add_after'):
-            composer_method(specifiers[2], specifiers[0], m)
-        elif composer_method_name == 'remove':
-            composer_method(specifiers[0])
-        else:
-            composer_method(specifiers[0], m)
-
-        # Finally we update the _customs dict and reassign the composer.
-        setattr(self, method_name, composer)
-        if not internal:
-            customs = self._customs[method_name]
-            if composer_method_name == 'remove':
-                del customs[specifiers[0]]
-            elif composer_method_name == 'replace':
-                if specifiers[0] in customs:
-                    old = list(customs[specifiers[0]])
-                    old[0] = m
-                    customs[specifiers[0]] = tuple(old)
-                else:
-                    ind = composer._names.index(specifiers[0])
-                    if ind == 0:
-                        customs[specifiers[0]] = (m, 'prepend')
-                    else:
-                        n = composer._names[ind-1]
-                        customs[specifiers[0]] = (m, 'add_after', n)
-            else:
-                op = [m] + list(specifiers[1:])
-                self._customs[method_name][specifiers[0]] = tuple(op)
-
-    def copy_custom_behaviors(self, feat):
-        """Copy the custom behaviors existing on a feature to this one.
-
-        This is used by set_feat to preserve the custom behaviors after
-        recreating the feature with different kwargs. If an add_before or
-        add_after clause cannot be satisfied because the anchor disappeared
-        this method tries to insert the custom method in the most likely
-        position.
-
-        CAUTION : This method strives to build something that makes sense but
-        it will most likely fail in some weird corner cases so avoid as mush as
-        possible to use set_feat on feature modified using specially named
-        method on the driver.
-
-        """
-        # Loop on methods which are affected by mofifiers.
-        for meth_name, modifiers in feat._customs.items():
-            if isinstance(modifiers, MethodType):
-                    self.modify_behavior(meth_name, modifiers)
-                    continue
-
-            # Loop through all the modifications.
-            for custom, modifier in modifiers.items():
-
-                method = getattr(self, meth_name)
-                # In the absence of anchor we simply attempt the operation.
-                if modifier[1] not in ('add_after', 'add_before'):
-                    self.modify_behavior(meth_name, modifier[0],
-                                         (custom, modifier[1]))
-                elif not isinstance(method, MethodsComposer):
-                    aux = {'add_after': 'append', 'add_before': 'prepend'}
-                    self.modify_behavior(meth_name, modifier[0],
-                                         (custom, aux[modifier[1]]))
-
-                # Otherwise we check whether or not the anchor exists and if
-                # not try to find the most meaningfull one.
-                else:
-                    our_names = method._names
-                    if modifier[2] in our_names:
-                        self.modify_behavior(meth_name, modifier[0],
-                                             (custom, modifier[1],
-                                              modifier[2]))
-                    else:
-                        feat_names = getattr(feat, meth_name)._names
-                        # For add after we try to find an entry existing in
-                        # both feature going backward (we will prepend at the
-                        # worst), for add before we go forward (we will append
-                        # in the absence of match).
-                        shift = -1 if modifier[1] == 'add_after' else -1
-                        index = feat_names.index(custom)
-                        while index > 0 and index < len(feat_names)-1:
-                            index += shift
-                            name = feat_names[index]
-                            if name in our_names:
-                                self.modify_behavior(meth_name, modifier[0],
-                                                     (custom, modifier[1],
-                                                      name))
-                                shift = 0
-                                break
-
-                        if shift != 0:
-                            op = 'prepend' if shift == -1 else 'append'
-                            self.modify_behavior(meth_name, modifier[0],
-                                                 (custom, op))
 
     def _build_checkers(self, checks):
         """Create the custom check function and bind them to check_get and

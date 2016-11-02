@@ -71,7 +71,80 @@ class AbstractChannelContainer(ABC):
             yield self[id]
 
 
-class AbstractFeature(with_metaclass(ABCMeta, property)):
+class AbstractSupportMethodCustomization(ABC):
+    """Abstract class for objects supporting to have their method customized.
+
+    """
+    @abstractmethod
+    def validate_specifiers(self, method_name, specifiers):
+        """Validate that a set of specifiers can be applied to a specific
+        method.
+
+        """
+        pass
+
+    @abstractmethod
+    def modify_behavior(self, method_name, func, specifiers=(),
+                        internal=False):
+        """Alter the behavior of the Feature using the provided method.
+
+        Those operations are logged into the _customs dictionary in OrderedDict
+        for each method so that they can be duplicated by copy_custom_behaviors
+        The storing format is as follow : method, name of the operation, args
+        of the operation.
+
+        Parameters
+        ----------
+        method_name : unicode
+            Name of the method which should be modified.
+
+        func : callable|None
+            Function to use when customizing the feature behavior, or None when
+            removing a customization.
+
+        specifiers : tuple, optional
+            Tuple used to determine how the function should be used. If
+            ommitted the function will simply replace the existing behavior
+            otherwise it will be used to update the MethodComposer in the
+            adequate fashion.
+            The tuple content should be :
+            - id of the modification, used to refer to it in later modification
+            - kind of modification : 'prepend', 'add_before', 'add_after',
+              'append', replace', 'remove'
+            - argument to the modifier, necessary only for 'add_after',
+              'add_before' and should refer to the id of a previous
+              modification.
+            ex : ('custom', 'add_after', 'old')
+
+        internal : bool, optional
+            Private flag used to indicate that this method is used for internal
+            purposes and that the modification makes no sense to remember as
+            this won't have to be copied by copy_custom_behaviors.
+
+        """
+        pass
+
+    @abstractmethod
+    def copy_custom_behaviors(self, obj):
+        """Copy the custom behaviors existing on a feature to this one.
+
+        This is used by set_feat to preserve the custom behaviors after
+        recreating the feature with different kwargs. If an add_before or
+        add_after clause cannot be satisfied because the anchor disappeared
+        this method tries to insert the custom method in the most likely
+        position.
+
+        CAUTION : This method strives to build something that makes sense but
+        it will most likely fail in some weird corner cases so avoid as mush as
+        possible to use set_feat on feature modified using specially named
+        method on the driver.
+
+        """
+        pass
+
+
+class AbstractFeature(with_metaclass(ABCMeta, property,
+                                     AbstractSupportMethodCustomization)):
     """Abstract class for Features.
 
     Attributes
@@ -95,14 +168,6 @@ class AbstractFeature(with_metaclass(ABCMeta, property)):
         """
         pass
 
-    @abstractmethod
-    def copy_custom_behaviors(self, feat):
-        """Copy the customized behavior of another feature.
-
-        """
-        # XXX describe customized behavior
-        pass
-
     def clone(self):
         """Create a clone of itself.
 
@@ -112,7 +177,7 @@ class AbstractFeature(with_metaclass(ABCMeta, property)):
         return new
 
 
-class AbstractAction(ABC):
+class AbstractAction(AbstractSupportMethodCustomization):
     """Abstract base class for actions.
 
     """
@@ -132,14 +197,6 @@ class AbstractAction(ABC):
         Should return a callable.
 
         """
-        pass
-
-    @abstractmethod
-    def copy_custom_behaviors(self, feat):
-        """Copy the customized behavior of another feature.
-
-        """
-        # XXX describe customized behavior
         pass
 
     def clone(self):
@@ -170,3 +227,40 @@ class AbstractLimitsValidator(ABC):
 
     """
     __slots__ = ('minimum', 'maximum', 'step', 'validate')
+
+
+class AbstractGetSetFactory(ABC):
+    """Abstract class for get/set factories.
+
+    Use by Feature to identify such a factory and use it to replace the
+    get/set method.
+
+    """
+
+    @abstractmethod
+    def build_getter(self):
+        """Build the function for getting the Feature value.
+
+        This method is called when a get/set factory is passed as the getter
+        argument to a Feature.
+
+        """
+        raise NotImplementedError()
+
+    @abstractmethod
+    def build_setter(self):
+        """Build the function for setting the Feature value.
+
+        This method is called when a get/set factory is passed as the setter
+        argument to a Feature.
+
+        """
+        raise NotImplementedError()
+
+
+class AbstractMethodCustomizer(ABC):
+    """Abstract class for object used to specify a modification of a method.
+
+    """
+    pass
+    # XXX complete

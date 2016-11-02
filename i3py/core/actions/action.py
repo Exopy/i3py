@@ -17,6 +17,8 @@ from functools import update_wrapper, partial
 from past.builtins import basestring
 from funcsigs import signature
 
+from ..abstracts import AbstractAction
+from ..composition import SupportMethodCustomization
 from ..limits import IntLimitsValidator, FloatLimitsValidator
 from ..unit import UNIT_SUPPORT, UNIT_RETURN, get_unit_registry, to_float
 from ..util import (build_checker, validate_in, validate_limits,
@@ -24,7 +26,7 @@ from ..util import (build_checker, validate_in, validate_limits,
 
 
 # XXX add pre, post call and specific object returned by get
-class Action(AbstractAction):
+class Action(AbstractAction, SupportMethodCustomization):
     """Wraps a method with pre and post processing operations.
 
     All parameters must be passed as keyword arguments.

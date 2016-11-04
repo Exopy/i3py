@@ -19,7 +19,7 @@ from stringparser import Parser
 from ..errors import I3pyError
 from ..util import build_checker
 from ..abstracts import AbstractFeature, AbstractGetSetFactory
-from ..composition import SupportMethodCustomization
+from ..composition import SupportMethodCustomization, MethodComposer
 
 
 class Feature(AbstractFeature, SupportMethodCustomization):
@@ -306,6 +306,8 @@ class Feature(AbstractFeature, SupportMethodCustomization):
         for k, v in self.__dict__.items():
             if isinstance(v, MethodType):
                 setattr(p, k, MethodType(v.__func__, p))
+            elif isinstance(v, MethodComposer):
+                setattr(p, k, v.clone(p))
             elif hasattr(v, 'clone'):
                 setattr(p, k, v.clone())
             elif isinstance(v, dict):

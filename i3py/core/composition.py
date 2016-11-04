@@ -12,6 +12,7 @@
 from __future__ import (division, unicode_literals, print_function,
                         absolute_import)
 
+from abc import abstractmethod, abstractproperty
 from types import MethodType
 from collections import OrderedDict
 
@@ -22,51 +23,6 @@ from .abstracts import (AbstractMethodCustomizer,
                         AbstractSupportMethodCustomization)
 
 
-# XXX to be re-used
-def wrap_custom_feat_method(meth, feat):
-    """ Wrap a HasFeature method to make it an driver method of a Feature.
-
-    This is necessary so that users can define overriding method in a natural
-    way in the HasFeatures subclass assuming that the driver object will be
-    passed as first argument and the Feature object as second when in reality
-    it will be the other way round due to python binding mechanism.
-
-    Parameters
-    ----------
-    meth : MethodType
-        Method which should be used to alter the default behaviour of the
-        Feature.
-    feat : Feature
-        Instance of Feature whose default behaviour should be overridden.
-
-    Returns
-    -------
-    wrapped : MethodType
-        Method object which can be
-
-    """
-    # Access the real function in case a method is passed.
-    if isinstance(meth, MethodType):
-        if meth.__self__ is feat:
-            return meth
-
-        wrapped = meth.__func__
-    else:
-        wrapped = meth
-
-    # Wrap if necessary the function to match the argument order.
-    if not hasattr(meth, '_feat_wrapped_'):
-        def wrapper(feat, driver, *args, **kwargs):
-            return wrapped(driver, feat, *args, **kwargs)
-
-        update_wrapper(wrapper, wrapped)
-        wrapper._feat_wrapped_ = wrapped
-    else:
-        wrapper = wrapped
-
-    return MethodType(wrapper, feat)
-
-
 class MetaMethodComposer(type):
     """Metaclass for method composer object offering custom instantiation.
 
@@ -74,11 +30,13 @@ class MetaMethodComposer(type):
     def __init__(cls):
         cls.sigs = {}  # Dict storing custom class for each signature
 
-    def __call__(cls, func, chain_on=None, *args, **kwargs):
+    def __call__(cls, obj, func, alias, chain_on=None, *args, **kwargs):
         """Create a custom subclass for each signature function.
 
         """
         sig = tuple(signature(func).parameters)
+        if 'self' in sig:
+            sig = tuple(s if s != 'self' else alias for s in sig)
         if sig not in cls.sigs:
             cls.sigs[sig] = cls.create_composer(func.__name__, sig, chain_on)
 
@@ -88,16 +46,17 @@ class MetaMethodComposer(type):
         """Dynamically create a subclass of base composer for a signature.
 
         """
-        chain = chain_on or '_private_return_'
+        chain = chain_on or ''
         name = '{}Composer'.format(name)
         # Should store sig on class attribute
         decl = ('class {name}(cls):\n',
                 '    __slots__ = ("sigs",)\n',
                 '    def __call__(self, {args}):\n',
                 '         for m in self._methods:\n',
-                '            {chain} m({args})\n',
+                '            {ret}m(self._obj{args})\n',
                 '         return {chain}',
-                ).format(name=name, args=', '.join(*sig), chain=chain)
+                ).format(name=name, args=', ' + ', '.join(*sig) if sig else '',
+                         chain=chain, ret=chain + ' = ' if chain else '')
         glob = dict(cls=cls)
         exec_(decl, glob)
         return glob[name]
@@ -106,31 +65,43 @@ class MetaMethodComposer(type):
 class MethodComposer(with_metaclass(MetaMethodComposer, object)):
     """Function like object used to compose feature methods calls.
 
-    All methods to call are kept in an ordered dict ensuring that they will
+    All methods to call are kept in an ordered fshion ensuring that they will
     be called in the right order while allowing fancy insertion based on method
     id.
 
     Parameters
     ----------
-    func : callable
+    obj : SupportMethodCustomization
+        Object whose method is customized through the use of a MethodComposer.
 
+    func : callable
+        Original function this composer is replacing. This should be a function
+        and not a bound method.
+
+    alias : unicode
+        Name to use to replace 'self' in method signature.
+
+    func_id : unicode, optional
+        Id of the original function to use in the composer.
 
     Notes
     -----
     Method ids must be unique and duplicate names are removed without warning.
 
     """
-    __slots__ = ('_names', '_methods')
+    __slots__ = ('_obj', '_alias', '_names', '_methods')
 
-    def __init__(self, func, func_id='old'):
+    def __init__(self, obj, func, alias, func_id='old'):
+        self._obj = obj
+        self._alias = alias
         self._methods = [func]
         self._names = [func_id]
 
-    def clone(self):
+    def clone(self, new_obj):
         """Create a full copy of the composer.
 
         """
-        new = type(self)()
+        new = type(self)(new_obj or self._obj, None, self._alias)
         new._names = self._names[:]
         new._methods = self._methods[:]
         return new
@@ -267,23 +238,45 @@ class MethodCustomizer(AbstractMethodCustomizer):
     """Marks a method to be used for customization of a descriptor method.
 
     """
-    __slots__ = ('obj_name', 'meth_name', 'modifiers')
+    __slots__ = ('obj_name', 'meth_name', 'modifiers', 'modif_id')
 
     def __init__(self, obj_name, meth_name, modifiers, modif_id):
-        pass
+        self.obj_name = obj_name
+        self.meth_name = meth_name
+        self.modifiers = modifiers
+        self.modif_id = modif_id
 
     def customize(self, owner, decorated_name):
-        """
+        """Customize the object owned by owner.
+
+        Parameters
+        ----------
+        owner : SupportMethodCustomization
+            Class owning the descriptor to customize.
+
+        decorate_name : unicode
+            Name uder which the customization function appear in the class
+            declaration.
+
         """
         pass
+        # XXX need to properly call modify_behavior
 
 
 class SupportMethodCustomization(AbstractSupportMethodCustomization):
     """Abstract class for objects supporting to have their method customized.
 
     """
+    def __init__(self, *args, **kwargs):
+        super(SupportMethodCustomization, self).__init__(*args, **kwargs)
+        self._customs = OrderedDict()
+
     @abstractmethod
     def analyse_method(self, meth_name):
+        pass
+
+    @abstractproperty
+    def self_alias(self):
         pass
 
     def modify_behavior(self, method_name, func, specifiers=(),
@@ -325,11 +318,10 @@ class SupportMethodCustomization(AbstractSupportMethodCustomization):
 
         """
         # XXX Need to ensure signature conformance before anything else
-        # XXX and automatic wrapping and method defining
         # In the absence of specifiers or for get and set we simply replace the
         # method.
         if not specifiers:
-            setattr(self, method_name, func)
+            setattr(self, method_name, MethodType(func, self))
             if not internal:
                 self._customs[method_name] = func
             return
@@ -337,7 +329,7 @@ class SupportMethodCustomization(AbstractSupportMethodCustomization):
         # Otherwise we make sure we have a MethodsComposer.
         composer = getattr(self, method_name)
         if not isinstance(composer, MethodComposer):
-            composer = MethodComposer(composer)
+            composer = MethodComposer(self, composer.__func__, self.self_alias)
 
         # In case of non internal modifications (ie unrelated to object
         # initialisation) we keep a description of what has been done to be

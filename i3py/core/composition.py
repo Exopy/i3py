@@ -30,17 +30,38 @@ class MetaMethodComposer(type):
     def __init__(cls):
         cls.sigs = {}  # Dict storing custom class for each signature
 
-    def __call__(cls, obj, func, alias, chain_on=None, *args, **kwargs):
+    def __call__(cls, obj, func, alias, chain_on=None, func_id='old'):
         """Create a custom subclass for each signature function.
+
+        Parameters
+        ----------
+        obj : SupportMethodCustomization
+            Object whose method is customized through the use of a
+            MethodComposer.
+
+        func : callable
+            Original function this composer is replacing. This should be a
+            function and not a bound method.
+
+        alias : unicode
+            Name to use to replace 'self' in method signature.
+
+        chain_on : unicode
+            Comma separated list of functions arguments that are also values
+            returned by the function.
+
+        func_id : unicode, optional
+            Id of the original function to use in the composer.
 
         """
         sig = tuple(signature(func).parameters)
         if 'self' in sig:
             sig = tuple(s if s != 'self' else alias for s in sig)
-        if sig not in cls.sigs:
-            cls.sigs[sig] = cls.create_composer(func.__name__, sig, chain_on)
+        id_ = (sig, chain_on)
+        if id_ not in cls.sigs:
+            cls.sigs[id_] = cls.create_composer(func.__name__, sig, chain_on)
 
-        return cls.sigs[sig](func)
+        return cls.sigs[id_](obj, func, alias, chain_on, func_id)
 
     def create_composer(cls, name, sig, chain_on):
         """Dynamically create a subclass of base composer for a signature.
@@ -81,6 +102,10 @@ class MethodComposer(with_metaclass(MetaMethodComposer, object)):
     alias : unicode
         Name to use to replace 'self' in method signature.
 
+    chain_on : unicode
+        Comma separated list of functions arguments that are also values
+        returned by the function.
+
     func_id : unicode, optional
         Id of the original function to use in the composer.
 
@@ -89,11 +114,12 @@ class MethodComposer(with_metaclass(MetaMethodComposer, object)):
     Method ids must be unique and duplicate names are removed without warning.
 
     """
-    __slots__ = ('_obj', '_alias', '_names', '_methods')
+    __slots__ = ('_obj', '_alias', '_chain_on', '_names', '_methods')
 
-    def __init__(self, obj, func, alias, func_id='old'):
+    def __init__(self, obj, func, alias, chain_on, func_id='old'):
         self._obj = obj
         self._alias = alias
+        self._chain_on = chain_on
         self._methods = [func]
         self._names = [func_id]
 
@@ -237,14 +263,41 @@ class MethodComposer(with_metaclass(MetaMethodComposer, object)):
 class MethodCustomizer(AbstractMethodCustomizer):
     """Marks a method to be used for customization of a descriptor method.
 
-    """
-    __slots__ = ('obj_name', 'meth_name', 'modifiers', 'modif_id')
+    Parameters
+    ----------
+    desc_name : unicode
+        Name of the descriptor to customize.
 
-    def __init__(self, obj_name, meth_name, modifiers, modif_id):
-        self.obj_name = obj_name
+    meth_name : unicode
+        Name of the method of the descriptor to customize.
+
+    specifiers : tuple, optional
+        Tuple describing the modification. If ommitted the function will simply
+        replace the existing behavior otherwise it will be used to update the
+        MethodComposer in the adequate fashion.
+        The tuple content should be :
+        - kind of modification : 'prepend', 'add_before', 'add_after',
+          'append', replace', 'remove'
+        - argument to the modifier, not necessary for prepend and append.
+          It should refer to the id of a previous modification.
+        ex : ('add_after', 'old')
+
+    modif_id : unicode, optional
+        Id of the modification used to identify it.
+
+    """
+    __slots__ = ('desc_name', 'meth_name', 'specifiers', 'modif_id', 'func')
+
+    def __init__(self, desc_name, meth_name, specifiers=(), modif_id=''):
+        self.desc_name = desc_name
         self.meth_name = meth_name
-        self.modifiers = modifiers
+        self.specifiers = specifiers
         self.modif_id = modif_id
+        self.func = None
+
+    def __call__(self, func):
+        self.func = func
+        return self
 
     def customize(self, owner, decorated_name):
         """Customize the object owned by owner.
@@ -259,8 +312,15 @@ class MethodCustomizer(AbstractMethodCustomizer):
             declaration.
 
         """
-        pass
-        # XXX need to properly call modify_behavior
+        if not self.func:
+            raise RuntimeError('Need to decorate a function before calling '
+                               'customize.')
+        desc = getattr(owner, self.desc_name)
+        assert isinstance(desc, AbstractSupportMethodCustomization),\
+            ('Can only customize subclass of '
+             'AbstractSupportMethodCustomization.')
+        desc.modify_behavior(self.meth_name, self.func, self.specifiers,
+                             self.modif_id)
 
 
 class SupportMethodCustomization(AbstractSupportMethodCustomization):
@@ -272,14 +332,41 @@ class SupportMethodCustomization(AbstractSupportMethodCustomization):
         self._customs = OrderedDict()
 
     @abstractmethod
-    def analyse_method(self, meth_name):
+    def analyse_function(self, meth_name, func):
+        """Analyse the possibility to use a function for a method.
+
+        Parameters
+        ----------
+        meth_name : unicode
+            Name of the method that should be customized using the provided
+            function.
+
+        func : callable
+            Function to use to customize the method.
+
+        Returns
+        -------
+        chain_on : unicode
+            Comma separated list of functions arguments that are also values
+            returned by the function.
+
+        Raises
+        ------
+        ValueError :
+            Raised if the signature of the provided function does not match the
+            one of the customized method.
+
+        """
         pass
 
     @abstractproperty
     def self_alias(self):
+        """Name used instead of self in function signature.
+
+        """
         pass
 
-    def modify_behavior(self, method_name, func, specifiers=(),
+    def modify_behavior(self, method_name, func, specifiers=(), modif_id='',
                         internal=False):
         """Alter the behavior of the Feature using the provided method.
 
@@ -303,13 +390,16 @@ class SupportMethodCustomization(AbstractSupportMethodCustomization):
             otherwise it will be used to update the MethodComposer in the
             adequate fashion.
             The tuple content should be :
-            - id of the modification, used to refer to it in later modification
             - kind of modification : 'prepend', 'add_before', 'add_after',
               'append', replace', 'remove'
-            - argument to the modifier, necessary only for 'add_after',
-              'add_before' and should refer to the id of a previous
-              modification.
-            ex : ('custom', 'add_after', 'old')
+            - argument to the modifier, not necessary for prepend and append.
+              It should refer to the id of a previous modification.
+            ex : ('add_after', 'old')
+
+        modif_id : unicode
+            Id of the modification, used to refer to it in later modification.
+            It is this id that can be specified as target for 'add_before',
+            'add_after', 'replace', remove'.
 
         internal : bool, optional
             Private flag used to indicate that this method is used for internal
@@ -317,7 +407,11 @@ class SupportMethodCustomization(AbstractSupportMethodCustomization):
             this won't have to be copied by copy_custom_behaviors.
 
         """
-        # XXX Need to ensure signature conformance before anything else
+        # Check the function signature match the targeted method and return
+        # the comma separated list of arguments on which the composed called
+        # should be chained.
+        chain_on = self.analyse_function(method_name, func)
+
         # In the absence of specifiers or for get and set we simply replace the
         # method.
         if not specifiers:
@@ -329,7 +423,7 @@ class SupportMethodCustomization(AbstractSupportMethodCustomization):
         # Otherwise we make sure we have a MethodsComposer.
         composer = getattr(self, method_name)
         if not isinstance(composer, MethodComposer):
-            composer = MethodComposer(self, composer.__func__, self.self_alias)
+            composer = MethodComposer(self, func, self.self_alias, chain_on)
 
         # In case of non internal modifications (ie unrelated to object
         # initialisation) we keep a description of what has been done to be
@@ -344,36 +438,39 @@ class SupportMethodCustomization(AbstractSupportMethodCustomization):
                 self._customs[method_name] = OrderedDict(old=(old, 'prepend'))
 
         # We now update the composer.
-        composer_method_name = specifiers[1]
+        composer_method_name = specifiers[0]
         composer_method = getattr(composer, composer_method_name)
         if composer_method_name in ('add_before', 'add_after'):
-            composer_method(specifiers[2], specifiers[0], func)
+            composer_method(specifiers[1], modif_id, func)
+        elif composer_method_name == 'replace':
+            composer_method(specifiers[1], func)
         elif composer_method_name == 'remove':
-            composer_method(specifiers[0])
+            composer_method(specifiers[1])
         else:
-            composer_method(specifiers[0], func)
+            composer_method(modif_id, func)
 
         # Finally we update the _customs dict and reassign the composer.
         setattr(self, method_name, composer)
         if not internal:
             customs = self._customs[method_name]
             if composer_method_name == 'remove':
-                del customs[specifiers[0]]
+                del customs[specifiers[1]]
             elif composer_method_name == 'replace':
-                if specifiers[0] in customs:
-                    old = list(customs[specifiers[0]])
+                replaced = specifiers[1]
+                if replaced in customs:
+                    old = list(customs[replaced])
                     old[0] = func
-                    customs[specifiers[0]] = tuple(old)
+                    customs[replaced] = tuple(old)
                 else:
-                    ind = composer._names.index(specifiers[0])
+                    ind = composer._names.index(replaced)
                     if ind == 0:
-                        customs[specifiers[0]] = (func, 'prepend')
+                        customs[replaced] = (func, ('prepend',))
                     else:
                         n = composer._names[ind-1]
-                        customs[specifiers[0]] = (func, 'add_after', n)
+                        customs[replaced] = (func, ('add_after', n))
             else:
-                op = [func] + list(specifiers[1:])
-                self._customs[method_name][specifiers[0]] = tuple(op)
+                op = (func, specifiers)
+                customs[modif_id] = op
 
     def copy_custom_behaviors(self, obj):
         """Copy the custom behaviors existing on a feature to this one.
@@ -399,43 +496,44 @@ class SupportMethodCustomization(AbstractSupportMethodCustomization):
             # Loop through all the modifications.
             for custom, modifier in modifiers.items():
 
+                func, specifiers = modifier
                 method = getattr(self, meth_name)
                 # In the absence of anchor we simply attempt the operation.
-                if modifier[1] not in ('add_after', 'add_before'):
-                    self.modify_behavior(meth_name, modifier[0],
-                                         (custom, modifier[1]))
+                if specifiers[0] not in ('add_after', 'add_before'):
+                    self.modify_behavior(meth_name, func, specifiers, custom)
+
+                # If the method is not a method composer there is no point in
+                # attempting an operation involving an anchor.
                 elif not isinstance(method, MethodComposer):
                     aux = {'add_after': 'append', 'add_before': 'prepend'}
-                    self.modify_behavior(meth_name, modifier[0],
-                                         (custom, aux[modifier[1]]))
+                    self.modify_behavior(meth_name, func, aux[specifiers[0]],
+                                         custom)
 
                 # Otherwise we check whether or not the anchor exists and if
                 # not try to find the most meaningfull one.
                 else:
                     our_names = method._names
-                    if modifier[2] in our_names:
-                        self.modify_behavior(meth_name, modifier[0],
-                                             (custom, modifier[1],
-                                              modifier[2]))
+                    if specifiers[1] in our_names:
+                        self.modify_behavior(meth_name, func, specifiers,
+                                             custom)
                     else:
-                        feat_names = getattr(obj, meth_name)._names
+                        names = getattr(obj, meth_name)._names
                         # For add after we try to find an entry existing in
                         # both feature going backward (we will prepend at the
                         # worst), for add before we go forward (we will append
                         # in the absence of match).
-                        shift = -1 if modifier[1] == 'add_after' else -1
-                        index = feat_names.index(custom)
-                        while index > 0 and index < len(feat_names)-1:
+                        shift = -1 if specifiers[0] == 'add_after' else -1
+                        index = names.index(custom)
+                        while index > 0 and index < len(names)-1:
                             index += shift
-                            name = feat_names[index]
+                            name = names[index]
                             if name in our_names:
-                                self.modify_behavior(meth_name, modifier[0],
-                                                     (custom, modifier[1],
-                                                      name))
+                                self.modify_behavior(meth_name, func,
+                                                     (specifiers[0], name),
+                                                     custom)
                                 shift = 0
                                 break
 
                         if shift != 0:
-                            op = 'prepend' if shift == -1 else 'append'
-                            self.modify_behavior(meth_name, modifier[0],
-                                                 (custom, op))
+                            op = ('prepend' if shift == -1 else 'append',)
+                            self.modify_behavior(meth_name, func, op, custom)

@@ -76,14 +76,6 @@ class AbstractSupportMethodCustomization(ABC):
 
     """
     @abstractmethod
-    def validate_specifiers(self, method_name, specifiers):
-        """Validate that a set of specifiers can be applied to a specific
-        method.
-
-        """
-        pass
-
-    @abstractmethod
     def modify_behavior(self, method_name, func, specifiers=(),
                         internal=False):
         """Alter the behavior of the Feature using the provided method.
@@ -108,13 +100,16 @@ class AbstractSupportMethodCustomization(ABC):
             otherwise it will be used to update the MethodComposer in the
             adequate fashion.
             The tuple content should be :
-            - id of the modification, used to refer to it in later modification
             - kind of modification : 'prepend', 'add_before', 'add_after',
               'append', replace', 'remove'
-            - argument to the modifier, necessary only for 'add_after',
-              'add_before' and should refer to the id of a previous
-              modification.
+            - argument to the modifier, not necessary for prepend and append.
+              It should refer to the id of a previous modification.
             ex : ('custom', 'add_after', 'old')
+
+        modif_id : unicode
+            Id of the modification, used to refer to it in later modification.
+            It is this id that can be specified as target for 'add_before',
+            'add_after', 'replace', remove'.
 
         internal : bool, optional
             Private flag used to indicate that this method is used for internal
@@ -262,5 +257,25 @@ class AbstractMethodCustomizer(ABC):
     """Abstract class for object used to specify a modification of a method.
 
     """
-    pass
-    # XXX complete
+    @abstractmethod
+    def __call__(self, func):
+        """Use the method customizer as a decorator.
+
+        """
+        pass
+
+    @abstractmethod
+    def customize(self, owner, decorated_name):
+        """Customize the object owned by owner.
+
+        Parameters
+        ----------
+        owner : SupportMethodCustomization
+            Class owning the descriptor to customize.
+
+        decorate_name : unicode
+            Name uder which the customization function appear in the class
+            declaration.
+
+        """
+        pass

@@ -41,8 +41,8 @@ class Unicode(Mapping, Enumerable):
             Enumerable.__init__(self, getter, setter, values, extract,
                                 retries, checks, discard)
 
-        self.modify_behavior('post_get', self.cast_to_unicode,
-                             ('cast_to_unicode', 'append'), True)
+        self.modify_behavior('post_get', self.cast_to_unicode.__func__,
+                             ('append',), 'cast_to_unicode', True)
 
     def cast_to_unicode(self, driver, value):
         return ustr(value)
@@ -69,8 +69,8 @@ class Int(LimitsValidated, Mapping, Enumerable):
             LimitsValidated.__init__(self, getter, setter, limits, extract,
                                      retries, checks, discard)
 
-        self.modify_behavior('post_get', self.cast_to_int,
-                             ('cast', 'append'), True)
+        self.modify_behavior('post_get', self.cast_to_int.__func__,
+                             ('append',), 'cast', True)
 
     def cast_to_int(self, driver, value):
         """Cast the value returned by the instrument to an int.
@@ -113,13 +113,13 @@ class Float(LimitsValidated, Mapping, Enumerable):
                                      'limits': limits})
 
         if UNIT_SUPPORT:
-            spec = (('convert', 'add_before', 'validate') if (values or limits)
-                    else ('convert', 'prepend'))
-            self.modify_behavior('pre_set',  self.convert,
-                                 spec, True)
+            spec = (('add_before', 'validate') if (values or limits)
+                    else ('prepend',))
+            self.modify_behavior('pre_set',  self.convert.__func__,
+                                 spec, 'convert',  True)
 
-        self.modify_behavior('post_get', self.cast_to_float,
-                             ('cast', 'append'), True)
+        self.modify_behavior('post_get', self.cast_to_float.__func__,
+                             ('append',), 'cast', True)
 
     def cast_to_float(self, driver, value):
         """Cast the value returned by the instrument to float or Quantity.

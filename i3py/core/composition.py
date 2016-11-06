@@ -332,7 +332,7 @@ class SupportMethodCustomization(AbstractSupportMethodCustomization):
         self._customs = OrderedDict()
 
     @abstractmethod
-    def analyse_function(self, meth_name, func):
+    def analyse_function(self, meth_name, func, specifiers):
         """Analyse the possibility to use a function for a method.
 
         Parameters
@@ -343,6 +343,9 @@ class SupportMethodCustomization(AbstractSupportMethodCustomization):
 
         func : callable
             Function to use to customize the method.
+
+        specifiers : tuple
+            Tuple describing the attempted modification.
 
         Returns
         -------

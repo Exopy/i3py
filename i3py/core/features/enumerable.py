@@ -33,8 +33,8 @@ class Enumerable(Feature):
         self.creation_kwargs['values'] = values
 
         if values:
-            self.modify_behavior('pre_set', self.validate_in,
-                                 ('validate', 'append'), True)
+            self.modify_behavior('pre_set', self.validate_in.__func__,
+                                 ('append',), 'validate',  True)
 
     def validate_in(self, driver, value):
         """Check the provided values is in the supported values.

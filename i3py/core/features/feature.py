@@ -15,8 +15,10 @@ from __future__ import (division, unicode_literals, print_function,
 from types import MethodType
 
 from stringparser import Parser
+from funcsigs import signature
+from future.utils import raise_from
 
-from ..errors import I3pyError
+from ..errors import I3pyError, I3pyFailedGet, I3pyFailedSet
 from ..util import build_checker
 from ..abstracts import AbstractFeature, AbstractGetSetFactory
 from ..composition import SupportMethodCustomization, MethodComposer
@@ -110,16 +112,16 @@ class Feature(AbstractFeature, SupportMethodCustomization):
             if not isinstance(discard, dict):
                 discard = {'features': discard}
             self._discard = discard
-            self.modify_behavior('post_set', self.discard_cache,
-                                 ('discard', 'append'), True)
+            self.modify_behavior('post_set', self.discard_cache.__func__,
+                                 ('append',), 'discard', True)
 
         if extract:
             if isinstance(extract, Parser):
                 self._parser = extract
             else:
                 self._parser = Parser(extract)
-            self.modify_behavior('post_get', self.extract,
-                                 ('extract', 'prepend'), True)
+            self.modify_behavior('post_get', self.extract.__func__,
+                                 ('prepend',), 'extract', True)
         self.name = ''
 
     def pre_get(self, driver):
@@ -217,6 +219,11 @@ class Feature(AbstractFeature, SupportMethodCustomization):
             Object on which this Feature is defined.
         value :
             Object to pass to the driver method to set the value.
+
+        Returns
+        -------
+        response : object
+            Response from the driver.
 
         """
         return driver.default_set_feature(self, self._setter, value)
@@ -317,6 +324,43 @@ class Feature(AbstractFeature, SupportMethodCustomization):
 
         return p
 
+    @property
+    def self_alias(self):
+        """For features self is replaced by feat in function signature.
+
+        """
+        return 'feat'
+
+    def analyse_function(self, method_name, func, specifiers):
+        """Check the signature of the function.
+
+        """
+        sig, chain = {'pre_get': (('feat', 'driver'), None),
+                      'get': (('feat', 'driver'), None),
+                      'post_get': (('feat', 'driver', 'value'), 'value'),
+                      'pre_set': (('feat', 'driver', 'value'), 'value'),
+                      'set': (('feat', 'driver', 'value'), None),
+                      'post_set': (('feat', 'driver', 'i_value', 'response'),
+                                   None)
+                      }[method_name]
+        if method_name in ('get', 'set') and specifiers:
+            msg = ('Can only replace {} method of a feature, not customize it.'
+                   ' Failed on Feature {} with customization specifications {}'
+                   )
+            raise ValueError(msg.format(method_name, self.name, specifiers))
+        func_sig = tuple(signature(func).parameters)
+        if 'self' in func_sig:
+            func_sig = tuple(s if s != 'self' else self.self_alias
+                             for s in sig)
+        if sig != func_sig:
+            msg = ('Function {} used to attempt to customize method {} of '
+                   'feature {} does not have the right signature (expected={},'
+                   ' provided={}).')
+            raise ValueError(msg.format(func.__name__, method_name, self.name,
+                                        sig, func_sig))
+
+        return chain
+
     def _build_checkers(self, checks):
         """Create the custom check function and bind them to check_get and
         check_set.
@@ -346,31 +390,39 @@ class Feature(AbstractFeature, SupportMethodCustomization):
         """Getter defined when the user provides a value for the get arg.
 
         """
-        with driver.lock:
-            cache = driver._cache
-            name = self.name
-            if name in cache:
-                return cache[name]
+        try:
+            with driver.lock:
+                cache = driver._cache
+                name = self.name
+                if name in cache:
+                    return cache[name]
 
-            val = get_chain(self, driver)
-            if driver.use_cache:
-                cache[name] = val
+                val = get_chain(self, driver)
+                if driver.use_cache:
+                    cache[name] = val
 
-            return val
+                return val
+        except Exception as e:
+            msg = 'Failed to get the value of feature {} for driver {}.'
+            raise_from(I3pyFailedGet(msg.format(self.name, driver)), e)
 
     def _set(self, driver, value):
         """Setter defined when the user provides a value for the set arg.
 
         """
-        with driver.lock:
-            cache = driver._cache
-            name = self.name
-            if name in cache and value == cache[name]:
-                return
+        try:
+            with driver.lock:
+                cache = driver._cache
+                name = self.name
+                if name in cache and value == cache[name]:
+                    return
 
-            set_chain(self, driver, value)
-            if driver.use_cache:
-                cache[name] = value
+                set_chain(self, driver, value)
+                if driver.use_cache:
+                    cache[name] = value
+        except Exception as e:
+            msg = 'Failed to set the value of feature {} to {} for driver {}.'
+            raise_from(I3pyFailedSet(msg.format(self.name, value, driver)), e)
 
     def _del(self, driver):
         """Deleter clearing the cache of the instrument for this Feature.

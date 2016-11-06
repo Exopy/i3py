@@ -46,8 +46,8 @@ class LimitsValidated(Feature):
                     get_range''')
                 raise TypeError(mess)
 
-            self.modify_behavior('pre_set', validate, ('validate', 'append'),
-                                 True)
+            self.modify_behavior('pre_set', validate.__func__, ('append',),
+                                 'validate', True)
 
         self.creation_kwargs['limits'] = limits
 

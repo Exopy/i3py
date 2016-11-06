@@ -34,6 +34,20 @@ class I3pyInterfaceNotSupported(I3pyError):
     pass
 
 
+class I3pyFailedGet(I3pyError):
+    """Error raised when getting an instrument feature value failed.
+
+    """
+    pass
+
+
+class I3pyFailedSet(I3pyError):
+    """Error raised when setting an instrument feature value failed.
+
+    """
+    pass
+
+
 class I3pyValueError(ValueError, I3pyError):
     """I3py specific value error.
 

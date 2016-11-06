@@ -42,11 +42,11 @@ class Mapping(Feature):
             self._imap = {v: k for k, v in mapping.items()}
         self.creation_kwargs['mapping'] = mapping
 
-        self.modify_behavior('post_get', self.reverse_map_value,
-                             ('reverse_map', 'append'), True)
+        self.modify_behavior('post_get', self.reverse_map_value.__func__,
+                             ('append',), 'reverse_map',  True)
 
-        self.modify_behavior('pre_set', self.map_value,
-                             ('map', 'append'), True)
+        self.modify_behavior('pre_set', self.map_value.__func__,
+                             ('append',), 'map', True)
 
     def reverse_map_value(self, driver, value):
         return self._imap[value]

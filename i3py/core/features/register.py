@@ -52,11 +52,11 @@ class Register(Feature):
         self.creation_kwargs['names'] = names
         self.creation_kwargs['length'] = length
 
-        self.modify_behavior('post_get', self.byte_to_dict,
-                             ('byte_to_dict', 'prepend'), True)
+        self.modify_behavior('post_get', self.byte_to_dict.__func__,
+                             ('prepend',), 'byte_to_dict', True)
 
-        self.modify_behavior('pre_set', self.dict_to_byte,
-                             ('dict_to_byte', 'append'), True)
+        self.modify_behavior('pre_set', self.dict_to_byte.__func__,
+                             ('append',), 'dict_to_byte', True)
 
     def byte_to_dict(self, driver, value):
         """Convert the byte returned by the instrument to a dict.

@@ -175,8 +175,21 @@ class AbstractFeature(with_metaclass(ABCMeta, property,
 class AbstractAction(AbstractSupportMethodCustomization):
     """Abstract base class for actions.
 
+    Attributes
+    ----------
+    name : unicode
+        Name under which this action is known in the class to which it
+        belongs. This is set by the framework.
+
+    creation_kwargs : dict
+        Dictionary preserving the arguments with which the feature was
+        initialized. This is used when customizing.
+
+    func : callable
+        Function on which the Action has been used as a decorator.
+
     """
-    __slots__ = ('creation_kwargs', 'name')
+    __slots__ = ('creation_kwargs', 'name', 'func')
 
     @abstractmethod
     def __call__(self, func):
@@ -199,6 +212,7 @@ class AbstractAction(AbstractSupportMethodCustomization):
 
         """
         new = type(self)(**self.creation_kwargs)
+        new(self.func)
         new.copy_custom_behaviors(self)
         return new
 

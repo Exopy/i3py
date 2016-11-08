@@ -14,7 +14,6 @@ from __future__ import (division, unicode_literals, print_function,
 
 import re
 from abc import ABC, abstractmethod
-from itertools import chain
 from inspect import currentframe, getsourcefile, getsourcelines
 
 from .abtracts import AbstractSubSystem, AbstractChannel
@@ -282,7 +281,7 @@ class set_action(ABC):
         new = cls(**kwargs)
 
         new(action.func)
-        # XXX copy custom behavior as we have pre, post call
+        new.copy_custom_behaviors(action)
 
         return new
 

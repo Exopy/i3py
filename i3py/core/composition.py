@@ -72,7 +72,10 @@ class MetaMethodComposer(type):
         if id_ not in cls.sigs:
             cls.sigs[id_] = cls.create_composer(func.__name__, sigs, chain_on)
 
-        return cls.sigs[id_](obj, func, alias, chain_on, func_id, signatures)
+        custom_type = cls.sigs[id_]
+        return super(MetaMethodComposer, custom_type)(obj, func, alias,
+                                                      chain_on, func_id,
+                                                      signatures)
 
     def create_composer(cls, name, sigs, chain_on):
         """Dynamically create a subclass of base composer for a signature.

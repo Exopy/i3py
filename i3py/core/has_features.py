@@ -167,9 +167,9 @@ class HasFeaturesMeta(ABCMeta):
         # This creates a new instances which are hence owned.
         for paras, owned in ((feat_paras, feats), (action_paras, actions)):
             for k, v in paras.items():
-                feat = v.customize(getattr(cls, k))
-                owned[k] = feat
-                setattr(cls, k, feat)
+                new = v.customize(getattr(cls, k))
+                owned[k] = new
+                setattr(cls, k, new)
 
         # Walk the mro of the class, excluding itself, in reverse order
         # collecting all of the features and actions into a single dict. The

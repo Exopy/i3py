@@ -14,9 +14,11 @@ from __future__ import (division, unicode_literals, print_function,
 
 from functools import update_wrapper, partial
 
+from future.utils import raise_from, exec_, with_metaclass
 from past.builtins import basestring
 from funcsigs import signature
 
+from ..errors import I3pyFailedCall
 from ..abstracts import AbstractAction
 from ..composition import SupportMethodCustomization
 from ..limits import IntLimitsValidator, FloatLimitsValidator
@@ -27,16 +29,62 @@ from ..util import (build_checker, validate_in, validate_limits,
 
 CALL_TEMPLATE =\
 """def __call__(self{sig}):
-    params = self.action.sig.bind(self.driver{sig})
-    args = params.args
-    kwargs = params.kwargs
-    args, kwargs = self.action.pre_call(self.driver, *args, **kargs)
-    res = self.action.call(self.driver, *args, **kwargs)
-    return self.action.post_call(self.driver, res, *args, **kwargs)
+    try:
+        params = self.action.sig.bind(self.driver{sig})
+        args = params.args
+        kwargs = params.kwargs
+        args, kwargs = self.action.pre_call(self.driver, *args, **kargs)
+        res = self.action.call(self.driver, *args, **kwargs)
+        return self.action.post_call(self.driver, res, *args, **kwargs)
+    except Exception as e:
+        msg = ('An exception occurred while calling {} with the following '
+               'arguments {} and keywords arguments.')
+        raise_from(I3pyFailedCall(msg.format(self.action.name, args, kwargs)))
 """
 
 
-class ActionCall(object):
+class MetaActionCall(type):
+    """Metaclass for action call object offering custom instantiation.
+
+    """
+    def __init__(cls):
+        cls.sigs = {}  # Dict storing custom class for each signature
+
+    def __call__(cls, action, driver):
+        """Create a custom subclass for each signature action.
+
+        Parameters
+        ----------
+        action : Action
+            Action for which to return a callable.
+
+        driver :
+            Instance of the owner class of the action.
+
+        """
+        if action.sig not in cls.sigs:
+            cls.sigs[action.sig] = cls.create_callable(action)
+
+        custom_type = cls.sigs[action.sig]
+        return super(MetaActionCall, custom_type)(action, driver)
+
+    def create_callable(cls, action):
+        """Dynamically create a subclass of ActionCall for a signature.
+
+        """
+        name = '{}ActionCall'.format(action.name)
+        sig = action.sig
+        # Should store sig on class attribute
+        decl = ('class {name}(ActionCall):\n' +
+                CALL_TEMPLATE
+                ).format(name=name, sig=', ' + ', '.join(*sig) if sig else '')
+        glob = dict(ActionCall=ActionCall, raise_from=raise_from,
+                    I3pyFailedCall=I3pyFailedCall)
+        exec_(decl, glob)
+        return glob[name]
+
+
+class ActionCall(with_metaclass(MetaActionCall, object)):
     """Object returned when an Action is used as descriptor.
 
     Actually when an Action is used to decorate a function a custom subclass
@@ -92,53 +140,161 @@ class Action(AbstractAction, SupportMethodCustomization):
     """
     def __init__(self, **kwargs):
 
-        self.kwargs = kwargs
+        self.creation_kwargs = kwargs
 
     def __call__(self, func):
-        update_wrapper(self, func)
+        if self.func:
+            msg = 'Attempt to decorate a second function using one Action.'
+            raise RuntimeError(msg)
+        update_wrapper(self.__call__, func)
         self.sig = signature(func)
-        self._desc_type = self.create_action_call(func, self.kwargs)
+        self.func = func
+        self.customize_call(func, self.creation_kwargs)
         return self
 
     def __get__(self, obj, objtype=None):
         if objtype is None:
             return self
         if self._desc is None:
-            self._desc = self._desc_type(self, obj)
+            # A specialized class matching the wrapped function signature is
+            # created on the fly.
+            self._desc = ActionCall(self, obj)
         return self._desc
 
     def pre_call(self, driver, *args, **kwargs):
-        """Method called before calling the decorated function, which
-        can be used to
+        """Method called before calling the decorated function.
+
+        This method can be used to validate or modify the arguments passed
+        to the function.
+
+        Parameters
+        ----------
+        driver :
+            Reference to the instance of the owner class for this action
+            calling it.
+
+        *args :
+            Positional arguments of the function.
+
+        **kwargs :
+            Keywords arguments of the function.
+
+        Returns
+        -------
+        args : tuple
+            Modified (or not) positional arguments
+
+        kwargs : dict
+            Modified or not keyword arguments.
+
+        Notes
+        -----
+        When customizing through composition the method used can be given
+        either the above signature or the signature of the function used in the
+        Action.
 
         """
+        return args, kwargs
+
+    def post_call(self, driver, result, *args, **kwargs):
+        """Method called after calling the decorated function.
+
+        This method can be used to alter the returned function.
+
+        Parameters
+        ----------
+        driver :
+            Reference to the instance of the owner class for this action
+            calling it.
+
+        result :
+            Object returned by the decorated function.
+
+        *args :
+            Positional arguments of the function.
+
+        **kwargs :
+            Keywords arguments of the function.
+
+        Returns
+        -------
+        result : object
+            Modified (or not) result from the decorated function.
+
+        Notes
+        -----
+        When customizing through composition the method used can be given
+        either the above signature or the signature of the function used in the
+        Action with the result added after the reference to the driver and
+        before the other function arguments.
+
+        """
+        return result
+
+    def customize_call(self, func, kwargs):
+        """Store the function in call attributes and customize pre/post based
+        on the kwargs.
+
+        """
+        self.call = func
+
+        if 'limits' in kwargs or 'values' in kwargs:
+            self.add_values_limits_validation(func, kwargs.get('values', {}),
+                                              kwargs.get('limits', {}))
+
+        if 'checks' in kwargs:
+            self.add_checks(func, kwargs['checks'])
+
+        if UNIT_SUPPORT and 'units' in kwargs:
+            self.add_unit_support(func, kwargs['units'])
+
+    # XXX add methods required by SupportMethodCustomization
+    def analyse_function(self, meth_name, func, specifiers):
+        """Analyse the possibility to use a function for a method.
+
+        Parameters
+        ----------
+        meth_name : unicode
+            Name of the method that should be customized using the provided
+            function.
+
+        func : callable
+            Function to use to customize the method.
+
+        specifiers : tuple
+            Tuple describing the attempted modification.
+
+        Returns
+        -------
+        signatures : list
+            List of signatures that should be supported by a composer.
+
+        chain_on : unicode
+            Comma separated list of functions arguments that are also values
+            returned by the function.
+
+        Raises
+        ------
+        ValueError :
+            Raised if the signature of the provided function does not match the
+            one of the customized method.
+
+        """
+        # Call can be replaced only
+        # pre/post support customization but the basic version can be
+        # replaced as it is useless.
+        pass
+
+    @property
+    def self_alias(self):
+        """Name used instead of self in function signature.
+
+        """
+        return 'action'
 
     # XXX use modify behavior on pre_call and post_call
     # XXX need to dynamically create pre_call, call, and post_call
     #     with the right signature and custom ActionCall object
-
-    def create_action_call(self, func, kwargs):
-        """Create the action call subclass matching the decorated function.
-
-        The pre_call, call, and post_call of the action matching the function
-        signature and overriding the class defined ones are also created at
-        this step.
-
-        """
-        if 'limits' in kwargs or 'values' in kwargs:
-            func = self.add_values_limits_validation(func,
-                                                     kwargs.get('values', {}),
-                                                     kwargs.get('limits', {})
-                                                     )
-
-        if 'checks' in kwargs:
-            func = self.add_checks(func, kwargs['checks'])
-
-        if UNIT_SUPPORT and 'units' in kwargs:
-            func = self.add_unit_support(func, kwargs['units'])
-
-        return func
-
     def add_unit_support(self, func, units):
         """Wrap a func using Pint to automatically convert Quantity.
 

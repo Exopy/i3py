@@ -48,6 +48,13 @@ class I3pyFailedSet(I3pyError):
     pass
 
 
+class I3pyFailedCall(I3pyError):
+    """Error raised when calling an action fails.
+
+    """
+    pass
+
+
 class I3pyValueError(ValueError, I3pyError):
     """I3py specific value error.
 

@@ -30,7 +30,8 @@ class MetaMethodComposer(type):
     def __init__(cls):
         cls.sigs = {}  # Dict storing custom class for each signature
 
-    def __call__(cls, obj, func, alias, chain_on=None, func_id='old'):
+    def __call__(cls, obj, func, alias, chain_on=None, func_id='old',
+                 signatures=None):
         """Create a custom subclass for each signature function.
 
         Parameters
@@ -53,22 +54,33 @@ class MetaMethodComposer(type):
         func_id : unicode, optional
             Id of the original function to use in the composer.
 
+        signatures : list, optional
+            List of signatures to accept. If specified the signature of the
+            passed function is ignored and the __call__ method will have the
+            signature of the first specified signature.
+
         """
-        sig = tuple(signature(func).parameters)
-        if 'self' in sig:
-            sig = tuple(s if s != 'self' else alias for s in sig)
-        id_ = (sig, chain_on)
+        if not signatures:
+            sig = tuple(signature(func).parameters)
+            if 'self' in sig:
+                sig = tuple(s if s != 'self' else alias for s in sig)
+            sigs = [sig]
+        else:
+            sigs = signatures
+
+        id_ = (sigs, chain_on)
         if id_ not in cls.sigs:
-            cls.sigs[id_] = cls.create_composer(func.__name__, sig, chain_on)
+            cls.sigs[id_] = cls.create_composer(func.__name__, sigs, chain_on)
 
-        return cls.sigs[id_](obj, func, alias, chain_on, func_id)
+        return cls.sigs[id_](obj, func, alias, chain_on, func_id, signatures)
 
-    def create_composer(cls, name, sig, chain_on):
+    def create_composer(cls, name, sigs, chain_on):
         """Dynamically create a subclass of base composer for a signature.
 
         """
         chain = chain_on or ''
         name = '{}Composer'.format(name)
+        sig = sigs[0]
         # Should store sig on class attribute
         decl = ('class {name}(cls):\n',
                 '    __slots__ = ("sigs",)\n',
@@ -116,12 +128,14 @@ class MethodComposer(with_metaclass(MetaMethodComposer, object)):
     """
     __slots__ = ('_obj', '_alias', '_chain_on', '_names', '_methods')
 
-    def __init__(self, obj, func, alias, chain_on, func_id='old'):
+    def __init__(self, obj, func, alias, chain_on, func_id='old',
+                 signatures=None):
         self._obj = obj
         self._alias = alias
         self._chain_on = chain_on
         self._methods = [func]
         self._names = [func_id]
+        self._signatures = signatures
 
     def clone(self, new_obj):
         """Create a full copy of the composer.
@@ -349,6 +363,9 @@ class SupportMethodCustomization(AbstractSupportMethodCustomization):
 
         Returns
         -------
+        signatures : list
+            List of signatures that should be supported by a composer.
+
         chain_on : unicode
             Comma separated list of functions arguments that are also values
             returned by the function.
@@ -413,7 +430,7 @@ class SupportMethodCustomization(AbstractSupportMethodCustomization):
         # Check the function signature match the targeted method and return
         # the comma separated list of arguments on which the composed called
         # should be chained.
-        chain_on = self.analyse_function(method_name, func)
+        sigs, chain_on = self.analyse_function(method_name, func)
 
         # In the absence of specifiers or for get and set we simply replace the
         # method.
@@ -426,7 +443,8 @@ class SupportMethodCustomization(AbstractSupportMethodCustomization):
         # Otherwise we make sure we have a MethodsComposer.
         composer = getattr(self, method_name)
         if not isinstance(composer, MethodComposer):
-            composer = MethodComposer(self, func, self.self_alias, chain_on)
+            composer = MethodComposer(self, func, self.self_alias, chain_on,
+                                      signatures=sigs)
 
         # In case of non internal modifications (ie unrelated to object
         # initialisation) we keep a description of what has been done to be

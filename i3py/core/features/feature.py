@@ -359,7 +359,7 @@ class Feature(AbstractFeature, SupportMethodCustomization):
             raise ValueError(msg.format(func.__name__, method_name, self.name,
                                         sig, func_sig))
 
-        return chain
+        return [sig], chain
 
     def _build_checkers(self, checks):
         """Create the custom check function and bind them to check_get and

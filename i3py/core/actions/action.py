@@ -25,7 +25,32 @@ from ..util import (build_checker, validate_in, validate_limits,
                     get_limits_and_validate)
 
 
-# XXX add pre, post call and specific object returned by get
+CALL_TEMPLATE =\
+"""def __call__(self{sig}):
+    params = self.action.sig.bind(self.driver{sig})
+    args = params.args
+    kwargs = params.kwargs
+    args, kwargs = self.action.pre_call(self.driver, *args, **kargs)
+    res = self.action.call(self.driver, *args, **kwargs)
+    return self.action.post_call(self.driver, res, *args, **kwargs)
+"""
+
+
+class ActionCall(object):
+    """Object returned when an Action is used as descriptor.
+
+    Actually when an Action is used to decorate a function a custom subclass
+    of this class is created with a __call_ method whose signature match the
+    decorated function signature.
+
+    """
+    __slots__ = ('action', 'driver')
+
+    def __init__(self, action, driver):
+        self.action = action
+        self.driver = driver
+
+
 class Action(AbstractAction, SupportMethodCustomization):
     """Wraps a method with pre and post processing operations.
 
@@ -72,13 +97,32 @@ class Action(AbstractAction, SupportMethodCustomization):
     def __call__(self, func):
         update_wrapper(self, func)
         self.sig = signature(func)
-        self.func = self.decorate(func, self.kwargs)
+        self._desc_type = self.create_action_call(func, self.kwargs)
         return self
 
-    def decorate(self, func, kwargs):
-        """Decorate a function according to passed arguments.
+    def __get__(self, obj, objtype=None):
+        if objtype is None:
+            return self
+        if self._desc is None:
+            self._desc = self._desc_type(self, obj)
+        return self._desc
 
-        Override this function to alter how
+    def pre_call(self, driver, *args, **kwargs):
+        """Method called before calling the decorated function, which
+        can be used to
+
+        """
+
+    # XXX use modify behavior on pre_call and post_call
+    # XXX need to dynamically create pre_call, call, and post_call
+    #     with the right signature and custom ActionCall object
+
+    def create_action_call(self, func, kwargs):
+        """Create the action call subclass matching the decorated function.
+
+        The pre_call, call, and post_call of the action matching the function
+        signature and overriding the class defined ones are also created at
+        this step.
 
         """
         if 'limits' in kwargs or 'values' in kwargs:

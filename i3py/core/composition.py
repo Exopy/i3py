@@ -23,6 +23,35 @@ from .abstracts import (AbstractMethodCustomizer,
                         AbstractSupportMethodCustomization)
 
 
+def normalize_signature(sig, alias=None):
+    """Normalize a function signature for quick matching.
+
+    Parameters
+    ----------
+    sig : Signature
+        Function signature
+
+    alias: unicode, optional
+        Alias for self to use in signature.
+
+    Returns
+    -------
+    normalized : tuple
+        Tuple of strings matching the functions arguments, *args and **kwargs
+        will have their * preceding.
+
+    """
+    def norm_arg(arg, alias):
+        if alias and arg.name == 'self':
+            return alias
+        elif arg.kind == arg.VAR_POSITIONAL:
+            return '*' + arg.name
+        elif arg.kind == arg.VAR_KEYWORD:
+            return '**' + arg.name
+
+    return tuple(norm_arg(s) for s in sig.parameters)
+
+
 class MetaMethodComposer(type):
     """Metaclass for method composer object offering custom instantiation.
 
@@ -61,10 +90,7 @@ class MetaMethodComposer(type):
 
         """
         if not signatures:
-            sig = tuple(signature(func).parameters)
-            if 'self' in sig:
-                sig = tuple(s if s != 'self' else alias for s in sig)
-            sigs = [sig]
+            sigs = [normalize_signature(signature(func, alias))]
         else:
             sigs = signatures
 

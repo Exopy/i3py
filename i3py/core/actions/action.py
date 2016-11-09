@@ -12,6 +12,7 @@
 from __future__ import (division, unicode_literals, print_function,
                         absolute_import)
 
+from inspect import cleandoc
 from functools import update_wrapper, partial
 
 from future.utils import raise_from, exec_, with_metaclass
@@ -20,15 +21,15 @@ from funcsigs import signature
 
 from ..errors import I3pyFailedCall
 from ..abstracts import AbstractAction
-from ..composition import SupportMethodCustomization
+from ..composition import SupportMethodCustomization, normalize_signature
 from ..limits import IntLimitsValidator, FloatLimitsValidator
-from ..unit import UNIT_SUPPORT, UNIT_RETURN, get_unit_registry, to_float
+from ..unit import UNIT_SUPPORT, UNIT_RETURN, get_unit_registry
 from ..util import (build_checker, validate_in, validate_limits,
                     get_limits_and_validate)
 
 
-CALL_TEMPLATE =\
-"""def __call__(self{sig}):
+CALL_TEMPLATE = cleandoc("""
+def __call__(self{sig}):
     try:
         params = self.action.sig.bind(self.driver{sig})
         args = params.args
@@ -40,7 +41,7 @@ CALL_TEMPLATE =\
         msg = ('An exception occurred while calling {} with the following '
                'arguments {} and keywords arguments.')
         raise_from(I3pyFailedCall(msg.format(self.action.name, args, kwargs)))
-"""
+""")
 
 
 class MetaActionCall(type):
@@ -73,7 +74,7 @@ class MetaActionCall(type):
 
         """
         name = '{}ActionCall'.format(action.name)
-        sig = action.sig
+        sig = normalize_signature(action.sig)
         # Should store sig on class attribute
         decl = ('class {name}(ActionCall):\n' +
                 CALL_TEMPLATE
@@ -243,12 +244,16 @@ class Action(AbstractAction, SupportMethodCustomization):
                                               kwargs.get('limits', {}))
 
         if 'checks' in kwargs:
-            self.add_checks(func, kwargs['checks'])
+            sig = normalize_signature(self.sig)
+            check_sig = ('(self' +
+                         (', ' + ', '.join(*sig) if sig else '') + ')')
+            check_args = build_checker(kwargs['checks'], check_sig)
+            self.modify_behavior('pre_call', check_args,
+                                 ('append',), 'checks')
 
         if UNIT_SUPPORT and 'units' in kwargs:
             self.add_unit_support(func, kwargs['units'])
 
-    # XXX add methods required by SupportMethodCustomization
     def analyse_function(self, meth_name, func, specifiers):
         """Analyse the possibility to use a function for a method.
 
@@ -280,10 +285,45 @@ class Action(AbstractAction, SupportMethodCustomization):
             one of the customized method.
 
         """
-        # Call can be replaced only
-        # pre/post support customization but the basic version can be
-        # replaced as it is useless.
-        pass
+        func_sig = normalize_signature(signature(func), self.self_alias)
+
+        if meth_name == 'call':
+            if specifiers:
+                msg = ('Can only replace call method of an action, not '
+                       'customize it. Failed on action {} with customization '
+                       'specifications {}')
+                raise ValueError(msg.format(self.name, specifiers))
+            sigs = [self.sig]
+            chain_on = None
+
+        elif meth_name == 'pre_call':
+            sigs = [self.sig, ('action', 'driver', '*args', '**kwargs')]
+            chain_on = 'args, kwargs'
+            # The base version of pre_call is no-op so we can directly replace
+            if self.pre_call.__func__ is Action.pre_call.__func__:
+                specifiers = ()
+
+        elif meth_name == 'post_call':
+            sigs = [('action', 'driver', 'result') + self.sig[2:],
+                    ('action', 'driver', 'result', '*args', '**kwargs')]
+            chain_on = 'result'
+            # The base version of post_call is no-op so we can directly replace
+            if self.post_call.__func__ is Action.post_call.__func__:
+                specifiers = ()
+
+        else:
+            msg = ('Cannot cutomize method {}, only pre_call, call and '
+                   'post_call can be.')
+            raise ValueError(msg)
+
+        if func_sig not in sigs:
+            msg = ('Function {} used to attempt to customize method {} of '
+                   'action {} does not have the right signature '
+                   '(expected={}, provided={}).')
+            raise ValueError(msg.format(func.__name__, meth_name, self.name,
+                                        sigs, func_sig))
+
+        return sigs, chain_on
 
     @property
     def self_alias(self):
@@ -292,58 +332,53 @@ class Action(AbstractAction, SupportMethodCustomization):
         """
         return 'action'
 
-    # XXX use modify behavior on pre_call and post_call
-    # XXX need to dynamically create pre_call, call, and post_call
-    #     with the right signature and custom ActionCall object
-    def add_unit_support(self, func, units):
-        """Wrap a func using Pint to automatically convert Quantity.
+    def add_unit_support(self, units):
+        """Wrap a func using Pint to automatically convert Quantity to float.
 
         """
         ureg = get_unit_registry()
-        func = ureg.wraps(*units, strict=False)(func)
+        if len(units[1]) != len(self.sig.parameters):
+            msg = ''
+            raise ValueError(msg)
+
+        def convert_input(action, driver, *args, **kwargs):
+            """Convert the arguments to the proper unit and return magnitudes.
+
+            """
+            bound = self.sig.bind(driver, *args, **kwargs)
+            for i, (k, v) in enumerate(list(bound.parameters.items())):
+                if units[1][i] is not None and isinstance(v, ureg.Quantity):
+                    bound.parameters[k] = v.to(units[1][i]).m
+
+            return bound.args, bound.kwargs
+
+        self.modify_behavior('pre_call', convert_input, ('prepend',), 'units')
+
         if not UNIT_RETURN:
-            def wrapper(*args, **kwargs):
-                res = func(*args, **kwargs)
-                return to_float(res) if res is not None else res
+            return
 
-            update_wrapper(wrapper, func)
-            return wrapper
+        def convert_output(action, driver, result, *args, **kwargs):
+            """Convert the output to the proper units.
 
-        return func
+            """
+            re_units = units[0]
+            is_container = isinstance(re_units, (tuple, list))
+            if not is_container:
+                result = [result]
+                re_units = [re_units]
 
-    def add_checks(self, func, checks):
-        """Build a checker function and use it to decorate func.
+            results = [ureg.Quantity(result[i], u)
+                       for i, u in enumerate(units)]
 
-        Parameters
-        ----------
-        func : callable
-            Function to decorate.
+            return results if is_container else results[0]
 
-        checks : unicode
-            ; separated string of expression to assert.
+        self.modify_behavior('post_call', convert_output, ('append',), 'units')
 
-        Returns
-        -------
-        wrapped : callable
-            Function wrapped with the assertion checks.
-
-        """
-        check = build_checker(checks, self.sig)
-
-        def check_wrapper(*args, **kwargs):
-            check(*args, **kwargs)
-            return func(*args, **kwargs)
-        update_wrapper(check_wrapper, func)
-        return check_wrapper
-
-    def add_values_limits_validation(self, func, values, limits):
-        """Add arguments validation to call.
+    def add_values_limits_validation(self, values, limits):
+        """Add arguments validation to pre_call.
 
         Parameters
         ----------
-        func : callable
-            Function to decorate.
-
         values : dict
             Dictionary mapping the parameters name to the set of allowed
             values.
@@ -351,14 +386,6 @@ class Action(AbstractAction, SupportMethodCustomization):
         limits : dict
             Dictionary mapping the parameters name to the limits they must
             abide by.
-
-        units : dict
-            Dictionary mapping
-
-        Returns
-        -------
-        wrapped : callable
-            Function wrapped with the parameters validation.
 
         """
         validators = {}
@@ -389,14 +416,11 @@ class Action(AbstractAction, SupportMethodCustomization):
 
         sig = self.sig
 
-        def wrapper(*args, **kwargs):
+        def validate_args(action, driver, *args, **kwargs):
 
-            bound = sig.bind(*args, **kwargs).arguments
-            driver = args[0]
+            bound = sig.bind(driver, *args, **kwargs).arguments
             for n in validators:
                 validators[n](driver, bound[n])
 
-            return func(*args, **kwargs)
-
-        update_wrapper(wrapper, func)
-        return wrapper
+        self.modify_behavior('pre_call', validate_args, ('append',),
+                             'values_limits')

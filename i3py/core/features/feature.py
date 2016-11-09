@@ -21,7 +21,8 @@ from future.utils import raise_from
 from ..errors import I3pyError, I3pyFailedGet, I3pyFailedSet
 from ..util import build_checker
 from ..abstracts import AbstractFeature, AbstractGetSetFactory
-from ..composition import SupportMethodCustomization, MethodComposer
+from ..composition import (SupportMethodCustomization, MethodComposer,
+                           normalize_signature)
 
 
 class Feature(AbstractFeature, SupportMethodCustomization):
@@ -348,10 +349,8 @@ class Feature(AbstractFeature, SupportMethodCustomization):
                    ' Failed on Feature {} with customization specifications {}'
                    )
             raise ValueError(msg.format(method_name, self.name, specifiers))
-        func_sig = tuple(signature(func).parameters)
-        if 'self' in func_sig:
-            func_sig = tuple(s if s != 'self' else self.self_alias
-                             for s in sig)
+
+        func_sig = normalize_signature(signature(func), self.self_alias)
         if sig != func_sig:
             msg = ('Function {} used to attempt to customize method {} of '
                    'feature {} does not have the right signature (expected={},'

@@ -16,7 +16,7 @@ import re
 from abc import ABC, abstractmethod
 from inspect import currentframe, getsourcefile, getsourcelines
 
-from .abtracts import AbstractSubSystem, AbstractChannel
+from .abstracts import AbstractSubSystem, AbstractChannel
 
 # Sentinel returned when decorating a method with a subpart.
 SUBPART_FUNC = object()
@@ -298,12 +298,12 @@ class limit(ABC):
     '_limits_'.
 
     """
-    __slots__ = ('name', 'func')
+    __slots__ = ('_name', 'func')
 
     _prefix_matcher = re.compile('^_limits_')
 
     def __init__(self, limit_name=None):
-        self.name = limit_name
+        self._name = limit_name
 
     def __call__(self, func):
         self.func = func
@@ -312,7 +312,7 @@ class limit(ABC):
         """If the limit name is not specified extract it from the method name.
 
         """
-        if not self.name:
+        if not self._name:
             m = self._prefix_matcher.match(method_name)
             if not m:
                 msg = ('{} does not start with "_limits_" which is required '
@@ -321,6 +321,6 @@ class limit(ABC):
                 raise ValueError(msg.format(method_name,
                                             getsourcefile(self.func),
                                             getsourcelines(self.func)[0]))
-            self.name = m.string[m.end():]
+            self._name = m.string[m.end():]
 
-        return self.name
+        return self._name

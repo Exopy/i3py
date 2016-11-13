@@ -48,16 +48,17 @@ def normalize_signature(sig, alias=None):
             return '*' + arg.name
         elif arg.kind == arg.VAR_KEYWORD:
             return '**' + arg.name
+        else:
+            return arg.name
 
-    return tuple(norm_arg(s) for s in sig.parameters)
+    return tuple(norm_arg(p, alias) for p in sig.parameters.values())
 
 
 class MetaMethodComposer(type):
     """Metaclass for method composer object offering custom instantiation.
 
     """
-    def __init__(cls):
-        cls.sigs = {}  # Dict storing custom class for each signature
+    sigs = {}
 
     def __call__(cls, obj, func, alias, chain_on=None, func_id='old',
                  signatures=None):
@@ -90,18 +91,20 @@ class MetaMethodComposer(type):
 
         """
         if not signatures:
-            sigs = [normalize_signature(signature(func, alias))]
+            sigs = [normalize_signature(signature(func), alias)]
         else:
             sigs = signatures
 
-        id_ = (sigs, chain_on)
-        if id_ not in cls.sigs:
-            cls.sigs[id_] = cls.create_composer(func.__name__, sigs, chain_on)
+        id_ = (tuple(sigs), chain_on)
+        if id_ not in MetaMethodComposer.sigs:
+            subclass = cls.create_composer(func.__name__, sigs, chain_on)
+            MetaMethodComposer.sigs[id_] = subclass
 
-        custom_type = cls.sigs[id_]
-        return super(MetaMethodComposer, custom_type)(obj, func, alias,
-                                                      chain_on, func_id,
-                                                      signatures)
+        custom_type = MetaMethodComposer.sigs[id_]
+        return super(MetaMethodComposer, custom_type).__call__(obj, func,
+                                                               alias, chain_on,
+                                                               func_id,
+                                                               sigs)
 
     def create_composer(cls, name, sigs, chain_on):
         """Dynamically create a subclass of base composer for a signature.
@@ -109,15 +112,15 @@ class MetaMethodComposer(type):
         """
         chain = chain_on or ''
         name = '{}Composer'.format(name)
-        sig = sigs[0]
+        sig = sigs[0][1:]
         # Should store sig on class attribute
-        decl = ('class {name}(cls):\n',
-                '    __slots__ = ("sigs",)\n',
-                '    def __call__(self, {args}):\n',
-                '         for m in self._methods:\n',
-                '            {ret}m(self._obj{args})\n',
-                '         return {chain}',
-                ).format(name=name, args=', ' + ', '.join(*sig) if sig else '',
+        decl = ('class {name}(cls):\n'
+                '    __slots__ = ("sigs",)\n'
+                '    def __call__(self{args}):\n'
+                '         for m in self._methods:\n'
+                '            {ret}m(self._obj{args})\n'
+                '         return {chain}'
+                ).format(name=name, args=', ' + ', '.join(sig) if sig else '',
                          chain=chain, ret=chain + ' = ' if chain else '')
         glob = dict(cls=cls)
         exec_(decl, glob)
@@ -155,7 +158,8 @@ class MethodComposer(with_metaclass(MetaMethodComposer, object)):
     Method ids must be unique and duplicate names are removed without warning.
 
     """
-    __slots__ = ('_obj', '_alias', '_chain_on', '_names', '_methods')
+    __slots__ = ('_obj', '_alias', '_chain_on', '_names', '_methods',
+                 '_signatures')
 
     def __init__(self, obj, func, alias, chain_on, func_id='old',
                  signatures=None):
@@ -166,11 +170,12 @@ class MethodComposer(with_metaclass(MetaMethodComposer, object)):
         self._names = [func_id]
         self._signatures = signatures
 
-    def clone(self, new_obj):
+    def clone(self, new_obj=None):
         """Create a full copy of the composer.
 
         """
-        new = type(self)(new_obj or self._obj, None, self._alias)
+        new = type(self)(new_obj or self._obj, None, self._alias,
+                         self._chain_on, '', self._signatures)
         new._names = self._names[:]
         new._methods = self._methods[:]
         return new
@@ -188,7 +193,7 @@ class MethodComposer(with_metaclass(MetaMethodComposer, object)):
             will be called.
 
         """
-        self._remove_duplicate(name)
+        self._check_duplicates(name)
         self._names.insert(0, name)
         self._methods.insert(0, method)
 
@@ -205,7 +210,7 @@ class MethodComposer(with_metaclass(MetaMethodComposer, object)):
             will be called.
 
         """
-        self._remove_duplicate(name)
+        self._check_duplicates(name)
         self._names.append(name)
         self._methods.append(method)
 
@@ -224,7 +229,7 @@ class MethodComposer(with_metaclass(MetaMethodComposer, object)):
             will be called.
 
         """
-        self._remove_duplicate(name)
+        self._check_duplicates(name)
         i = self._names.index(anchor)
         self._names.insert(i+1, name)
         self._methods.insert(i+1, method)
@@ -244,7 +249,7 @@ class MethodComposer(with_metaclass(MetaMethodComposer, object)):
             will be called.
 
         """
-        self._remove_duplicate(name)
+        self._check_duplicates(name)
         i = self._names.index(anchor)
         self._names.insert(i, name)
         self._methods.insert(i, method)
@@ -293,14 +298,13 @@ class MethodComposer(with_metaclass(MetaMethodComposer, object)):
     def __contains__(self, item):
         return item in self._names
 
-    def _remove_duplicate(self, name):
+    def _check_duplicates(self, name):
         """Remove the name from the list to avoid having duplicate ids.
 
         """
         if name in self._names:
-            i = self._names.index(name)
-            del self._names[i]
-            del self._methods[i]
+            msg = 'Cannot have duplicate ids in MethodComposer. ({})'
+            raise ValueError(msg.format(name))
 
 
 class MethodCustomizer(AbstractMethodCustomizer):

@@ -32,7 +32,6 @@ setup(
         ],
     zip_safe=False,
     packages=find_packages(exclude=['tests', 'tests.*']),
-    package_data={'': ['*.yaml']},
     requires=['future', 'pyvisa', 'funcsigs', 'stringparser'],
     install_requires=['future', 'funcsigs', 'stringparser'],
 )

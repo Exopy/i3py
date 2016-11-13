@@ -189,7 +189,7 @@ class HasFeaturesMeta(ABCMeta):
 
         # Add the special statically defined behaviours for the
         # features/actions.
-        for key, cust in m_customizers.items:
+        for key, cust in m_customizers.items():
             cust.customize(cls, key)
 
         # Put a reference to the features dict on the class.

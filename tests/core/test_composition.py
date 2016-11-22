@@ -134,4 +134,4 @@ def test_composer_modification_methods(composer):
     assert prep['prep'] is multi
     assert 'new' in prep
 
-# MethodCustomizer and SupportMethodCustomization are tested on features.
+# customize and SupportMethodCustomization are tested on features.

@@ -13,7 +13,8 @@ from __future__ import (division, unicode_literals, print_function,
                         absolute_import)
 from future.utils import with_metaclass
 
-from .has_features import HasFeaturesMeta, HasFeatures, AbstractSubSystem
+from .abstracts import AbstractSubSystem
+from .has_features import HasFeaturesMeta, HasFeatures
 
 
 class DeclarationMeta(HasFeaturesMeta):

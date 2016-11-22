@@ -15,6 +15,7 @@ to customize Feature behaviour by defining specially named methods.
 from __future__ import (division, unicode_literals, print_function,
                         absolute_import)
 
+import logging
 from inspect import getsourcelines
 from itertools import chain
 from abc import ABCMeta
@@ -22,10 +23,10 @@ from collections import defaultdict
 
 from future.utils import with_metaclass
 
-from .abstracts import (AbstractHasFeatures, AbstractFeature, AbstractAction)
+from .abstracts import (AbstractHasFeatures, AbstractFeature, AbstractAction,
+                        AbstractMethodCustomizer)
 from .declarative import (set_feat, set_action, SubpartDecl, subsystem,
                           channel, limit)
-from .composition import MethodCustomizer
 
 
 class HasFeaturesMeta(ABCMeta):
@@ -72,7 +73,7 @@ class HasFeaturesMeta(ABCMeta):
             elif isinstance(value, set_action):
                 action_paras[key] = value
 
-            elif isinstance(value, MethodCustomizer):
+            elif isinstance(value, AbstractMethodCustomizer):
                 m_customizers[key] = value
 
             elif isinstance(value, limit):
@@ -81,9 +82,10 @@ class HasFeaturesMeta(ABCMeta):
                 limits[limit_id] = limit.func
 
         # Clean up class dictionary.
-        for k in chain(feat_paras, action_paras, subparts, m_customizers,
-                       to_remove):
+        for k in chain(feat_paras, action_paras, m_customizers, to_remove):
             del dct[k]
+        for v in subparts.values():
+            v.clean_namespace(dct)
 
         # Create the class object.
         cls = super(HasFeaturesMeta, meta).__new__(meta, name, bases, dct)
@@ -97,16 +99,21 @@ class HasFeaturesMeta(ABCMeta):
         # way which is probabbly good enough.
         if docs is None:
             docs = {}
-            lines, _ = getsourcelines(cls)
-            doc = ''
-            for line in lines:
-                l = line.strip()
-                if l.startswith('#:'):
-                    doc += ' ' + l[2:].strip()
-                elif ' = ' in l:
-                    attr_name = l.split(' = ', 1)[0]
-                    docs[attr_name] = doc.strip()
-                    doc = ''
+            try:
+                lines, _ = getsourcelines(cls)
+            except OSError:
+                msg = 'Failed to retrieve source lines for %s.' % cls
+                logging.getLogger(__name__).warn(msg)
+            else:
+                doc = ''
+                for line in lines:
+                    l = line.strip()
+                    if l.startswith('#:'):
+                        doc += ' ' + l[2:].strip()
+                    elif ' = ' in l:
+                        attr_name = l.split(' = ', 1)[0]
+                        docs[attr_name] = doc.strip()
+                        doc = ''
 
         # Make the feature build their docs from the provided docstrings.
         for f in feats:

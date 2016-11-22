@@ -14,7 +14,7 @@ from __future__ import (division, unicode_literals, print_function,
 
 from abc import abstractmethod, abstractproperty
 from types import MethodType
-from collections import OrderedDict
+from collections import OrderedDict, Mapping
 
 from funcsigs import signature
 from future.utils import with_metaclass, exec_
@@ -307,7 +307,7 @@ class MethodComposer(with_metaclass(MetaMethodComposer, object)):
             raise ValueError(msg.format(name))
 
 
-class MethodCustomizer(AbstractMethodCustomizer):
+class customize(AbstractMethodCustomizer):
     """Marks a method to be used for customization of a descriptor method.
 
     Parameters
@@ -373,9 +373,15 @@ class MethodCustomizer(AbstractMethodCustomizer):
 class SupportMethodCustomization(AbstractSupportMethodCustomization):
     """Abstract class for objects supporting to have their method customized.
 
+    Attributes
+    ----------
+    name : unicode
+        Name of the object. Used in error reporting.
+
     """
     def __init__(self, *args, **kwargs):
         super(SupportMethodCustomization, self).__init__(*args, **kwargs)
+        self.name = ''
         self._customs = OrderedDict()
 
     @abstractmethod
@@ -396,6 +402,11 @@ class SupportMethodCustomization(AbstractSupportMethodCustomization):
 
         Returns
         -------
+        specifiers : tuple
+            Tuple describing the attempted modification. It is returned to
+            allow altering it. The main use case is turning a complex operation
+            in a replace because the base function is a no-op.
+
         signatures : list
             List of signatures that should be supported by a composer.
 
@@ -463,7 +474,8 @@ class SupportMethodCustomization(AbstractSupportMethodCustomization):
         # Check the function signature match the targeted method and return
         # the comma separated list of arguments on which the composed called
         # should be chained.
-        sigs, chain_on = self.analyse_function(method_name, func)
+        specifiers, sigs, chain_on = self.analyse_function(method_name, func,
+                                                           specifiers)
 
         # In the absence of specifiers or for get and set we simply replace the
         # method.
@@ -543,7 +555,7 @@ class SupportMethodCustomization(AbstractSupportMethodCustomization):
         """
         # Loop on methods which are affected by mofifiers.
         for meth_name, modifiers in obj._customs.items():
-            if isinstance(modifiers, MethodType):
+            if not isinstance(modifiers, Mapping):
                 self.modify_behavior(meth_name, modifiers)
                 continue
 

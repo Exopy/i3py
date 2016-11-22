@@ -61,8 +61,8 @@ class Feature(AbstractFeature, SupportMethodCustomization):
     checks : unicode or tuple(2)
         Booelan tests to execute before anything else when attempting to get or
         set a feature. Multiple assertion can be separated with ';'. The
-        driver driver can be accessed under the name driver and in a setter
-        the value under the name value, ie the following assertion is correct:
+        driver can be accessed under the name driver and in a setter the value
+        under the name value, ie the following assertion is correct:
         driver.voltage > value
         If a single string is provided it is used to run checks before get and
         set, if a tuple of length 2 is provided the first element is used for
@@ -88,6 +88,7 @@ class Feature(AbstractFeature, SupportMethodCustomization):
     """
     def __init__(self, getter=None, setter=None, extract='', retries=0,
                  checks=None, discard=None):
+        self.name = ''
         self._getter = getter
         self._setter = setter
         self._retries = retries
@@ -114,7 +115,7 @@ class Feature(AbstractFeature, SupportMethodCustomization):
                 discard = {'features': discard}
             self._discard = discard
             self.modify_behavior('post_set', self.discard_cache.__func__,
-                                 ('append',), 'discard', True)
+                                 ('append',), 'discard', internal=True)
 
         if extract:
             if isinstance(extract, Parser):
@@ -122,8 +123,37 @@ class Feature(AbstractFeature, SupportMethodCustomization):
             else:
                 self._parser = Parser(extract)
             self.modify_behavior('post_get', self.extract.__func__,
-                                 ('prepend',), 'extract', True)
-        self.name = ''
+                                 ('prepend',), 'extract', internal=True)
+
+    def make_doc(self, doc):
+        """Build the doc of the feature based on the passed string and kwargs.
+
+        """
+        ftype = ('read/write ' if (self.creation_kwargs['getter'] and
+                                   self.creation_kwargs['setter'])
+                 else ('read only' if self.creation_kwargs['getter'] else
+                       'write only'))
+        doc += '\nThis %s feature is %s.' % (type(self).__name__, ftype)
+        if self.creation_kwargs['checks']:
+            checks = self.creation_kwargs['checks']
+            if isinstance(checks, tuple):
+                doc += ('\nThe following checks are run :\n  - on get: %s\n'
+                        '  - on set: %s') % (checks)
+            else:
+                doc += ('The following checks are run on get and set:\n  - %s'
+                        % checks)
+        if self.creation_kwargs['discard']:
+            discard = self.creation_kwargs['discard']
+            if isinstance(discard, dict):
+                doc += ('On set operation the following cached values are '
+                        'cleared:\n' +
+                        '\n'.join(' - %s: %s' % (k, ', '.join(v))
+                                  for k, v in discard.items()))
+            else:
+                doc += ('On set operation the following cached values are '
+                        'cleared:\n -  features: %s') % ', '.join(discard)
+
+        self.__doc__ = doc
 
     def pre_get(self, driver):
         """Hook to perform checks before querying a value from the instrument.
@@ -350,6 +380,12 @@ class Feature(AbstractFeature, SupportMethodCustomization):
                    )
             raise ValueError(msg.format(method_name, self.name, specifiers))
 
+        if method_name in ('pre_get', 'post_get', 'pre_set'):
+            unbound = getattr(Feature, method_name)
+            original = getattr(unbound, '__func__', unbound)
+            if getattr(self, method_name).__func__ is original:
+                specifiers = ()
+
         func_sig = normalize_signature(signature(func), self.self_alias)
         if sig != func_sig:
             msg = ('Function {} used to attempt to customize method {} of '
@@ -358,7 +394,7 @@ class Feature(AbstractFeature, SupportMethodCustomization):
             raise ValueError(msg.format(func.__name__, method_name, self.name,
                                         sig, func_sig))
 
-        return [sig], chain
+        return specifiers, [sig], chain
 
     def _build_checkers(self, checks):
         """Create the custom check function and bind them to check_get and
@@ -370,20 +406,16 @@ class Feature(AbstractFeature, SupportMethodCustomization):
             checks = (checks, checks)
 
         if checks[0]:
-            self.get_check = MethodType(build(checks[0], '(self, driver)'),
-                                        self)
+            self.get_check = build(checks[0], '(feat, driver)')
         if checks[1]:
-            self.set_check = MethodType(build(checks[1],
-                                              '(self, driver, value)',
-                                              'value'),
-                                        self)
+            self.set_check = build(checks[1], '(feat, driver, value)', 'value')
 
         if hasattr(self, 'get_check'):
             self.modify_behavior('pre_get', self.get_check,
-                                 ('checks', 'prepend'), True)
+                                 ('checks', 'prepend'), internal=True)
         if hasattr(self, 'set_check'):
             self.modify_behavior('pre_set', self.set_check,
-                                 ('checks', 'prepend'), True)
+                                 ('checks', 'prepend'), internal=True)
 
     def _get(self, driver):
         """Getter defined when the user provides a value for the get arg.

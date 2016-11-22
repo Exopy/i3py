@@ -13,7 +13,7 @@ from __future__ import (division, unicode_literals, print_function,
                         absolute_import)
 
 from inspect import cleandoc
-from functools import update_wrapper, partial
+from functools import partial
 
 from future.utils import raise_from, exec_, with_metaclass
 from past.builtins import basestring
@@ -48,8 +48,8 @@ class MetaActionCall(type):
     """Metaclass for action call object offering custom instantiation.
 
     """
-    def __init__(cls):
-        cls.sigs = {}  # Dict storing custom class for each signature
+    #: Dict storing custom class for each signature
+    sigs = {}
 
     def __call__(cls, action, driver):
         """Create a custom subclass for each signature action.
@@ -140,16 +140,19 @@ class Action(AbstractAction, SupportMethodCustomization):
 
     """
     def __init__(self, **kwargs):
-
+        super(Action, self).__init__()
+        self.name = ''
+        self.func = None
         self.creation_kwargs = kwargs
 
     def __call__(self, func):
         if self.func:
             msg = 'Attempt to decorate a second function using one Action.'
             raise RuntimeError(msg)
-        update_wrapper(self.__call__, func)
+        self.__doc__ = func.__doc__
         self.sig = signature(func)
         self.func = func
+        self.name = func.__name__
         self.customize_call(func, self.creation_kwargs)
         return self
 
@@ -244,12 +247,12 @@ class Action(AbstractAction, SupportMethodCustomization):
                                               kwargs.get('limits', {}))
 
         if 'checks' in kwargs:
-            sig = normalize_signature(self.sig)
-            check_sig = ('(self' +
-                         (', ' + ', '.join(*sig) if sig else '') + ')')
+            sig = normalize_signature(self.sig, alias='driver')
+            check_sig = ('(action' +
+                         (', ' + ', '.join(sig) if sig else '') + ')')
             check_args = build_checker(kwargs['checks'], check_sig)
             self.modify_behavior('pre_call', check_args,
-                                 ('append',), 'checks')
+                                 ('append',), 'checks', internal=True)
 
         if UNIT_SUPPORT and 'units' in kwargs:
             self.add_unit_support(func, kwargs['units'])
@@ -293,22 +296,25 @@ class Action(AbstractAction, SupportMethodCustomization):
                        'customize it. Failed on action {} with customization '
                        'specifications {}')
                 raise ValueError(msg.format(self.name, specifiers))
-            sigs = [self.sig]
+            sigs = [func_sig]
             chain_on = None
 
         elif meth_name == 'pre_call':
-            sigs = [self.sig, ('action', 'driver', '*args', '**kwargs')]
+            sigs = [func_sig, ('action', 'driver', '*args', '**kwargs')]
             chain_on = 'args, kwargs'
             # The base version of pre_call is no-op so we can directly replace
-            if self.pre_call.__func__ is Action.pre_call.__func__:
+            # Python 2/3 compatibility hack.
+            original = getattr(Action.pre_call, '__func__', Action.pre_call)
+            if self.pre_call.__func__ is original:
                 specifiers = ()
 
         elif meth_name == 'post_call':
-            sigs = [('action', 'driver', 'result') + self.sig[2:],
+            sigs = [('action', 'driver', 'result') + func_sig[2:],
                     ('action', 'driver', 'result', '*args', '**kwargs')]
             chain_on = 'result'
             # The base version of post_call is no-op so we can directly replace
-            if self.post_call.__func__ is Action.post_call.__func__:
+            original = getattr(Action.post_call, '__func__', Action.post_call)
+            if self.post_call.__func__ is original:
                 specifiers = ()
 
         else:
@@ -323,7 +329,7 @@ class Action(AbstractAction, SupportMethodCustomization):
             raise ValueError(msg.format(func.__name__, meth_name, self.name,
                                         sigs, func_sig))
 
-        return sigs, chain_on
+        return specifiers, sigs, chain_on
 
     @property
     def self_alias(self):
@@ -352,7 +358,8 @@ class Action(AbstractAction, SupportMethodCustomization):
 
             return bound.args, bound.kwargs
 
-        self.modify_behavior('pre_call', convert_input, ('prepend',), 'units')
+        self.modify_behavior('pre_call', convert_input, ('prepend',), 'units',
+                             internal=True)
 
         if not UNIT_RETURN:
             return
@@ -372,7 +379,8 @@ class Action(AbstractAction, SupportMethodCustomization):
 
             return results if is_container else results[0]
 
-        self.modify_behavior('post_call', convert_output, ('append',), 'units')
+        self.modify_behavior('post_call', convert_output, ('append',), 'units',
+                             internal=True)
 
     def add_values_limits_validation(self, values, limits):
         """Add arguments validation to pre_call.
@@ -423,4 +431,4 @@ class Action(AbstractAction, SupportMethodCustomization):
                 validators[n](driver, bound[n])
 
         self.modify_behavior('pre_call', validate_args, ('append',),
-                             'values_limits')
+                             'values_limits', internal=True)

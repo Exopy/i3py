@@ -12,9 +12,8 @@
 from __future__ import (division, unicode_literals, print_function,
                         absolute_import)
 
-import re
 from abc import ABC, abstractmethod
-from inspect import currentframe, getsourcefile, getsourcelines
+from inspect import currentframe
 
 from .abstracts import AbstractSubSystem, AbstractChannel
 
@@ -39,7 +38,8 @@ class SubpartDecl(ABC):
         self._bases_ = bases
         self._parent_ = None
         self._aliases_ = []
-        self._temp_frame_ = None
+        self._inners_ = {}
+        self._enter_locals_ = None
 
     def __setattr__(self, name, value):
         if isinstance(value, SubpartDecl):
@@ -66,28 +66,41 @@ class SubpartDecl(ABC):
         use shorter names in declarations.
 
         """
-        self._temp_frame_ = currentframe().f_back.f_locals.copy()
+        self._enter_locals_ = currentframe().f_back.f_locals.copy()
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
         """"Using this a context manager helps readability and can allow to
         use shorter names in declarations.
 
-        When exiting we cleanup the class frame to avoid leaking subpart only
-        declarations into the main class. We also discover the aliases used
-        for this subpart which are later used to collect the docstrings of the
-        features.
+        When exiting we identify seen names that will be removed later by the
+        enclosing class to avoid leaking subpart only declarations into the
+        main class. We also discover the aliases used for this subpart which
+        are later used to collect the docstrings of the features.
 
         """
         frame = currentframe().f_back
         frame_locals = frame.f_locals
-        diff = set(frame_locals) - set(self._temp_frame_)
+        diff = set(frame_locals) - set(self._enter_locals_)
         aliases = {k: v for k, v in frame_locals.items()
                    if k in diff and v is self}
         self._aliases_.extend(aliases)
-        for k in diff:
-            del frame.f_locals[k]
-        self._temp_frame_ = None
+        self._enter_locals_ = None
+        self._inners_ = {k: v for k, v in frame_locals.items() if k in diff}
+
+    def clean_namespace(self, cls_dict):
+        """Remove all inner names if the value is the one seen.
+
+        Parameters
+        ----------
+        cls_dict : dict
+            Dictionary from which to remove names belonging only to the
+            subpart.
+
+        """
+        for k, v in self._inners_.items():
+            if k in cls_dict and cls_dict[k] is v:
+                del cls_dict[k]
 
     def build_cls(self, parent_name, base, docs):
         """Build a class based declared base classes and attributes.
@@ -98,9 +111,11 @@ class SubpartDecl(ABC):
             Name of the parent class system. Used to build the name of the new
             class.
 
-        base : type
-            Base type for the new class. Should  be prepended to any class
-            specified in the subpart declaration.
+        base : type or None
+            Base type for the new class. This class is expected to be a valid
+            subclass of for the builder (hence compute_base_classes can be
+            skipped). Should  be prepended to any class specified in the
+            subpart declaration.
 
         docs : dict
             Dictionary containing the docstring collected on the parent.
@@ -120,7 +135,6 @@ class SubpartDecl(ABC):
         s_docs = {tuple(k.split('.', 1)): v for k, v in docs.items()}
         docs = {k[-1]: v for k, v in s_docs.items()
                 if k[0] in self._aliases_ and len(k) == 2}
-
         meta = type(bases[0])
         # Python 2 fix : class name can't be unicode
         name = str(parent_name + self._name_.capitalize())
@@ -129,6 +143,8 @@ class SubpartDecl(ABC):
         del dct['_parent_']
         del dct['_bases_']
         del dct['_aliases_']
+        del dct['_enter_locals_']
+        del dct['_inners_']
         dct['_docs_'] = docs
         new_class = meta(name, bases, dct)
         new_class.__doc__ = part_doc
@@ -276,7 +292,7 @@ class set_action(ABC):
 
         """
         cls = type(action)
-        kwargs = action.kwargs.copy()
+        kwargs = action.creation_kwargs.copy()
         kwargs.update(self.custom_attrs)
         new = cls(**kwargs)
 
@@ -293,34 +309,12 @@ class limit(ABC):
     the level at which it is defined, (ie self) and return an
     `AbstractLimitsValidator`.
 
-    The name can be either specified at instantiation time or will be deduced
-    from the decorated method name, which should in this case start with
-    '_limits_'.
-
     """
-    __slots__ = ('_name', 'func')
-
-    _prefix_matcher = re.compile('^_limits_')
+    __slots__ = ('name', 'func')
 
     def __init__(self, limit_name=None):
-        self._name = limit_name
+        self.name = limit_name
 
     def __call__(self, func):
         self.func = func
-
-    def extract_id(self, method_name):
-        """If the limit name is not specified extract it from the method name.
-
-        """
-        if not self._name:
-            m = self._prefix_matcher.match(method_name)
-            if not m:
-                msg = ('{} does not start with "_limits_" which is required '
-                       'for automatic determination of a limit name. Look at '
-                       '{} for the origin of the problem.')
-                raise ValueError(msg.format(method_name,
-                                            getsourcefile(self.func),
-                                            getsourcelines(self.func)[0]))
-            self._name = m.string[m.end():]
-
-        return self._name
+        return self

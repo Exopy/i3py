@@ -15,7 +15,7 @@ from pytest import raises
 from stringparser import Parser
 
 from i3py.core.features.feature import Feature, get_chain, set_chain
-from i3py.core.features.util import PostGetComposer, constant, conditional
+from i3py.core.features.factories import constant, conditional
 from i3py.core.errors import I3pyError
 from ..testing_tools import DummyParent
 

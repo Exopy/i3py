@@ -16,6 +16,9 @@ from i3py.core.has_features import channel
 from .testing_tools import DummyParent
 
 
+# XXX test using alternate channel container
+
+
 class ChParent1(DummyParent):
 
     ch = channel('_list_ch')

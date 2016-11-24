@@ -78,8 +78,8 @@ class HasFeaturesMeta(ABCMeta):
 
             elif isinstance(value, limit):
                 to_remove.add(key)
-                limit_id = limit.extract_id(key)
-                limits[limit_id] = limit.func
+                limit_id = value.name
+                limits[limit_id] = value.func
 
         # Clean up class dictionary.
         for k in chain(feat_paras, action_paras, m_customizers, to_remove):
@@ -133,18 +133,19 @@ class HasFeaturesMeta(ABCMeta):
             # If a subpart with the same name has already been declared on a
             # parent class we use its class as a base class for the one we are
             # about to create.
-            if k in inherited_ss:
-                subsystems[part_name] = part.build_cls(name, inherited_ss[k],
+            if part_name in inherited_ss:
+                subsystems[part_name] = part.build_cls(name,
+                                                       inherited_ss[part_name],
                                                        docs)
-            elif k in inherited_ch:
-                ch_cls = part.build_cls(name, inherited_ch[k][0], docs)
+            elif part_name in inherited_ch:
+                ch_cls = part.build_cls(name, inherited_ch[part_name][0], docs)
 
                 # Must be valid otherwise parent declaration would be messed up
-                available = (part.build_list_channel_function()
-                             if part._available_ else inherited_ch[k][1])
-                aliases = (part._ch_aliases_ if part._ch_aliases_ else
-                           inherited_ch[k][2])
-                channels[part_name] = (ch_cls, available, aliases)
+                part._available_ = (part._available_ or
+                                    inherited_ch[part_name][1]._available_)
+                part._ch_aliases_ = (part._ch_aliases_ or
+                                     inherited_ch[part_name][1]._ch_aliases_)
+                channels[part_name] = (ch_cls, part)
 
             else:
                 if isinstance(part, subsystem):
@@ -153,10 +154,8 @@ class HasFeaturesMeta(ABCMeta):
                     ch_cls = part.build_cls(name, None, docs)
                     if not part._available_:
                         msg = 'No way to identify available channels for {}'
-                        raise ValueError(msg.format(k))
-                    channels[part_name] = (ch_cls,
-                                           part.build_list_channel_function(),
-                                           part._ch_aliases_)
+                        raise ValueError(msg.format(part_name))
+                    channels[part_name] = (ch_cls, part)
 
         # Put references to the subsystem and channel classes on the class.
         for k, v in subsystems.items():
@@ -191,7 +190,7 @@ class HasFeaturesMeta(ABCMeta):
 
         # Clone all features/actions not owned at this stage.
         for base, owned in ((base_feats, feats), (base_actions, actions)):
-            for k, v in {k: v for k, v in base.items() if k not in owned}:
+            for k, v in ((k, v) for k, v in base.items() if k not in owned):
                 owned[k] = v.clone()
 
         # Add the special statically defined behaviours for the
@@ -209,7 +208,7 @@ class HasFeaturesMeta(ABCMeta):
         # This is used at initialisation to create the appropriate subsystems
         cls.__subsystems__ = subsystems
 
-        # Put a reference to the channels in the class
+        # Put a reference to the (channel, part) pairs in the class
         cls.__channels__ = channels
 
         # Put a reference to the limits in the class.
@@ -243,9 +242,10 @@ class HasFeatures(with_metaclass(HasFeaturesMeta, object)):
             setattr(self, ss, subsystem)
 
         # Creating a channel container for each kind of declared channels.
-        for ch, (cls, list_avalaible, aliases) in channels.items():
-            ch_holder = cls.__container_type__(cls, self, ch, list_avalaible,
-                                               aliases)
+        for ch, (cls, part) in channels.items():
+            listing_function = part.build_list_channel_function()
+            ch_holder = cls._container_type_(cls, self, ch, listing_function,
+                                             part._ch_aliases_)
             setattr(self, ch, ch_holder)
 
     def get_feat(self, name):

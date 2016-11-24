@@ -220,6 +220,14 @@ class channel(SubpartDecl):
             from .base_channel import ChannelContainer
             self._container_type_ = ChannelContainer
 
+    def build_cls(self, parent_name, base, docs):
+        """Reimplemented to set the _container_type_ attribute.
+
+        """
+        cls = super(channel, self).build_cls(parent_name, base, docs)
+        cls._container_type_ = self._container_type_
+        return cls
+
     def compute_base_classes(self):
         """Add Channel in the base classes if necessary.
 

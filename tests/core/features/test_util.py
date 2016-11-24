@@ -14,11 +14,7 @@ from __future__ import (division, unicode_literals, print_function,
 
 import pytest
 
-from i3py.core.features.util import (MethodsComposer, PreGetComposer,
-                                     PostGetComposer, PreSetComposer,
-                                     PostSetComposer, constant,
-                                     conditional)
-
+from i3py.core.features.factories import constant, conditional
 from ..testing_tools import DummyParent
 
 

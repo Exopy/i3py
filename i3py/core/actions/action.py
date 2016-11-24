@@ -63,7 +63,8 @@ class MetaActionCall(type):
             Instance of the owner class of the action.
 
         """
-        if action.sig not in cls.sigs:
+        sig = normalize_signature(action.sig)
+        if sig not in cls.sigs:
             cls.sigs[action.sig] = cls.create_callable(action)
 
         custom_type = cls.sigs[action.sig]
@@ -78,7 +79,7 @@ class MetaActionCall(type):
         # Should store sig on class attribute
         decl = ('class {name}(ActionCall):\n' +
                 CALL_TEMPLATE
-                ).format(name=name, sig=', ' + ', '.join(*sig) if sig else '')
+                ).format(name=name, sig=', ' + ', '.join(sig) if sig else '')
         glob = dict(ActionCall=ActionCall, raise_from=raise_from,
                     I3pyFailedCall=I3pyFailedCall)
         exec_(decl, glob)
@@ -144,6 +145,7 @@ class Action(AbstractAction, SupportMethodCustomization):
         self.name = ''
         self.func = None
         self.creation_kwargs = kwargs
+        self._desc = None
 
     def __call__(self, func):
         if self.func:

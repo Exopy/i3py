@@ -32,9 +32,6 @@ def teardown():
     unit.UNIT_RETURN = False
 
 
-# XXX add test for setting UNIT_RETURN
-
-
 @mark.skipif(unit.UNIT_SUPPORT is False, reason="Requires Pint")
 def test_set_unit_registry(teardown):
     ureg = UnitRegistry()
@@ -48,6 +45,7 @@ def test_set_unit_registry(teardown):
 def test_reset_unit_registry(teardown):
     ureg = UnitRegistry()
     set_unit_registry(ureg)
+    assert unit.UNIT_RETURN
     with raises(ValueError):
         set_unit_registry(ureg)
 

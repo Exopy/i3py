@@ -371,7 +371,8 @@ class Feature(AbstractFeature, SupportMethodCustomization):
                       'post_get': (('feat', 'driver', 'value'), 'value'),
                       'pre_set': (('feat', 'driver', 'value'), 'value'),
                       'set': (('feat', 'driver', 'value'), None),
-                      'post_set': (('feat', 'driver', 'i_value', 'response'),
+                      'post_set': (('feat', 'driver', 'value', 'i_value',
+                                    'response'),
                                    None)
                       }[method_name]
         if method_name in ('get', 'set') and specifiers:

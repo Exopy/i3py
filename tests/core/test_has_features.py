@@ -13,13 +13,14 @@ from __future__ import (division, unicode_literals, print_function,
                         absolute_import)
 from pytest import raises
 
-from i3py.core.has_features import (subsystem, set_feat, channel, set_action)
+from i3py.core.declarative import (subsystem, set_feat, channel, set_action,
+                                   limit)
+from i3py.core.composition import customize
 from i3py.core.base_subsystem import SubSystem
 from i3py.core.base_channel import Channel
 from i3py.core.actions import Action
 from i3py.core.features.feature import Feature
-from i3py.core.features.util import (append, prepend, add_after, add_before,
-                                     replace)
+from i3py.core.errors import I3pyFailedGet
 
 from .testing_tools import DummyParent
 
@@ -32,7 +33,7 @@ def test_documenting_feature():
         #: the Feature test.
         test = Feature()
 
-    assert DocTester.test.__doc__ ==\
+    assert DocTester.test.__doc__.split('\n')[0] ==\
         'This is the docstring for the Feature test.'
 
 
@@ -50,13 +51,14 @@ def test_set_feat():
             super(DecorateIP, self).__init__(getter, setter)
             self.dec = dec
 
-        def post_get(self, iprop, val):
-            return self.dec+val+self.dec
+        def post_get(self, driver, value):
+            return self.dec+value+self.dec
 
     class ParentTester(DummyParent):
         test = DecorateIP(getter=True, setter=True)
 
-        def _get_test(self, iprop):
+        @customize('test', 'get')
+        def _get_test(feat, driver):
             return 'this is a test'
 
     class CustomizationTester(ParentTester):
@@ -82,7 +84,8 @@ def test_overriding_get():
     class OverrideGet(DummyParent):
         test = Feature(getter=True)
 
-        def _get_test(self, iprop):
+        @customize('test', 'get')
+        def _get_test(feat, driver):
             return 'This is a test'
 
     assert OverrideGet().test == 'This is a test'
@@ -93,13 +96,15 @@ def test_overriding_pre_get():
     class OverridePreGet(DummyParent):
         test = Feature(getter=True)
 
-        def _get_test(self, iprop):
+        @customize('test', 'get')
+        def _get_test(feat, driver):
             return 'this is a test'
 
-        def _pre_get_test(self, iprop):
+        @customize('test', 'pre_get')
+        def _pre_get_test(feat, driver):
             assert False
 
-    with raises(AssertionError):
+    with raises(I3pyFailedGet):
         OverridePreGet().test
 
 
@@ -108,11 +113,13 @@ def test_overriding_post_get():
     class OverridePostGet(DummyParent):
         test = Feature(getter=True)
 
-        def _get_test(self, iprop):
+        @customize('test', 'get')
+        def _get_test(feat, driver):
             return 'this is a test'
 
-        def _post_get_test(self, iprop, val):
-            return '<br>'+val+'<br>'
+        @customize('test', 'post_get')
+        def _post_get_test(feat, driver, value):
+            return '<br>'+value+'<br>'
 
     assert OverridePostGet().test == '<br>this is a test<br>'
 
@@ -127,8 +134,9 @@ def test_overriding_set():
     class OverrideSet(DummyParent):
         test = Feature(setter=True)
 
-        def _set_test(self, iprop, value):
-            self.val = value
+        @customize('test', 'set')
+        def _set_test(feat, driver, value):
+            driver.val = value
 
     o = OverrideSet()
     o.test = 1
@@ -140,10 +148,12 @@ def test_overriding_pre_set():
     class OverridePreSet(DummyParent):
         test = Feature(setter=True)
 
-        def _set_test(self, iprop, value):
-            self.val = value
+        @customize('test', 'set')
+        def _set_test(feat, driver, value):
+            driver.val = value
 
-        def _pre_set_test(self, iprop, value):
+        @customize('test', 'pre_set')
+        def _pre_set_test(feat, driver, value):
             return value/2
 
     o = OverridePreSet()
@@ -156,38 +166,21 @@ def test_overriding_post_set():
     class OverridePreSet(DummyParent):
         test = Feature(setter=True)
 
-        def _set_test(self, iprop, value):
-            self.val = value
+        @customize('test', 'set')
+        def _set_test(feat, driver, value):
+            driver.val = value
 
-        def _pre_set_test(self, iprop, value):
+        @customize('test', 'pre_set')
+        def _pre_set_test(feat, driver, value):
             return value/2
 
-        def _post_set_test(self, iprop, val, i_val, response):
-            self.val = (val, i_val)
+        @customize('test', 'post_set')
+        def _post_set_test(feat, driver, value, i_value, response):
+            driver.val = (value, i_value)
 
     o = OverridePreSet()
     o.test = 1
     assert o.val == (1, 0.5)
-
-
-def test_clone_if_needed():
-
-    prop = Feature(getter=True)
-
-    class Overriding(DummyParent):
-        test = prop
-
-        def _get_test(self, iprop):
-            return 1
-
-    assert Overriding.test is prop
-
-    class OverridingParent(Overriding):
-
-        def _get_test(self):
-            return 2
-
-    assert OverridingParent.test is not prop
 
 
 def test_customizing_unknown():
@@ -199,7 +192,8 @@ def test_customizing_unknown():
 
         class Overriding(DummyParent):
 
-            def _get_test(self, iprop):
+            @customize('test', 'get')
+            def _get_test(feat, driver):
                 return 1
 
 # --- Test customizing feature ------------------------------------------------
@@ -223,10 +217,10 @@ def test_customizing_append():
 
     class CustomAppend(ToCustom):
 
-        @append()
-        def _pre_get_feat(self, feat):
-            self.custom_called += 1
-            assert self.aux2 is True
+        @customize('feat', 'pre_get', ('append',))
+        def _pre_get_feat(feat, driver):
+            driver.custom_called += 1
+            assert driver.aux2 is True
 
     driver = CustomAppend()
     assert driver.feat
@@ -248,10 +242,10 @@ def test_customizing_prepend():
 
     class CustomPrepend(ToCustom):
 
-        @prepend()
-        def _pre_get_feat(self, feat):
-            self.custom_called += 1
-            assert self.aux2 is True
+        @customize('feat', 'pre_get', ('prepend',))
+        def _pre_get_feat(feat, driver):
+            driver.custom_called += 1
+            assert driver.aux2 is True
 
     driver = CustomPrepend()
     assert driver.feat
@@ -273,10 +267,10 @@ def test_customizing_add_after():
 
     class CustomAddAfter(ToCustom):
 
-        @add_after('checks')
-        def _pre_get_feat(self, feat):
-            self.custom_called += 1
-            assert self.aux2 is True
+        @customize('feat', 'pre_get', ('add_after', 'checks'))
+        def _pre_get_feat(feat, driver):
+            driver.custom_called += 1
+            assert driver.aux2 is True
 
     driver = CustomAddAfter()
     assert driver.feat
@@ -298,10 +292,10 @@ def test_customizing_add_before():
 
     class CustomAddBefore(ToCustom):
 
-        @add_before('checks')
-        def _pre_get_feat(self, feat):
-            self.custom_called += 1
-            assert self.aux2 is True
+        @customize('feat', 'pre_get', ('add_before', 'checks'))
+        def _pre_get_feat(feat, driver):
+            driver.custom_called += 1
+            assert driver.aux2 is True
 
     driver = CustomAddBefore()
     assert driver.feat
@@ -323,10 +317,10 @@ def test_customizing_replace():
 
     class CustomReplace(ToCustom):
 
-        @replace('checks')
-        def _pre_get_feat(self, feat):
-            self.custom_called += 1
-            assert self.aux2 is True
+        @customize('feat', 'pre_get', ('replace', 'checks'))
+        def _pre_get_feat(feat, driver):
+            driver.custom_called += 1
+            assert driver.aux2 is True
 
     driver = CustomReplace()
     driver.aux = False
@@ -343,10 +337,10 @@ def test_copying_custom_behavior1():
 
     class CustomAppend(ToCustom):
 
-        @append()
-        def _pre_get_feat(self, feat):
-            self.custom_called += 1
-            assert self.aux2 is True
+        @customize('feat', 'pre_get', ('append',))
+        def _pre_get_feat(feat, driver):
+            driver.custom_called += 1
+            assert driver.aux2 is True
 
     class CopyingCustom(CustomAppend):
 
@@ -371,10 +365,10 @@ def test_copying_custom_behavior2():
 
     class CustomAddAfter(ToCustom):
 
-        @add_after('checks')
-        def _pre_get_feat(self, feat):
-            self.custom_called += 1
-            assert self.aux2 is True
+        @customize('feat', 'pre_get', ('add_after', 'checks'))
+        def _pre_get_feat(feat, driver):
+            driver.custom_called += 1
+            assert driver.aux2 is True
 
     class CopyingCustom(CustomAddAfter):
 
@@ -399,10 +393,10 @@ def test_copying_custom_behavior3():
 
     class CustomReplace(ToCustom):
 
-        @replace('checks')
-        def _pre_get_feat(self, feat):
-            self.custom_called += 1
-            assert self.aux2 is True
+        @customize('feat', 'pre_get', ('replace', 'checks'))
+        def _pre_get_feat(feat, driver):
+            driver.custom_called += 1
+            assert driver.aux2 is True
 
     class CopyingCustom(CustomReplace):
 
@@ -481,7 +475,8 @@ def test_subsystem_declaration2():
 
     assert isinstance(DeclareSubsystem2.sub_test.test, Feature)
     assert DeclareSubsystem2.sub_test.__doc__ == 'Subsystem'
-    assert DeclareSubsystem2.sub_test.test.__doc__ == 'Subsystem feature doc'
+    assert (DeclareSubsystem2.sub_test.test.__doc__.split('\n')[0] ==
+            'Subsystem feature doc')
     d = DeclareSubsystem2()
     with raises(AttributeError):
         d.sub_test.test
@@ -499,7 +494,8 @@ def test_subsystem_declaration3():
             s.test = Feature(getter=True)
 
             @s
-            def _get_test(self, instance):
+            @customize('test', 'get')
+            def _get_test(feat, driver):
                 return True
 
     d = DeclareSubsystem()
@@ -524,7 +520,8 @@ def test_subsystem_declaration4():
 
         test = Feature(getter=True)
 
-        def _get_test(self, instance):
+        @customize('test', 'get')
+        def _get_test(feat, driver):
                 return True
 
     class OverrideSubsystem(DeclareSubsystem):
@@ -598,7 +595,8 @@ def test_channel_declaration2():
             ch.test = Feature(getter=True)
 
             @ch
-            def _get_test(self, iprop):
+            @customize('test', 'get')
+            def _get_test(self, driver):
                 return 'This is a test'
 
     d = OverrideChannel()
@@ -634,7 +632,8 @@ def test_channel_declaration4():
         ch = channel()
 
     d = OverrideChannel2()
-    assert tuple(d.ch.available) == (1, 'Test')
+    assert tuple(d.ch.available) == (1,)
+    assert d.ch.aliases == {'Test': 1}
     assert d.ch['Test'].id == 1
 
 
@@ -744,11 +743,12 @@ def test_limits():
 
     class LimitsDecl(DummyParent):
 
+        @limit('test')
         def _limits_test(self):
             return object()
 
     decl = LimitsDecl()
-    assert decl.declared_limits == set(['test'])
+    assert set(decl.declared_limits) == set(['test'])
     r = decl.get_limits('test')
     assert decl.get_limits('test') is r
     decl.discard_limits(('test', ))

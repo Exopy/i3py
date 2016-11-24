@@ -118,7 +118,7 @@ class MetaMethodComposer(type):
                 '    __slots__ = ("sigs",)\n'
                 '    def __call__(self{args}):\n'
                 '         for m in self._methods:\n'
-                '            {ret}m(self._obj{args})\n'
+                '            {ret}m(self.__self__{args})\n'
                 '         return {chain}'
                 ).format(name=name, args=', ' + ', '.join(sig) if sig else '',
                          chain=chain, ret=chain + ' = ' if chain else '')
@@ -158,12 +158,13 @@ class MethodComposer(with_metaclass(MetaMethodComposer, object)):
     Method ids must be unique and duplicate names are removed without warning.
 
     """
-    __slots__ = ('_obj', '_alias', '_chain_on', '_names', '_methods',
-                 '_signatures')
+    __slots__ = ('__self__', '__name__', '_alias', '_chain_on', '_names',
+                 '_methods', '_signatures')
 
     def __init__(self, obj, func, alias, chain_on, func_id='old',
                  signatures=None):
-        self._obj = obj
+        self.__self__ = obj
+        self.__name__ = func.__name__
         self._alias = alias
         self._chain_on = chain_on
         self._methods = [func]
@@ -174,7 +175,7 @@ class MethodComposer(with_metaclass(MetaMethodComposer, object)):
         """Create a full copy of the composer.
 
         """
-        new = type(self)(new_obj or self._obj, None, self._alias,
+        new = type(self)(new_obj or self._obj, self, self._alias,
                          self._chain_on, '', self._signatures)
         new._names = self._names[:]
         new._methods = self._methods[:]
@@ -298,6 +299,10 @@ class MethodComposer(with_metaclass(MetaMethodComposer, object)):
     def __contains__(self, item):
         return item in self._names
 
+    @property
+    def __func__(self):
+        return self
+
     def _check_duplicates(self, name):
         """Remove the name from the list to avoid having duplicate ids.
 
@@ -333,7 +338,8 @@ class customize(AbstractMethodCustomizer):
         Id of the modification used to identify it.
 
     """
-    __slots__ = ('desc_name', 'meth_name', 'specifiers', 'modif_id', 'func')
+    __slots__ = ('desc_name', 'meth_name', 'specifiers', 'modif_id', 'func',
+                 '__name__')
 
     def __init__(self, desc_name, meth_name, specifiers=(), modif_id=''):
         self.desc_name = desc_name
@@ -344,6 +350,7 @@ class customize(AbstractMethodCustomizer):
 
     def __call__(self, func):
         self.func = func
+        self.__name__ = func.__name__
         return self
 
     def customize(self, owner, decorated_name):
@@ -488,8 +495,8 @@ class SupportMethodCustomization(AbstractSupportMethodCustomization):
         # Otherwise we make sure we have a MethodsComposer.
         composer = getattr(self, method_name)
         if not isinstance(composer, MethodComposer):
-            composer = MethodComposer(self, func, self.self_alias, chain_on,
-                                      signatures=sigs)
+            composer = MethodComposer(self, composer, self.self_alias,
+                                      chain_on, signatures=sigs)
 
         # In case of non internal modifications (ie unrelated to object
         # initialisation) we keep a description of what has been done to be

@@ -50,7 +50,7 @@ class AbstractChannelContainer(ABC):
     """
     @abstractproperty
     def available(self):
-        """List the available channels.
+        """List the available channels (the aliases are not listed).
 
         """
         pass

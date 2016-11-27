@@ -48,18 +48,21 @@ class HasFeaturesMeta(ABCMeta):
 
         docs = dct.pop('_docs_') if '_docs_' in dct else None
 
+        # First we identify all subparts and clean the namespace.
+        for s_name, subpart in {k: v for k, v in dct.items()
+                                if isinstance(v, SubpartDecl)}.items():
+                subpart._name_ = s_name
+                subparts[s_name] = subpart
+                subpart.clean_namespace(dct)
+
         # Names that should be removed from the class body
         to_remove = set()
 
-        # First we identify all elements in the passed dict to clean it up
+        # Next we identify all other elements in the passed dict to clean it up
         # before creating the class.
         for key, value in dct.items():
 
-            if isinstance(value, SubpartDecl):
-                value._name_ = key
-                subparts[key] = value
-
-            elif isinstance(value, AbstractFeature):
+            if isinstance(value, AbstractFeature):
                 feats[key] = value
                 value.name = key
 
@@ -84,8 +87,6 @@ class HasFeaturesMeta(ABCMeta):
         # Clean up class dictionary.
         for k in chain(feat_paras, action_paras, m_customizers, to_remove):
             del dct[k]
-        for v in subparts.values():
-            v.clean_namespace(dct)
 
         # Create the class object.
         cls = super(HasFeaturesMeta, meta).__new__(meta, name, bases, dct)
@@ -138,30 +139,33 @@ class HasFeaturesMeta(ABCMeta):
                                                        inherited_ss[part_name],
                                                        docs)
             elif part_name in inherited_ch:
-                ch_cls = part.build_cls(name, inherited_ch[part_name][0], docs)
+                ch_cls = part.build_cls(name, inherited_ch[part_name],
+                                        docs)
 
                 # Must be valid otherwise parent declaration would be messed up
+                inherited_part = inherited_ch[part_name]._part_
                 part._available_ = (part._available_ or
-                                    inherited_ch[part_name][1]._available_)
+                                    inherited_part._available_)
                 part._ch_aliases_ = (part._ch_aliases_ or
-                                     inherited_ch[part_name][1]._ch_aliases_)
-                channels[part_name] = (ch_cls, part)
+                                     inherited_part._ch_aliases_)
+                channels[part_name] = ch_cls
 
             else:
                 if isinstance(part, subsystem):
-                    subsystems[part_name] = part.build_cls(name, None, docs)
+                    subsystems[part_name] = part.build_cls(name, None,
+                                                           docs)
                 elif isinstance(part, channel):
                     ch_cls = part.build_cls(name, None, docs)
                     if not part._available_:
                         msg = 'No way to identify available channels for {}'
                         raise ValueError(msg.format(part_name))
-                    channels[part_name] = (ch_cls, part)
+                    channels[part_name] = ch_cls
 
         # Put references to the subsystem and channel classes on the class.
         for k, v in subsystems.items():
             setattr(cls, k, v)
         for k, v in channels.items():
-            setattr(cls, k, v[0])
+            setattr(cls, k, v)
 
         inherited_ss.update(subsystems)
         subsystems = inherited_ss
@@ -170,7 +174,7 @@ class HasFeaturesMeta(ABCMeta):
 
         # Customize feature (action) for which a set_feat (set_action) has been
         # declared.
-        # This creates a new instances which are hence owned.
+        # This creates a new instance which is hence owned.
         for paras, owned in ((feat_paras, feats), (action_paras, actions)):
             for k, v in paras.items():
                 new = v.customize(getattr(cls, k))
@@ -191,7 +195,7 @@ class HasFeaturesMeta(ABCMeta):
         # Clone all features/actions not owned at this stage.
         for base, owned in ((base_feats, feats), (base_actions, actions)):
             for k, v in ((k, v) for k, v in base.items() if k not in owned):
-                owned[k] = v.clone()
+                setattr(cls, k, v.clone())
 
         # Add the special statically defined behaviours for the
         # features/actions.
@@ -242,10 +246,10 @@ class HasFeatures(with_metaclass(HasFeaturesMeta, object)):
             setattr(self, ss, subsystem)
 
         # Creating a channel container for each kind of declared channels.
-        for ch, (cls, part) in channels.items():
-            listing_function = part.build_list_channel_function()
+        for ch, cls in channels.items():
+            listing_function = cls._part_.build_list_channel_function()
             ch_holder = cls._container_type_(cls, self, ch, listing_function,
-                                             part._ch_aliases_)
+                                             cls._part_._ch_aliases_)
             setattr(self, ch, ch_holder)
 
     def get_feat(self, name):

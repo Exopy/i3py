@@ -25,7 +25,7 @@ from ..composition import (SupportMethodCustomization, MethodComposer,
                            normalize_signature)
 
 
-class Feature(AbstractFeature, SupportMethodCustomization):
+class Feature(SupportMethodCustomization, AbstractFeature):
     """Descriptor representing the most basic instrument property.
 
     Features should not be used outside the definition of a class to avoid
@@ -88,7 +88,6 @@ class Feature(AbstractFeature, SupportMethodCustomization):
     """
     def __init__(self, getter=None, setter=None, extract='', retries=0,
                  checks=None, discard=None):
-        self.name = ''
         self._getter = getter
         self._setter = setter
         self._retries = retries
@@ -413,10 +412,10 @@ class Feature(AbstractFeature, SupportMethodCustomization):
 
         if hasattr(self, 'get_check'):
             self.modify_behavior('pre_get', self.get_check,
-                                 ('checks', 'prepend'), internal=True)
+                                 ('prepend',), 'checks', internal=True)
         if hasattr(self, 'set_check'):
             self.modify_behavior('pre_set', self.set_check,
-                                 ('checks', 'prepend'), internal=True)
+                                 ('prepend',), 'checks', internal=True)
 
     def _get(self, driver):
         """Getter defined when the user provides a value for the get arg.
@@ -468,6 +467,8 @@ def get_chain(feat, driver):
 
     """
     i = -1
+    if isinstance(feat.pre_get, MethodComposer):
+        print(driver, feat.pre_get._names, feat.pre_get._methods)
     feat.pre_get(driver)
 
     while i < feat._retries:

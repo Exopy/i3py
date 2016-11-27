@@ -131,6 +131,7 @@ class SubpartDecl(ABC):
             bases = self.compute_base_classes()
 
         # Extract the docstring specific to this subpart.
+        print(self._name_)
         part_doc = docs.get(self._name_, '')
         s_docs = {tuple(k.split('.', 1)): v for k, v in docs.items()}
         docs = {k[-1]: v for k, v in s_docs.items()
@@ -226,6 +227,7 @@ class channel(SubpartDecl):
         """
         cls = super(channel, self).build_cls(parent_name, base, docs)
         cls._container_type_ = self._container_type_
+        cls._part_ = self
         return cls
 
     def compute_base_classes(self):

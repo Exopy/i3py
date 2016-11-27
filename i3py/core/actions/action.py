@@ -12,7 +12,6 @@
 from __future__ import (division, unicode_literals, print_function,
                         absolute_import)
 
-from inspect import cleandoc
 from functools import partial
 
 from future.utils import raise_from, exec_, with_metaclass
@@ -28,19 +27,24 @@ from ..util import (build_checker, validate_in, validate_limits,
                     get_limits_and_validate)
 
 
-CALL_TEMPLATE = cleandoc("""
-def __call__(self{sig}):
-    try:
-        params = self.action.sig.bind(self.driver{sig})
-        args = params.args
-        kwargs = params.kwargs
-        args, kwargs = self.action.pre_call(self.driver, *args, **kargs)
-        res = self.action.call(self.driver, *args, **kwargs)
-        return self.action.post_call(self.driver, res, *args, **kwargs)
-    except Exception as e:
-        msg = ('An exception occurred while calling {} with the following '
-               'arguments {} and keywords arguments.')
-        raise_from(I3pyFailedCall(msg.format(self.action.name, args, kwargs)))
+CALL_TEMPLATE = ("""
+    def __call__(self{sig}):
+        try:
+            params = self.action.sig.bind(self.driver{sig})
+            args = params.args[1:]
+            kwargs = params.kwargs
+            print('pc')
+            args, kwargs = self.action.pre_call(self.driver, *args, **kwargs)
+            print('c')
+            res = self.action.call(self.driver, *args, **kwargs)
+            print('poc')
+            return self.action.post_call(self.driver, res, *args, **kwargs)
+        except Exception as e:
+            msg = ('An exception occurred while calling {msg} with the '
+                   'following arguments {msg} and keywords arguments {msg}.')
+            raise_from(I3pyFailedCall(msg.format(self.action.name,
+                                                 (self.driver,) + args,
+                                                 kwargs)), e)
 """)
 
 
@@ -63,23 +67,23 @@ class MetaActionCall(type):
             Instance of the owner class of the action.
 
         """
-        sig = normalize_signature(action.sig)
+        sig = normalize_signature(action.sig, alias='driver')
         if sig not in cls.sigs:
-            cls.sigs[action.sig] = cls.create_callable(action)
+            cls.sigs[sig] = cls.create_callable(action, sig)
 
-        custom_type = cls.sigs[action.sig]
-        return super(MetaActionCall, custom_type)(action, driver)
+        custom_type = cls.sigs[sig]
+        return super(MetaActionCall, custom_type).__call__(action, driver)
 
-    def create_callable(cls, action):
+    def create_callable(cls, action, sig):
         """Dynamically create a subclass of ActionCall for a signature.
 
         """
         name = '{}ActionCall'.format(action.name)
-        sig = normalize_signature(action.sig)
         # Should store sig on class attribute
         decl = ('class {name}(ActionCall):\n' +
                 CALL_TEMPLATE
-                ).format(name=name, sig=', ' + ', '.join(sig) if sig else '')
+                ).format(msg='{}', name=name,
+                         sig=', ' + ', '.join(sig[1:]))
         glob = dict(ActionCall=ActionCall, raise_from=raise_from,
                     I3pyFailedCall=I3pyFailedCall)
         exec_(decl, glob)
@@ -90,7 +94,7 @@ class ActionCall(with_metaclass(MetaActionCall, object)):
     """Object returned when an Action is used as descriptor.
 
     Actually when an Action is used to decorate a function a custom subclass
-    of this class is created with a __call_ method whose signature match the
+    of this class is created with a __call__ method whose signature match the
     decorated function signature.
 
     """
@@ -159,7 +163,7 @@ class Action(AbstractAction, SupportMethodCustomization):
         return self
 
     def __get__(self, obj, objtype=None):
-        if objtype is None:
+        if obj is None:
             return self
         if self._desc is None:
             # A specialized class matching the wrapped function signature is
@@ -245,7 +249,7 @@ class Action(AbstractAction, SupportMethodCustomization):
         self.call = func
 
         if 'limits' in kwargs or 'values' in kwargs:
-            self.add_values_limits_validation(func, kwargs.get('values', {}),
+            self.add_values_limits_validation(kwargs.get('values', {}),
                                               kwargs.get('limits', {}))
 
         if 'checks' in kwargs:
@@ -257,7 +261,7 @@ class Action(AbstractAction, SupportMethodCustomization):
                                  ('append',), 'checks', internal=True)
 
         if UNIT_SUPPORT and 'units' in kwargs:
-            self.add_unit_support(func, kwargs['units'])
+            self.add_unit_support(kwargs['units'])
 
     def analyse_function(self, meth_name, func, specifiers):
         """Analyse the possibility to use a function for a method.
@@ -431,6 +435,8 @@ class Action(AbstractAction, SupportMethodCustomization):
             bound = sig.bind(driver, *args, **kwargs).arguments
             for n in validators:
                 validators[n](driver, bound[n])
+
+            return args, kwargs
 
         self.modify_behavior('pre_call', validate_args, ('append',),
                              'values_limits', internal=True)

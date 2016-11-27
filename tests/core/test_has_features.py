@@ -20,7 +20,7 @@ from i3py.core.base_subsystem import SubSystem
 from i3py.core.base_channel import Channel
 from i3py.core.actions import Action
 from i3py.core.features.feature import Feature
-from i3py.core.errors import I3pyFailedGet
+from i3py.core.errors import I3pyFailedGet, I3pyFailedCall
 
 from .testing_tools import DummyParent
 
@@ -209,7 +209,8 @@ class ToCustom(DummyParent):
         self.aux2 = True
         self.custom_called = 0
 
-    def _get_feat(self, feat):
+    @customize('feat', 'get')
+    def _get_feat(feat, driver):
         return feat
 
 
@@ -227,14 +228,16 @@ def test_customizing_append():
     assert driver.custom_called == 1
 
     driver.aux2 = False
-    with raises(AssertionError):
+    with raises(I3pyFailedGet) as e:
         driver.feat
+        assert isinstance(e.value.__cause__, AssertionError)
     assert driver.custom_called == 2
 
     driver.aux2 = True
     driver.aux = False
-    with raises(AssertionError):
+    with raises(I3pyFailedGet) as e:
         driver.feat
+        assert isinstance(e.value.__cause__, AssertionError)
     assert driver.custom_called == 2
 
 
@@ -252,14 +255,16 @@ def test_customizing_prepend():
     assert driver.custom_called == 1
 
     driver.aux2 = False
-    with raises(AssertionError):
+    with raises(I3pyFailedGet) as e:
         driver.feat
+        assert isinstance(e.value.__cause__, AssertionError)
     assert driver.custom_called == 2
 
     driver.aux2 = True
     driver.aux = False
-    with raises(AssertionError):
+    with raises(I3pyFailedGet) as e:
         driver.feat
+        assert isinstance(e.value.__cause__, AssertionError)
     assert driver.custom_called == 3
 
 
@@ -277,14 +282,16 @@ def test_customizing_add_after():
     assert driver.custom_called == 1
 
     driver.aux2 = False
-    with raises(AssertionError):
+    with raises(I3pyFailedGet) as e:
         driver.feat
+        assert isinstance(e.value.__cause__, AssertionError)
     assert driver.custom_called == 2
 
     driver.aux2 = True
     driver.aux = False
-    with raises(AssertionError):
+    with raises(I3pyFailedGet) as e:
         driver.feat
+        assert isinstance(e.value.__cause__, AssertionError)
     assert driver.custom_called == 2
 
 
@@ -302,14 +309,16 @@ def test_customizing_add_before():
     assert driver.custom_called == 1
 
     driver.aux2 = False
-    with raises(AssertionError):
+    with raises(I3pyFailedGet) as e:
         driver.feat
+        assert isinstance(e.value.__cause__, AssertionError)
     assert driver.custom_called == 2
 
     driver.aux2 = True
     driver.aux = False
-    with raises(AssertionError):
+    with raises(I3pyFailedGet) as e:
         driver.feat
+        assert isinstance(e.value.__cause__, AssertionError)
     assert driver.custom_called == 3
 
 
@@ -328,8 +337,9 @@ def test_customizing_replace():
     assert driver.custom_called == 1
 
     driver.aux2 = False
-    with raises(AssertionError):
+    with raises(I3pyFailedGet) as e:
         driver.feat
+        assert isinstance(e.value.__cause__, AssertionError)
     assert driver.custom_called == 2
 
 
@@ -351,8 +361,9 @@ def test_copying_custom_behavior1():
     assert driver.custom_called == 1
 
     driver.aux2 = False
-    with raises(AssertionError):
+    with raises(I3pyFailedGet) as e:
         driver.feat
+        assert isinstance(e.value.__cause__, AssertionError)
     assert driver.custom_called == 2
 
     driver.aux2 = True
@@ -379,8 +390,9 @@ def test_copying_custom_behavior2():
     assert driver.custom_called == 1
 
     driver.aux2 = False
-    with raises(AssertionError):
+    with raises(I3pyFailedGet) as e:
         driver.feat
+        assert isinstance(e.value.__cause__, AssertionError)
     assert driver.custom_called == 2
 
     driver.aux2 = True
@@ -407,8 +419,9 @@ def test_copying_custom_behavior3():
     assert driver.custom_called == 1
 
     driver.aux2 = False
-    with raises(AssertionError):
+    with raises(I3pyFailedGet) as e:
         driver.feat
+        assert isinstance(e.value.__cause__, AssertionError)
     assert driver.custom_called == 2
 
     driver.aux2 = True
@@ -435,8 +448,9 @@ def test_set_action():
 
     assert not C1().test(0)
     assert C2().test(1)
-    with raises(ValueError):
-        assert C2().test(0)
+    with raises(I3pyFailedCall) as einfo:
+        C2().test(0)
+        assert isinstance(einfo.value.__cause__, ValueError)
 
 
 # --- Test declaring subsystems -----------------------------------------------

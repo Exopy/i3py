@@ -308,8 +308,9 @@ class MethodComposer(with_metaclass(MetaMethodComposer, object)):
 
         """
         if name in self._names:
-            msg = 'Cannot have duplicate ids in MethodComposer. ({})'
-            raise ValueError(msg.format(name))
+            msg = ('Cannot have duplicate ids in MethodComposer. (provided={},'
+                   ' existing={})')
+            raise ValueError(msg.format(name, self._names))
 
 
 class customize(AbstractMethodCustomizer):
@@ -341,7 +342,7 @@ class customize(AbstractMethodCustomizer):
     __slots__ = ('desc_name', 'meth_name', 'specifiers', 'modif_id', 'func',
                  '__name__')
 
-    def __init__(self, desc_name, meth_name, specifiers=(), modif_id=''):
+    def __init__(self, desc_name, meth_name, specifiers=(), modif_id='custom'):
         self.desc_name = desc_name
         self.meth_name = meth_name
         self.specifiers = specifiers
@@ -390,6 +391,9 @@ class SupportMethodCustomization(AbstractSupportMethodCustomization):
         super(SupportMethodCustomization, self).__init__(*args, **kwargs)
         self.name = ''
         self._customs = OrderedDict()
+        # Ids to use to refer to the old method when replacing it with a
+        # composer.
+        self._old_ids = {}
 
     @abstractmethod
     def analyse_function(self, meth_name, func, specifiers):
@@ -437,8 +441,8 @@ class SupportMethodCustomization(AbstractSupportMethodCustomization):
         """
         pass
 
-    def modify_behavior(self, method_name, func, specifiers=(), modif_id='',
-                        internal=False):
+    def modify_behavior(self, method_name, func, specifiers=(),
+                        modif_id='custom', internal=False):
         """Alter the behavior of the Feature using the provided method.
 
         Those operations are logged into the _customs dictionary in OrderedDict
@@ -487,6 +491,8 @@ class SupportMethodCustomization(AbstractSupportMethodCustomization):
         # In the absence of specifiers or for get and set we simply replace the
         # method.
         if not specifiers:
+            # Preserve the id in case of future mofication
+            self._old_ids[method_name] = modif_id
             setattr(self, method_name, MethodType(func, self))
             if not internal:
                 self._customs[method_name] = func
@@ -495,8 +501,12 @@ class SupportMethodCustomization(AbstractSupportMethodCustomization):
         # Otherwise we make sure we have a MethodsComposer.
         composer = getattr(self, method_name)
         if not isinstance(composer, MethodComposer):
-            composer = MethodComposer(self, composer, self.self_alias,
-                                      chain_on, signatures=sigs)
+            # Try to get a smart id from the object in case it was set by a
+            # a previous modification.
+            composer = MethodComposer(self, composer.__func__, self.self_alias,
+                                      chain_on,
+                                      self._old_ids.get(method_name, 'old'),
+                                      signatures=sigs)
 
         # In case of non internal modifications (ie unrelated to object
         # initialisation) we keep a description of what has been done to be

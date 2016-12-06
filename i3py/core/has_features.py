@@ -434,11 +434,6 @@ class HasFeatures(with_metaclass(HasFeaturesMeta, object)):
             if lim_id in self._limits_cache:
                 del self._limits_cache[lim_id]
 
-    def check_errors(self, e):
-        """
-        """
-        pass  # XXX write
-
     def reopen_connection(self):
         """Reopen the connection to the instrument.
 

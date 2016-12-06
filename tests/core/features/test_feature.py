@@ -14,6 +14,7 @@ from __future__ import (division, unicode_literals, print_function,
 from pytest import raises
 from stringparser import Parser
 
+from i3py.core.composition import customize
 from i3py.core.declarative import limit
 from i3py.core.features.feature import Feature, get_chain, set_chain
 from i3py.core.features.factories import constant, conditional
@@ -185,11 +186,13 @@ def test_discard_cache():
         feat_cac = Feature(getter=True)
         feat_dis = Feature(setter=True, discard=('feat_cac',))
 
-        def _get_feat_cac(self, feat):
-            return self.val
+        @customize('feat_cac', 'get')
+        def _get_feat_cac(feat, driver):
+            return driver.val
 
-        def _set_feat_dis(self, feature, val):
-            self.val = val
+        @customize('feat_dis', 'set')
+        def _set_feat_dis(feat, driver, value):
+            driver.val = value
 
     driver = Cache(True)
     assert driver.feat_cac == 1
@@ -213,11 +216,13 @@ def test_discard_cache2():
         feat_dis = Feature(setter=True, discard={'features': ('feat_cac',),
                                                  'limits': ('lim', )})
 
-        def _get_feat_cac(self, feat):
-            return self.val
+        @customize('feat_cac', 'get')
+        def _get_feat_cac(feat, driver):
+            return driver.val
 
-        def _set_feat_dis(self, feature, val):
-            self.val = val
+        @customize('feat_dis', 'set')
+        def _set_feat_dis(feat, driver, value):
+            driver.val = value
 
         @limit('lim')
         def _limits_lim(self):
@@ -247,8 +252,9 @@ def test_discard_cache3():
 
         feat_dis = Feature(setter=True, discard={'limits': ('lim', )})
 
-        def _set_feat_dis(self, feature, val):
-            self.val = val
+        @customize('feat_dis', 'set')
+        def _set_feat_dis(feat, driver, value):
+            driver.val = value
 
         @limit('lim')
         def _limits_lim(self):

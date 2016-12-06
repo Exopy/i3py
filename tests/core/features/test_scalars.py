@@ -14,6 +14,7 @@ from __future__ import (division, unicode_literals, print_function,
 
 from pytest import raises, mark
 
+from i3py.core.composition import customize
 from i3py.core.features.enumerable import Enumerable
 from i3py.core.features.scalars import Unicode, Int, Float
 from i3py.core.limits import IntLimitsValidator, FloatLimitsValidator
@@ -128,11 +129,13 @@ class CacheFloatTester(DummyParent):
     def __init__(self, caching_allowed=True):
         super(CacheFloatTester, self).__init__(caching_allowed)
 
-    def _get_fl(self, feat):
-        return self.val
+    @customize('fl', 'get')
+    def _get_fl(feat, driver):
+        return driver.val
 
-    def _set_fl(self, feature, val):
-        self.val = val
+    @customize('fl', 'set')
+    def _set_fl(feat, driver, value):
+        driver.val = value
 
 
 class UnitCacheFloatTester(CacheFloatTester):

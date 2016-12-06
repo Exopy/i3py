@@ -477,7 +477,7 @@ def get_chain(feat, driver):
             val = feat.get(driver)
             break
         except driver.retries_exceptions as e:
-            if i != feat._retries or not driver.check_error(feat.name, e):
+            if i != feat._retries:
                 driver.reopen_connection()
                 continue
             else:

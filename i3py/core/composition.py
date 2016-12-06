@@ -175,7 +175,7 @@ class MethodComposer(with_metaclass(MetaMethodComposer, object)):
         """Create a full copy of the composer.
 
         """
-        new = type(self)(new_obj or self._obj, self, self._alias,
+        new = type(self)(new_obj or self.__self__, self, self._alias,
                          self._chain_on, '', self._signatures)
         new._names = self._names[:]
         new._methods = self._methods[:]
@@ -367,7 +367,8 @@ class customize(AbstractMethodCustomizer):
             declaration.
 
         """
-        if not self.func:
+        spec = self.specifiers
+        if not self.func and (not spec or spec[0] == 'remove'):
             raise RuntimeError('Need to decorate a function before calling '
                                'customize.')
         desc = getattr(owner, self.desc_name)
@@ -471,7 +472,7 @@ class SupportMethodCustomization(AbstractSupportMethodCustomization):
               It should refer to the id of a previous modification.
             ex : ('add_after', 'old')
 
-        modif_id : unicode
+        modif_id : unicode, optional
             Id of the modification, used to refer to it in later modification.
             It is this id that can be specified as target for 'add_before',
             'add_after', 'replace', remove'.
@@ -482,11 +483,35 @@ class SupportMethodCustomization(AbstractSupportMethodCustomization):
             this won't have to be copied by copy_custom_behaviors.
 
         """
+        # Intented full replacement should not have the id custom but 'old' to
+        # match a previously present method.
+        modif_id = modif_id if specifiers else 'old'
+
+        # In case of non internal modifications (ie unrelated to object
+        # initialisation) we keep a description of what has been done to be
+        # able to copy those behaviors.
+        # This is done before analysing the function to preserve the real
+        # intented modification even if the analysis simplify it.
+        if not internal:
+            if not specifiers:
+                self._customs[method_name] = func
+            elif method_name not in self._customs:
+                self._customs[method_name] = OrderedDict()
+            elif not isinstance(self._customs[method_name], OrderedDict):
+                old = self._customs[method_name]
+                self._customs[method_name] = OrderedDict(old=(old,
+                                                              ('prepend',)))
+
         # Check the function signature match the targeted method and return
         # the comma separated list of arguments on which the composed called
-        # should be chained.
-        specifiers, sigs, chain_on = self.analyse_function(method_name, func,
-                                                           specifiers)
+        # should be chained. Also attempt to simplify the modification if the
+        # current function is known to be a no-op.
+        if not specifiers or specifiers[0] != 'remove':
+            specifiers, sigs, chain_on = self.analyse_function(method_name,
+                                                               func,
+                                                               specifiers)
+        else:
+            sigs, chain_on = None, None
 
         # In the absence of specifiers or for get and set we simply replace the
         # method.
@@ -494,8 +519,6 @@ class SupportMethodCustomization(AbstractSupportMethodCustomization):
             # Preserve the id in case of future mofication
             self._old_ids[method_name] = modif_id
             setattr(self, method_name, MethodType(func, self))
-            if not internal:
-                self._customs[method_name] = func
             return
 
         # Otherwise we make sure we have a MethodsComposer.
@@ -507,18 +530,6 @@ class SupportMethodCustomization(AbstractSupportMethodCustomization):
                                       chain_on,
                                       self._old_ids.get(method_name, 'old'),
                                       signatures=sigs)
-
-        # In case of non internal modifications (ie unrelated to object
-        # initialisation) we keep a description of what has been done to be
-        # able to copy those behaviors. If a method already existed we assume
-        # it was meaningful and add it in the composer under the id 'old'.
-        if not internal:
-            if method_name not in self._customs:
-                self._customs[method_name] = OrderedDict()
-            elif not isinstance(self._customs[method_name], OrderedDict):
-                old = self._customs[method_name]
-                composer.prepend('old', old)
-                self._customs[method_name] = OrderedDict(old=(old, 'prepend'))
 
         # We now update the composer.
         composer_method_name = specifiers[0]
@@ -537,7 +548,7 @@ class SupportMethodCustomization(AbstractSupportMethodCustomization):
         if not internal:
             customs = self._customs[method_name]
             if composer_method_name == 'remove':
-                del customs[specifiers[1]]
+                del customs[modif_id]
             elif composer_method_name == 'replace':
                 replaced = specifiers[1]
                 if replaced in customs:
@@ -588,7 +599,8 @@ class SupportMethodCustomization(AbstractSupportMethodCustomization):
                 # If the method is not a method composer there is no point in
                 # attempting an operation involving an anchor.
                 elif not isinstance(method, MethodComposer):
-                    aux = {'add_after': 'append', 'add_before': 'prepend'}
+                    aux = {'add_after': ('append',),
+                           'add_before': ('prepend',)}
                     self.modify_behavior(meth_name, func, aux[specifiers[0]],
                                          custom)
 

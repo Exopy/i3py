@@ -44,6 +44,12 @@ class constant(AbstractGetSetFactory):
 
         return getter
 
+    def build_setter(self):
+        """Return None as a constant is not settable.
+
+        """
+        return None
+
 
 GET_DEF =\
 """def get(self, driver):

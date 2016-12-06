@@ -144,7 +144,7 @@ class Float(LimitsValidated, Mapping, Enumerable):
 
         return value
 
-    def validate_limits(self, obj, value):
+    def validate_limits(self, driver, value):
         """Make sure a value is in the given range.
 
         This method is meant to be used as a pre-set.

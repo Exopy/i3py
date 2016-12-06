@@ -18,7 +18,7 @@ from i3py.core.features.enumerable import Enumerable
 from i3py.core.features.scalars import Unicode, Int, Float
 from i3py.core.limits import IntLimitsValidator, FloatLimitsValidator
 from i3py.core.unit import get_unit_registry, UNIT_SUPPORT
-from i3py.core.has_features import set_feat
+from i3py.core.declarative import set_feat, limit
 from i3py.core.errors import I3pyValueError, I3pyLimitsError
 
 from ..testing_tools import DummyParent
@@ -102,9 +102,11 @@ class TestInt(object):
 
             n = 0
 
+            @limit('test')
             def _limits_test(self):
                 self.n += 1
                 return IntLimitsValidator(self.n)
+
         o = LimitsHolder()
         i = Int(setter=True, limits='test')
         assert i.pre_set(o, 1)
@@ -238,6 +240,7 @@ class TestFloat(object):
 
             n = 0.1
 
+            @limit('test')
             def _limits_test(self):
                 self.n += .1
                 return FloatLimitsValidator(0.0, step=self.n)

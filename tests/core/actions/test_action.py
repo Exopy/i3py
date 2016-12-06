@@ -14,9 +14,11 @@ from __future__ import (division, unicode_literals, print_function,
 
 from pytest import mark, raises
 
+from i3py.core.declarative import limit
 from i3py.core.actions import Action
 from i3py.core.limits import IntLimitsValidator
 from i3py.core.unit import UNIT_SUPPORT, get_unit_registry
+from i3py.core.errors import I3pyFailedCall
 from ..testing_tools import DummyParent
 
 
@@ -48,8 +50,9 @@ def test_values_action():
 
     dummy = Dummy()
     assert dummy.test(1, 5) == 5
-    with raises(ValueError):
+    with raises(I3pyFailedCall) as e:
         dummy.test(5, 2)
+        assert isinstance(e.__cause__, ValueError)
 
 
 def test_limits_action1():
@@ -64,8 +67,9 @@ def test_limits_action1():
 
     dummy = Dummy()
     assert dummy.test(1, 1) == 1
-    with raises(ValueError):
+    with raises(I3pyFailedCall) as e:
         dummy.test(2,  2)
+        assert isinstance(e.__cause__, ValueError)
 
 
 def test_limits_action2():
@@ -80,8 +84,9 @@ def test_limits_action2():
 
     dummy = Dummy()
     assert dummy.test(1, 1)
-    with raises(ValueError):
+    with raises(I3pyFailedCall) as e:
         dummy.test(2,  1.05)
+        assert isinstance(e.__cause__, ValueError)
 
 
 def test_limits_action3():
@@ -94,13 +99,15 @@ def test_limits_action3():
         def test(self, a, b):
             return a
 
+        @limit('c')
         def _limits_c(self):
             return IntLimitsValidator(1, 10, 2)
 
     dummy = Dummy()
     assert dummy.test(1, 1)
-    with raises(ValueError):
+    with raises(I3pyFailedCall) as e:
         dummy.test(2,  2)
+        assert isinstance(e.__cause__, ValueError)
 
 
 def test_limits_action4():
@@ -177,8 +184,10 @@ def test_action_with_checks():
 
     dummy = Dummy()
     assert dummy.test(3, 2) == 6
-    with raises(AssertionError):
+    with raises(I3pyFailedCall) as e:
         dummy.test(2, 2)
+        assert isinstance(e.__cause__, AssertionError)
 
-    with raises(AssertionError):
+    with raises(I3pyFailedCall) as e:
         dummy.test(3, -1)
+        assert isinstance(e.__cause__, AssertionError)

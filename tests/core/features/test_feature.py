@@ -14,9 +14,10 @@ from __future__ import (division, unicode_literals, print_function,
 from pytest import raises
 from stringparser import Parser
 
+from i3py.core.declarative import limit
 from i3py.core.features.feature import Feature, get_chain, set_chain
 from i3py.core.features.factories import constant, conditional
-from i3py.core.errors import I3pyError
+from i3py.core.errors import I3pyError, I3pyFailedGet, I3pyFailedSet
 from ..testing_tools import DummyParent
 
 
@@ -218,6 +219,7 @@ def test_discard_cache2():
         def _set_feat_dis(self, feature, val):
             self.val = val
 
+        @limit('lim')
         def _limits_lim(self):
             self.li += 1
             return self.li
@@ -248,6 +250,7 @@ def test_discard_cache3():
         def _set_feat_dis(self, feature, val):
             self.val = val
 
+        @limit('lim')
         def _limits_lim(self):
             self.li += 1
             return self.li
@@ -290,16 +293,20 @@ def test_feature_checkers():
     driver.feat_sch = 1
 
     driver.aux = False
-    with raises(AssertionError):
+    with raises(I3pyFailedGet) as e:
         driver.feat_ch
-    with raises(AssertionError):
+        assert isinstance(e.__cause__, AssertionError)
+    with raises(I3pyFailedGet):
         driver.feat_gch
+        assert isinstance(e.__cause__, AssertionError)
     driver.feat_sch
-    with raises(AssertionError):
+    with raises(I3pyFailedSet):
         driver.feat_ch = 1
+        assert isinstance(e.__cause__, AssertionError)
     driver.feat_gch = 1
-    with raises(AssertionError):
+    with raises(I3pyFailedSet):
         driver.feat_sch = 1
+        assert isinstance(e.__cause__, AssertionError)
 
 
 def test_clone():
@@ -317,40 +324,37 @@ def test_modify_behavior1():
     """Modify by replacing by a stand-alone method
 
     """
-
     feat = Feature()
-    meth = lambda d, f, v: v
-    feat.modify_behavior('post_get', meth)
-    assert feat.post_get.__func__._feat_wrapped_ is meth
-    assert feat._customs['post_get'].__func__._feat_wrapped_ is meth
+    func = lambda feat, driver, value: value
+    feat.modify_behavior('post_get', func)
+    assert feat.post_get.__func__ is func
+    assert feat._customs['post_get'] is func
 
 
 def test_modify_behavior2():
     """Modify a method that has not yet a MethodsComposer.
 
     """
-
     feat = Feature()
-    meth = lambda d, v: v
-    feat.modify_behavior('post_get', meth, ('custom', 'append',))
-    assert isinstance(feat.post_get, PostGetComposer)
+    meth = lambda feat, driver, value: value
+    feat.modify_behavior('post_get', meth, ('append',), 't')
+    feat.modify_behavior('post_get', meth, ('append',))
     assert 'custom' in feat._customs['post_get']
-    assert feat._customs['post_get']['custom'][1:] == ('append',)
-    assert (feat._customs['post_get']['custom'][0].__func__._feat_wrapped_ ==
-            meth)
+    assert feat._customs['post_get']['custom'][1] == ('append',)
+    assert (feat._customs['post_get']['custom'][0] == meth)
 
 
-def test_modify_behavior():
+def test_modify_behavior3():
     """Test all possible cases of behaviour modifications.
 
     """
     test = Feature(True, True)
 
     # Test replacing a method.
-    test.modify_behavior('get', lambda s, d: 1)
+    test.modify_behavior('get', lambda feat, driver: 1)
     assert test.get(None) == 1
 
-    def r(s, d):
+    def r(feat, driver):
         raise ValueError()
 
     test.modify_behavior('pre_get', r)
@@ -358,40 +362,42 @@ def test_modify_behavior():
         test.pre_get(None)
 
     # Test modifying and already customized method.
-    def r2(s, d):
+    def r2(feat, driver):
         raise KeyError()
 
-    test.modify_behavior('pre_get', r2, ('custom', 'prepend'))
+    test.modify_behavior('pre_get', r2, ('prepend',), 'custom')
     with raises(KeyError):
         test.pre_get(None)
 
-    test.modify_behavior('pre_get', None, ('custom', 'remove'))
+    test.modify_behavior('pre_get', None, ('remove', 'custom'))
     with raises(ValueError):
         test.pre_get(None)
 
-    test.modify_behavior('pre_get', r2, ('custom', 'add_before', 'old'))
+    test.modify_behavior('pre_get', r2, ('add_before', 'old'), 'custom')
     with raises(KeyError):
         test.pre_get(None)
 
-    test.modify_behavior('pre_get', lambda s, d: 1, ('custom', 'replace'))
+    test.modify_behavior('pre_get', lambda feat, driver: 1,
+                         ('replace', 'custom'), 'custom')
     with raises(ValueError):
         test.pre_get(None)
 
     # Test replacing and internal customization.
-    def r(s, d, v):
+    def r(feat, driver, value):
         raise ValueError()
 
-    def r2(s, d, v):
+    def r2(feat, driver, value):
         raise KeyError()
 
-    test.modify_behavior('post_get', r, ('test1', 'prepend'), True)
-    test.modify_behavior('post_get', r2, ('test2', 'append'), True)
+    test.modify_behavior('post_get', r, ('prepend',), 'test1', True)
+    test.modify_behavior('post_get', r2, ('append',), 'test2', True)
 
-    test.modify_behavior('post_get', lambda s, d, v: 1, ('test1', 'replace'))
+    test.modify_behavior('post_get', lambda feat, driver, value: 1,
+                         ('replace', 'test1'), 'test1')
     with raises(KeyError):
         test.post_get(None, 0)
 
-    test.modify_behavior('post_get', r, ('test2', 'replace'))
+    test.modify_behavior('post_get', r, ('replace', 'test2'), 'test2')
     with raises(ValueError):
         test.post_get(None, 0)
 
@@ -400,29 +406,28 @@ def test_copy_custom_behaviors():
     """Test copy customs behaviors.
 
     """
-    def r2(s, d, v):
+    def r2(feat, driver, value):
         raise KeyError()
 
     modified_feature = Feature(True, True, checks='1 < 2', extract='{}')
-    modified_feature.modify_behavior('get', lambda s, d: 1)
-    modified_feature.modify_behavior('pre_get', lambda s, d: 1,
-                                     ('custom', 'add_before', 'checks'))
-    modified_feature.modify_behavior('post_get', lambda s, d, v: 2*v,
-                                     ('custom', 'add_after', 'extract'))
-    modified_feature.modify_behavior('pre_set', lambda s, d, v: 1,
-                                     ('aux', 'prepend'))
-    modified_feature.modify_behavior('pre_set', lambda s, d, v: 1,
-                                     ('aux2', 'append'))
-    modified_feature.modify_behavior('pre_set', r2,
-                                     ('custom', 'add_after', 'checks'))
-    modified_feature.modify_behavior('post_set', lambda s, d, v: 1,
-                                     ('aux', 'prepend'), True)
-    modified_feature.modify_behavior('post_set', lambda s, d, v: 1,
-                                     ('custom', 'add_after', 'aux'))
+    mb = modified_feature.modify_behavior
+    mb('get', lambda feat, driver: 1)
+    mb('pre_get', lambda feat, driver: 1, ('add_before', 'checks'), 'custom')
+    mb('post_get', lambda feat, driver, value: 2*value,
+       ('add_after', 'extract'), 'custom')
+    mb('pre_set', lambda feat, driver, value: 1, ('prepend',), 'aux')
+    mb('pre_set', lambda feat, driver, value: 1, ('append',), 'aux2')
+    mb('pre_set', r2, ('add_after', 'checks'), 'custom')
+    mb('post_set', lambda feat, driver, value, i_value, response: 1,
+       ('prepend',), 'aux', True)
+    mb('post_set', lambda feat, driver, value, i_value, response: 1,
+       ('add_after', 'aux'), 'custom')
 
     feat = Feature(True, True, extract='{}')
-    feat.modify_behavior('pre_set', lambda s, d, v: 1, ('test', 'append'))
-    feat.modify_behavior('pre_get', lambda s, d: 1, ('test', 'append'))
+    feat.modify_behavior('pre_set', lambda feat, driver, value: 1,
+                         ('append',), 'test')
+    feat.modify_behavior('pre_get', lambda feat, driver: 1, ('append',),
+                         'test')
     feat.copy_custom_behaviors(modified_feature)
 
     assert feat.get(None) == 1

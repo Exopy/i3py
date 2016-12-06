@@ -39,6 +39,6 @@ class Bool(Mapping):
                     self._aliases[v] = k
         self.creation_kwargs['aliases'] = aliases
 
-    def map_value(self, instance, value):
+    def map_value(self, driver, value):
         self._aliases[value]
         return self._map[self._aliases[value]]

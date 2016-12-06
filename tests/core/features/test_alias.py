@@ -14,6 +14,7 @@ from __future__ import (division, unicode_literals, print_function,
 
 import pytest
 
+from i3py.core.composition import customize
 from i3py.core.has_features import subsystem
 from i3py.core.features import Bool
 from i3py.core.features.alias import Alias
@@ -35,11 +36,13 @@ def tester():
         with sub as s:
             s.rw_alias = Alias('.state', True)
 
-        def _get_state(self, feat):
-            return self._state
+        @customize('state', 'get')
+        def _get_state(feat, driver):
+            return driver._state
 
-        def _set_state(self, feat, value):
-            self._state = value
+        @customize('state', 'set')
+        def _set_state(feat, driver, value):
+            driver._state = value
 
     return AliasTester()
 

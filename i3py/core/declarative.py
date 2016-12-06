@@ -131,7 +131,6 @@ class SubpartDecl(ABC):
             bases = self.compute_base_classes()
 
         # Extract the docstring specific to this subpart.
-        print(self._name_)
         part_doc = docs.get(self._name_, '')
         s_docs = {tuple(k.split('.', 1)): v for k, v in docs.items()}
         docs = {k[-1]: v for k, v in s_docs.items()

@@ -51,9 +51,9 @@ class HasFeaturesMeta(ABCMeta):
         # First we identify all subparts and clean the namespace.
         for s_name, subpart in {k: v for k, v in dct.items()
                                 if isinstance(v, SubpartDecl)}.items():
-                subpart._name_ = s_name
-                subparts[s_name] = subpart
-                subpart.clean_namespace(dct)
+            subpart._name_ = s_name
+            subparts[s_name] = subpart
+            subpart.clean_namespace(dct)
 
         # Names that should be removed from the class body
         to_remove = set()

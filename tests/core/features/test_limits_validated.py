@@ -14,6 +14,7 @@ from __future__ import (division, unicode_literals, print_function,
 
 import pytest
 
+from i3py.core.declarative import limit
 from i3py.core.features.limits_validated import LimitsValidated
 from i3py.core.limits import IntLimitsValidator
 
@@ -56,6 +57,7 @@ def test_with_name():
 
         n = 0
 
+        @limit('test')
         def _limits_test(self):
             self.n += 1
             return IntLimitsValidator(self.n)

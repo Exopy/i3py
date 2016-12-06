@@ -27,17 +27,17 @@ from ..util import (build_checker, validate_in, validate_limits,
                     get_limits_and_validate)
 
 
+# XXX Action does not support kwargs only arguments
+
+
 CALL_TEMPLATE = ("""
     def __call__(self{sig}):
         try:
             params = self.action.sig.bind(self.driver{sig})
             args = params.args[1:]
             kwargs = params.kwargs
-            print('pc')
             args, kwargs = self.action.pre_call(self.driver, *args, **kwargs)
-            print('c')
             res = self.action.call(self.driver, *args, **kwargs)
-            print('poc')
             return self.action.post_call(self.driver, res, *args, **kwargs)
         except Exception as e:
             msg = ('An exception occurred while calling {msg} with the '
@@ -257,7 +257,12 @@ class Action(AbstractAction, SupportMethodCustomization):
             check_sig = ('(action' +
                          (', ' + ', '.join(sig) if sig else '') + ')')
             check_args = build_checker(kwargs['checks'], check_sig)
-            self.modify_behavior('pre_call', check_args,
+
+            def checker_wrapper(action, driver, *args, **kwargs):
+                check_args(action, driver, *args, **kwargs)
+                return args, kwargs
+
+            self.modify_behavior('pre_call', checker_wrapper,
                                  ('append',), 'checks', internal=True)
 
         if UNIT_SUPPORT and 'units' in kwargs:

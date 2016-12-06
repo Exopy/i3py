@@ -84,7 +84,8 @@ def test_composer_clone(composer):
 
     """
     new_comp = composer.clone()
-    assert new_comp._obj is composer._obj
+    assert new_comp.__self__ is composer.__self__
+    assert new_comp.__name__ == composer.__name__
     assert new_comp._alias == composer._alias
     assert new_comp._chain_on == composer._chain_on
     assert new_comp._methods == composer._methods
@@ -92,7 +93,7 @@ def test_composer_clone(composer):
     assert new_comp._signatures == composer._signatures
 
     new_comp2 = composer.clone(support_custom())
-    assert new_comp2._obj is not composer._obj
+    assert new_comp2.__self__ is not composer.__self__
 
 
 def test_composer_modification_methods(composer):

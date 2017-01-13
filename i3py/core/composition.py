@@ -368,7 +368,7 @@ class customize(AbstractMethodCustomizer):
 
         """
         spec = self.specifiers
-        if not self.func and (not spec or spec[0] == 'remove'):
+        if not self.func and (not spec or spec[0] != 'remove'):
             raise RuntimeError('Need to decorate a function before calling '
                                'customize.')
         desc = getattr(owner, self.desc_name)

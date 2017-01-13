@@ -48,7 +48,7 @@ class constant(AbstractGetSetFactory):
         """Return None as a constant is not settable.
 
         """
-        return None
+        return None  # pragma: no cover
 
 
 GET_DEF =\

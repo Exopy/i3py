@@ -191,3 +191,79 @@ def test_action_with_checks():
     with raises(I3pyFailedCall) as e:
         dummy.test(3, -1)
         assert isinstance(e.__cause__, AssertionError)
+
+
+def test_analyse_function():
+    """Test analysing a function proposed to customize a method.
+
+    """
+    # Call case
+    # - ok : expected signature
+    # - specifiers found
+    # - wrong signature
+    act = Action()
+    act(lambda driver, val: 1)
+    specs, sigs, chain_on =\
+        act.analyse_function('call', lambda action, driver, val: 2, ())
+    assert not specs and chain_on is None
+    assert sigs == [('action', 'driver', 'val')]
+    with raises(ValueError) as e:
+        act.analyse_function('call', lambda action, driver, val: 2,
+                             ('append',))
+    assert 'Can only replace' in e.exconly()
+    with raises(ValueError) as e:
+        act.analyse_function('call', lambda action, driver: 2, ())
+    assert 'Function' in e.exconly()
+
+    # Pre-call case
+    # - ok : expected signature (clean specifiers)
+    # - ok : generic signature (keep specifiers)
+    # - wrong signature
+    pc = lambda action, driver, val: val*2
+    specs, sigs, chain_on =\
+        act.analyse_function('pre_call', pc, ('append',))
+    assert not specs and chain_on == 'args, kwargs'
+    assert sigs == [('action', 'driver', 'val'),
+                    ('action', 'driver', '*args', '**kwargs')]
+    act.modify_behavior('pre_call', pc)
+    specs, sigs, chain_on =\
+        act.analyse_function('pre_call',
+                             lambda action, driver, *args, **kwargs:
+                                 (args, kwargs),
+                             ('add_before', 'custom'))
+    assert specs == ('add_before', 'custom')
+    assert chain_on == 'args, kwargs'
+    assert sigs == [('action', 'driver', 'val'),
+                    ('action', 'driver', '*args', '**kwargs')]
+    with raises(ValueError) as e:
+        act.analyse_function('pre_call', lambda action, driver: 2, ())
+    assert 'Function' in e.exconly()
+
+    # Post-call case
+    # - ok : expected signature (keep specifiers)
+    # - ok : generic signature (clean specifiers)
+    # - wrong signature
+    pc = lambda action, driver, result, val: result*2
+    specs, sigs, chain_on =\
+        act.analyse_function('post_call', pc, ('append',))
+    assert not specs and chain_on == 'result'
+    assert sigs == [('action', 'driver', 'result', 'val'),
+                    ('action', 'driver', 'result', '*args', '**kwargs')]
+    act.modify_behavior('post_call', pc)
+    specs, sigs, chain_on =\
+        act.analyse_function('post_call',
+                             lambda action, driver, result, *args, **kwargs:
+                                 result,
+                             ('add_before', 'custom'))
+    assert specs == ('add_before', 'custom')
+    assert chain_on == 'result'
+    assert sigs == [('action', 'driver', 'result', 'val'),
+                    ('action', 'driver', 'result', '*args', '**kwargs')]
+    with raises(ValueError) as e:
+        act.analyse_function('post_call', lambda action, driver: 2, ())
+    assert 'Function' in e.exconly()
+
+    # Wrong method name
+    with raises(ValueError) as e:
+        act.analyse_function('test', lambda x: 1, ())
+    assert 'Cannot cutomize method' in e.exconly()

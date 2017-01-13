@@ -285,6 +285,10 @@ class Action(AbstractAction, SupportMethodCustomization):
 
         Returns
         -------
+        specifiers : tuple
+            Tuple describing a possibly simplified customization that the one
+            suggested by the user.
+
         signatures : list
             List of signatures that should be supported by a composer.
 
@@ -299,7 +303,7 @@ class Action(AbstractAction, SupportMethodCustomization):
             one of the customized method.
 
         """
-        func_sig = normalize_signature(signature(func), self.self_alias)
+        act_sig = ('action',) + normalize_signature(self.sig)
 
         if meth_name == 'call':
             if specifiers:
@@ -307,11 +311,11 @@ class Action(AbstractAction, SupportMethodCustomization):
                        'customize it. Failed on action {} with customization '
                        'specifications {}')
                 raise ValueError(msg.format(self.name, specifiers))
-            sigs = [func_sig]
+            sigs = [act_sig]
             chain_on = None
 
         elif meth_name == 'pre_call':
-            sigs = [func_sig, ('action', 'driver', '*args', '**kwargs')]
+            sigs = [act_sig, ('action', 'driver', '*args', '**kwargs')]
             chain_on = 'args, kwargs'
             # The base version of pre_call is no-op so we can directly replace
             # Python 2/3 compatibility hack.
@@ -320,7 +324,7 @@ class Action(AbstractAction, SupportMethodCustomization):
                 specifiers = ()
 
         elif meth_name == 'post_call':
-            sigs = [('action', 'driver', 'result') + func_sig[2:],
+            sigs = [('action', 'driver', 'result') + act_sig[2:],
                     ('action', 'driver', 'result', '*args', '**kwargs')]
             chain_on = 'result'
             # The base version of post_call is no-op so we can directly replace
@@ -332,6 +336,8 @@ class Action(AbstractAction, SupportMethodCustomization):
             msg = ('Cannot cutomize method {}, only pre_call, call and '
                    'post_call can be.')
             raise ValueError(msg)
+
+        func_sig = normalize_signature(signature(func), self.self_alias)
 
         if func_sig not in sigs:
             msg = ('Function {} used to attempt to customize method {} of '

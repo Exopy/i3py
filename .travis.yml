@@ -31,13 +31,13 @@ install:
   - pip install -q pytest-cov pytest-catchlog stringparser
   # Use develop version of Pint
   - if [ $PINT == 'Y' ]; then pip install https://github.com/hgrecco/pint/zipball/develop; fi
-  # Use develop version of pyvisa-py pyvisa-sim
+  # Use develop version of pyvisa
   - if [ $PYVISA == 'Y' ]; then pip install -q https://github.com/hgrecco/pyvisa/zipball/master; fi
   - pip install -q codecov
 
 script:
   - cd ${SRC_DIR}
-  - py.test tests/core -v --cov i3py.core
+  - py.test tests/core -v --cov i3py.core --cov-report xml
 
 after_script:
-  - codecov --verbose
+  - codecov

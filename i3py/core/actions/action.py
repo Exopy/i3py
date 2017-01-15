@@ -374,7 +374,8 @@ class Action(AbstractAction, SupportMethodCustomization):
                 if units[1][i] is not None and isinstance(v, ureg.Quantity):
                     bound.parameters[k] = v.to(units[1][i]).m
 
-            return bound.args, bound.kwargs
+            # remove driver from the args
+            return bound.args[1:], bound.kwargs
 
         self.modify_behavior('pre_call', convert_input, ('prepend',), 'units',
                              internal=True)
@@ -393,7 +394,7 @@ class Action(AbstractAction, SupportMethodCustomization):
                 re_units = [re_units]
 
             results = [ureg.Quantity(result[i], u)
-                       for i, u in enumerate(units)]
+                       for i, u in enumerate(re_units)]
 
             return results if is_container else results[0]
 

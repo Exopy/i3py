@@ -362,8 +362,8 @@ class customize(AbstractMethodCustomizer):
         owner : SupportMethodCustomization
             Class owning the descriptor to customize.
 
-        decorate_name : unicode
-            Name uder which the customization function appear in the class
+        decorated_name : unicode
+            Name under which the customization function appear in the class
             declaration.
 
         """
@@ -567,10 +567,10 @@ class SupportMethodCustomization(AbstractSupportMethodCustomization):
                 customs[modif_id] = op
 
     def copy_custom_behaviors(self, obj):
-        """Copy the custom behaviors existing on a feature to this one.
+        """Copy the custom behaviors existing on an object to this one.
 
-        This is used by set_feat to preserve the custom behaviors after
-        recreating the feature with different kwargs. If an add_before or
+        This is used to preserve the custom behaviors after recreating an
+        object with different kwargs or cloning it. If an add_before or
         add_after clause cannot be satisfied because the anchor disappeared
         this method tries to insert the custom method in the most likely
         position.
@@ -584,6 +584,7 @@ class SupportMethodCustomization(AbstractSupportMethodCustomization):
         # Loop on methods which are affected by mofifiers.
         for meth_name, modifiers in obj._customs.items():
             if not isinstance(modifiers, Mapping):
+                # In this case modifiers is a function describing a replacement
                 self.modify_behavior(meth_name, modifiers)
                 continue
 

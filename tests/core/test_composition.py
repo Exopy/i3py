@@ -15,8 +15,10 @@ from __future__ import (division, unicode_literals, print_function,
 import pytest
 from funcsigs import signature
 
+from i3py.core.abstracts import AbstractSupportMethodCustomization
 from i3py.core.composition import (normalize_signature, MethodComposer,
-                                   SupportMethodCustomization)
+                                   SupportMethodCustomization,
+                                   customize)
 
 
 def test_normalize_signature():
@@ -49,7 +51,62 @@ class HelperSupportComp(SupportMethodCustomization):
         return 'feat'
 
     def analyse_function(self, meth_name, func, specifiers):
-        return [], 'value'
+        return specifiers, [], 'value'
+
+
+class FalseOwner(object):
+
+    def __init__(self):
+        super(FalseOwner, self).__init__()
+        self.test = FalseMethodCustomizationSupport()
+
+
+class FalseMethodCustomizationSupport(object):
+
+    def modify_behavior(self, *args):
+        self.args = args
+
+AbstractSupportMethodCustomization.register(FalseMethodCustomizationSupport)
+
+
+def test_cutomize():
+    """Test creating and using a customization.
+
+    """
+    cs = customize('test', 'm_name')
+    owner = FalseOwner()
+    f = lambda x: 1
+    cs(f)
+    cs.customize(owner, 'dd')
+    assert owner.test.args == ('m_name', f, (), 'custom')
+
+
+def test_customize_customize_before_call():
+    """Test handling absence of decoration.
+
+    """
+    cs = customize('test', 'm_name')
+    owner = FalseOwner()
+    with pytest.raises(RuntimeError):
+        cs.customize(owner, 'dd')
+
+    cs = customize('test', 'm_name', ('remove',))
+    owner = FalseOwner()
+    cs.customize(owner, 'dd')
+    assert owner.test.args == ('m_name', None, ('remove',), 'custom')
+
+
+def test_customize_customize_wrong_type():
+    """Test attempting to customize a descriptor not supporting customization.
+
+    """
+    cs = customize('test', 'm_name')
+    owner = FalseOwner()
+    owner.test = None
+    f = lambda x: 1
+    cs(f)
+    with pytest.raises(AssertionError):
+        cs.customize(owner, 'test')
 
 
 @pytest.fixture

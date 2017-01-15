@@ -337,20 +337,8 @@ class Feature(SupportMethodCustomization, AbstractFeature):
         methods
 
         """
-        p = self.__class__(self._getter, self._setter, retries=self._retries)
+        p = super(Feature, self).clone()
         p.__doc__ = self.__doc__
-
-        for k, v in self.__dict__.items():
-            if isinstance(v, MethodType):
-                setattr(p, k, MethodType(v.__func__, p))
-            elif isinstance(v, MethodComposer):
-                setattr(p, k, v.clone(p))
-            elif hasattr(v, 'clone'):
-                setattr(p, k, v.clone())
-            elif isinstance(v, dict):
-                setattr(p, k, v.copy())
-            else:
-                setattr(p, k, v)
 
         return p
 
@@ -467,8 +455,6 @@ def get_chain(feat, driver):
 
     """
     i = -1
-    if isinstance(feat.pre_get, MethodComposer):
-        print(driver, feat.pre_get._names, feat.pre_get._methods)
     feat.pre_get(driver)
 
     while i < feat._retries:

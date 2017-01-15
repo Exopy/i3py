@@ -303,7 +303,8 @@ class Action(AbstractAction, SupportMethodCustomization):
             one of the customized method.
 
         """
-        act_sig = ('action',) + normalize_signature(self.sig)
+        act_sig = ('action',) + normalize_signature(self.sig,
+                                                    alias=self.self_alias)
 
         if meth_name == 'call':
             if specifiers:
@@ -315,7 +316,7 @@ class Action(AbstractAction, SupportMethodCustomization):
             chain_on = None
 
         elif meth_name == 'pre_call':
-            sigs = [act_sig, ('action', 'driver', '*args', '**kwargs')]
+            sigs = [('action', 'driver', '*args', '**kwargs'), act_sig]
             chain_on = 'args, kwargs'
             # The base version of pre_call is no-op so we can directly replace
             # Python 2/3 compatibility hack.
@@ -324,8 +325,8 @@ class Action(AbstractAction, SupportMethodCustomization):
                 specifiers = ()
 
         elif meth_name == 'post_call':
-            sigs = [('action', 'driver', 'result') + act_sig[2:],
-                    ('action', 'driver', 'result', '*args', '**kwargs')]
+            sigs = [('action', 'driver', 'result', '*args', '**kwargs'),
+                    ('action', 'driver', 'result') + act_sig[2:]]
             chain_on = 'result'
             # The base version of post_call is no-op so we can directly replace
             original = getattr(Action.post_call, '__func__', Action.post_call)
@@ -353,7 +354,7 @@ class Action(AbstractAction, SupportMethodCustomization):
         """Name used instead of self in function signature.
 
         """
-        return 'action'
+        return 'driver'
 
     def add_unit_support(self, units):
         """Wrap a func using Pint to automatically convert Quantity to float.

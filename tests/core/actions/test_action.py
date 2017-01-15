@@ -38,6 +38,20 @@ def test_naked_action():
     assert dummy.test() is Dummy
 
 
+def test_handling_double_decoration():
+    """Test attempting to decorate twice using a single Action.
+
+    """
+    class Dummy(DummyParent):
+
+        @Action()
+        def test(self):
+            return type(self)
+
+    with raises(RuntimeError):
+        Dummy.test(lambda x: x)
+
+
 def test_values_action():
     """Test defining an action with values validation.
 
@@ -223,8 +237,8 @@ def test_analyse_function():
     specs, sigs, chain_on =\
         act.analyse_function('pre_call', pc, ('append',))
     assert not specs and chain_on == 'args, kwargs'
-    assert sigs == [('action', 'driver', 'val'),
-                    ('action', 'driver', '*args', '**kwargs')]
+    assert sigs == [('action', 'driver', '*args', '**kwargs'),
+                    ('action', 'driver', 'val')]
     act.modify_behavior('pre_call', pc)
     specs, sigs, chain_on =\
         act.analyse_function('pre_call',
@@ -233,8 +247,8 @@ def test_analyse_function():
                              ('add_before', 'custom'))
     assert specs == ('add_before', 'custom')
     assert chain_on == 'args, kwargs'
-    assert sigs == [('action', 'driver', 'val'),
-                    ('action', 'driver', '*args', '**kwargs')]
+    assert sigs == [('action', 'driver', '*args', '**kwargs'),
+                    ('action', 'driver', 'val')]
     with raises(ValueError) as e:
         act.analyse_function('pre_call', lambda action, driver: 2, ())
     assert 'Function' in e.exconly()
@@ -247,8 +261,8 @@ def test_analyse_function():
     specs, sigs, chain_on =\
         act.analyse_function('post_call', pc, ('append',))
     assert not specs and chain_on == 'result'
-    assert sigs == [('action', 'driver', 'result', 'val'),
-                    ('action', 'driver', 'result', '*args', '**kwargs')]
+    assert sigs == [('action', 'driver', 'result', '*args', '**kwargs'),
+                    ('action', 'driver', 'result', 'val')]
     act.modify_behavior('post_call', pc)
     specs, sigs, chain_on =\
         act.analyse_function('post_call',
@@ -257,8 +271,8 @@ def test_analyse_function():
                              ('add_before', 'custom'))
     assert specs == ('add_before', 'custom')
     assert chain_on == 'result'
-    assert sigs == [('action', 'driver', 'result', 'val'),
-                    ('action', 'driver', 'result', '*args', '**kwargs')]
+    assert sigs == [('action', 'driver', 'result', '*args', '**kwargs'),
+                    ('action', 'driver', 'result', 'val')]
     with raises(ValueError) as e:
         act.analyse_function('post_call', lambda action, driver: 2, ())
     assert 'Function' in e.exconly()

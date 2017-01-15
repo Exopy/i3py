@@ -12,11 +12,10 @@
 from __future__ import (division, unicode_literals, print_function,
                         absolute_import)
 
-from i3py.core.has_features import channel
+from i3py.core.declarative import channel
+from i3py.core.base_channel import ChannelContainer
+
 from .testing_tools import DummyParent
-
-
-# XXX test using alternate channel container
 
 
 class ChParent1(DummyParent):
@@ -27,9 +26,13 @@ class ChParent1(DummyParent):
         return (1, )
 
 
+class CustomContainer(ChannelContainer):
+    pass
+
+
 class ChParent2(DummyParent):
 
-    ch = channel(('a',))
+    ch = channel(('a',), container_type=CustomContainer)
 
 
 class ChParent3(DummyParent):
@@ -37,7 +40,7 @@ class ChParent3(DummyParent):
     ch = channel(('a',), aliases={0: 'a'})
 
 
-def test_ch_d_get():
+def test_ch_default_get():
 
     a = ChParent1()
     ch = a.ch[1]
@@ -48,18 +51,24 @@ def test_ch_d_get():
     assert a.d_get_kwargs == {'id': 1, 'a': 2}
 
 
-def test_ch_d_set():
+def test_ch_default_set():
 
     a = ChParent2()
-    ch = a.ch['a']
-    ch.default_set_feature(None, 'Test', 1, a=2)
-    assert a.d_set_called == 1
-    assert a.d_set_cmd == 'Test'
-    assert a.d_set_args == (1,)
-    assert a.d_set_kwargs == {'id': 'a', 'a': 2}
+    for ch in a.ch:
+        ch.default_set_feature(None, 'Test', 1, a=2)
+        assert a.d_set_called == 1
+        assert a.d_set_cmd == 'Test'
+        assert a.d_set_args == (1,)
+        assert a.d_set_kwargs == {'id': 'a', 'a': 2}
 
 
-def test_ch_d_check():
+def test_custom_container():
+
+    a = ChParent2()
+    assert isinstance(a.ch, CustomContainer)
+
+
+def test_ch_default_check():
 
     a = ChParent1()
     ch = a.ch[1]
@@ -85,3 +94,8 @@ def test_listing_aliases():
     aliases = a.ch.aliases
     assert a.ch.aliases is not aliases
     assert a.ch.aliases == aliases
+
+
+def test_access_through_alias():
+    a = ChParent3()
+    assert a.ch['a'] is a.ch[0]

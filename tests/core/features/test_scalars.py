@@ -152,8 +152,6 @@ class TestFloatInit(TestIntInit):
     parameters = dict(unit='V')
 
 
-# XXX test UNIT_RETURN value is honored
-
 class TestFloat(object):
 
     def test_post_get(self):

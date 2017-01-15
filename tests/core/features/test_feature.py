@@ -440,6 +440,10 @@ def test_copy_custom_behaviors():
     with raises(KeyError):
         feat.pre_set(None, 1)
 
+    # Already covered in test_has_features but should be here
+    # TODO add test for existing anchor
+    # TODO add for missing anchor leading to either append or prepend
+
 
 def test_extract():
     """Test extracting a value, when extract is a string.

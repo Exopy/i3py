@@ -12,6 +12,7 @@
 from __future__ import (division, unicode_literals, print_function,
                         absolute_import)
 from pytest import raises
+from future.utils import exec_
 
 from i3py.core.declarative import (subsystem, set_feat, channel, set_action,
                                    limit)
@@ -35,6 +36,24 @@ def test_documenting_feature():
 
     assert DocTester.test.__doc__.split('\n')[0] ==\
         'This is the docstring for the Feature test.'
+
+
+source =\
+"""
+class DocTester(DummyParent):
+
+        #: This is the docstring for
+        #: the Feature test.
+        test = Feature()
+"""
+
+
+def test_unreachable_sources():
+    """Test defining a driver whose source cannot be retrieved for doc analysis
+
+    """
+    exec_(source)
+    # If this execute we are good
 
 
 # --- Test changing features defaults -----------------------------------------
@@ -201,7 +220,7 @@ def test_customizing_unknown():
 
 class ToCustom(DummyParent):
 
-    feat = Feature(getter=True, checks='driver.aux is True')
+    feat = Feature(getter=True, checks='driver.aux is True', )
 
     def __init__(self):
         super(ToCustom, self).__init__()
@@ -230,14 +249,14 @@ def test_customizing_append():
     driver.aux2 = False
     with raises(I3pyFailedGet) as e:
         driver.feat
-        assert isinstance(e.value.__cause__, AssertionError)
+    assert isinstance(e.value.__cause__, AssertionError)
     assert driver.custom_called == 2
 
     driver.aux2 = True
     driver.aux = False
     with raises(I3pyFailedGet) as e:
         driver.feat
-        assert isinstance(e.value.__cause__, AssertionError)
+    assert isinstance(e.value.__cause__, AssertionError)
     assert driver.custom_called == 2
 
 
@@ -257,14 +276,14 @@ def test_customizing_prepend():
     driver.aux2 = False
     with raises(I3pyFailedGet) as e:
         driver.feat
-        assert isinstance(e.value.__cause__, AssertionError)
+    assert isinstance(e.value.__cause__, AssertionError)
     assert driver.custom_called == 2
 
     driver.aux2 = True
     driver.aux = False
     with raises(I3pyFailedGet) as e:
         driver.feat
-        assert isinstance(e.value.__cause__, AssertionError)
+    assert isinstance(e.value.__cause__, AssertionError)
     assert driver.custom_called == 3
 
 
@@ -284,14 +303,14 @@ def test_customizing_add_after():
     driver.aux2 = False
     with raises(I3pyFailedGet) as e:
         driver.feat
-        assert isinstance(e.value.__cause__, AssertionError)
+    assert isinstance(e.value.__cause__, AssertionError)
     assert driver.custom_called == 2
 
     driver.aux2 = True
     driver.aux = False
     with raises(I3pyFailedGet) as e:
         driver.feat
-        assert isinstance(e.value.__cause__, AssertionError)
+    assert isinstance(e.value.__cause__, AssertionError)
     assert driver.custom_called == 2
 
 
@@ -311,14 +330,14 @@ def test_customizing_add_before():
     driver.aux2 = False
     with raises(I3pyFailedGet) as e:
         driver.feat
-        assert isinstance(e.value.__cause__, AssertionError)
+    assert isinstance(e.value.__cause__, AssertionError)
     assert driver.custom_called == 2
 
     driver.aux2 = True
     driver.aux = False
     with raises(I3pyFailedGet) as e:
         driver.feat
-        assert isinstance(e.value.__cause__, AssertionError)
+    assert isinstance(e.value.__cause__, AssertionError)
     assert driver.custom_called == 3
 
 
@@ -339,13 +358,43 @@ def test_customizing_replace():
     driver.aux2 = False
     with raises(I3pyFailedGet) as e:
         driver.feat
-        assert isinstance(e.value.__cause__, AssertionError)
+    assert isinstance(e.value.__cause__, AssertionError)
     assert driver.custom_called == 2
 
 
-def test_copying_custom_behavior1():
+class _CopyTest(ToCustom):
+    """Class simply making sure that copying is not trivial.
 
-    class CustomAppend(ToCustom):
+    """
+    @customize('feat', 'pre_get', ('append',), '_anch_')
+    def _test(feat, driver):
+        pass
+
+
+class CopyTest(_CopyTest):
+    """Class simply making sure that copying is not trivial.
+
+    """
+    @customize('feat', 'pre_get', ('prepend',), '_anch2_')
+    def _test2(feat, driver):
+        pass
+
+
+class CopyTest2(_CopyTest):
+    """Class simply making sure that copying is not trivial.
+
+    """
+    @customize('feat', 'pre_get', ('append',), '_anch2_')
+    def _test2(feat, driver):
+        pass
+
+
+def test_copying_custom_behavior1():
+    """Test copying an appending.
+
+    """
+
+    class CustomAppend(CopyTest):
 
         @customize('feat', 'pre_get', ('append',))
         def _pre_get_feat(feat, driver):
@@ -363,7 +412,7 @@ def test_copying_custom_behavior1():
     driver.aux2 = False
     with raises(I3pyFailedGet) as e:
         driver.feat
-        assert isinstance(e.value.__cause__, AssertionError)
+    assert isinstance(e.value.__cause__, AssertionError)
     assert driver.custom_called == 2
 
     driver.aux2 = True
@@ -373,14 +422,24 @@ def test_copying_custom_behavior1():
 
 
 def test_copying_custom_behavior2():
+    """Test copying an add_after/add_before modification.
 
-    class CustomAddAfter(ToCustom):
+    """
+    class CustomAddAfter(CopyTest):
 
         @customize('feat', 'pre_get', ('add_after', 'checks'))
         def _pre_get_feat(feat, driver):
             driver.custom_called += 1
             assert driver.aux2 is True
 
+    class CustomAddAfter2(CopyTest2):
+
+        @customize('feat', 'pre_get', ('add_after', 'checks'))
+        def _pre_get_feat(feat, driver):
+            driver.custom_called += 1
+            assert driver.aux2 is True
+
+    # Test handling a missing anchor
     class CopyingCustom(CustomAddAfter):
 
         feat = set_feat(checks=None)
@@ -392,7 +451,7 @@ def test_copying_custom_behavior2():
     driver.aux2 = False
     with raises(I3pyFailedGet) as e:
         driver.feat
-        assert isinstance(e.value.__cause__, AssertionError)
+    assert isinstance(e.value.__cause__, AssertionError)
     assert driver.custom_called == 2
 
     driver.aux2 = True
@@ -400,16 +459,55 @@ def test_copying_custom_behavior2():
     driver.feat
     assert driver.custom_called == 3
 
+    # Test handling a missing anchor and no other
+    class CopyingCustom(CustomAddAfter2):
+
+        feat = set_feat(checks=None)
+
+    driver = CopyingCustom()
+    assert driver.feat
+    assert driver.custom_called == 1
+
+    driver.aux2 = False
+    with raises(I3pyFailedGet) as e:
+        driver.feat
+    assert isinstance(e.value.__cause__, AssertionError)
+    assert driver.custom_called == 2
+
+    driver.aux2 = True
+    driver.aux = False
+    driver.feat
+    assert driver.custom_called == 3
+
+    # Test handling a present anchor
+    class CopyingCustomBis(CustomAddAfter):
+
+        feat = set_feat()
+
+    driver = CopyingCustomBis()
+    assert driver.feat
+    assert driver.custom_called == 1
+
+    driver.aux = False
+    with raises(I3pyFailedGet) as e:
+        driver.feat
+    assert isinstance(e.value.__cause__, AssertionError)
+    assert driver.custom_called == 1
+
 
 def test_copying_custom_behavior3():
+    """Test copying a replace behavior.
 
-    class CustomReplace(ToCustom):
+    """
+
+    class CustomReplace(CopyTest):
 
         @customize('feat', 'pre_get', ('replace', 'checks'))
         def _pre_get_feat(feat, driver):
             driver.custom_called += 1
             assert driver.aux2 is True
 
+    # Test handling a disappeared anchor
     class CopyingCustom(CustomReplace):
 
         feat = set_feat(checks=None)
@@ -421,7 +519,7 @@ def test_copying_custom_behavior3():
     driver.aux2 = False
     with raises(I3pyFailedGet) as e:
         driver.feat
-        assert isinstance(e.value.__cause__, AssertionError)
+    assert isinstance(e.value.__cause__, AssertionError)
     assert driver.custom_called == 2
 
     driver.aux2 = True
@@ -446,11 +544,74 @@ def test_set_action():
 
         test = set_action(values={'c': (1, 2)})
 
+    assert C2.test is not C1.test
     assert not C1().test(0)
     assert C2().test(1)
     with raises(I3pyFailedCall) as einfo:
         C2().test(0)
-        assert isinstance(einfo.value.__cause__, ValueError)
+    assert isinstance(einfo.value.__cause__, ValueError)
+
+
+class WithAction(DummyParent):
+
+    @Action()
+    def test(self, c):
+        return c
+
+
+def test_customizing_action_pre_call():
+    """Test customizing an action pre_call.
+
+    """
+    class PreCall(WithAction):
+
+        @customize('test', 'pre_call')
+        def _pre_call(action, driver, c):
+            return (2*c,), {}
+
+    assert PreCall().test(2) == 4
+
+    class PreCall2(PreCall):
+
+        @customize('test', 'pre_call', ('prepend',), 'custom2')
+        def _pre_call2(action, driver, c):
+            return (c**3,), {}
+
+    assert PreCall2().test(2) == 16
+
+
+def test_customizing_action_call():
+    """Test customizing an Action call.
+
+    """
+    class Call(WithAction):
+
+        @customize('test', 'call')
+        def _call(action, driver, c):
+            return 3*c
+
+    assert Call().test(2) == 6
+
+
+def test_customizing_action_post_call():
+    """Test customizing an Action post_call.
+
+    """
+    class PostCall(WithAction):
+
+        @customize('test', 'post_call')
+        def _pre_call(action, driver, result, c):
+            return result*c
+
+    assert PostCall().test(3) == 9
+
+    class PostCall2(PostCall):
+
+        @customize('test', 'post_call', ('prepend',), 'custom2')
+        def _post_call2(action, driver, result, c):
+            return 3
+
+    assert PostCall2().test(2) == 6
 
 
 # --- Test declaring subsystems -----------------------------------------------

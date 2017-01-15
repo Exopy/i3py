@@ -48,9 +48,12 @@ class HasFeaturesMeta(ABCMeta):
 
         docs = dct.pop('_docs_') if '_docs_' in dct else None
 
-        # First we identify all subparts and clean the namespace.
-        for s_name, subpart in {k: v for k, v in dct.items()
-                                if isinstance(v, SubpartDecl)}.items():
+        # First we identify all subparts and keep only keys which are not
+        # knwown aliases.
+        subparts = {k: v for k, v in dct.items()
+                    if isinstance(v, SubpartDecl) and k not in v._aliases_}
+        # Then we clean the namespace
+        for s_name, subpart in subparts.items():
             subpart._name_ = s_name
             subparts[s_name] = subpart
             subpart.clean_namespace(dct)
@@ -192,10 +195,13 @@ class HasFeaturesMeta(ABCMeta):
                 base_feats.update(base.__feats__)
                 base_actions.update(base.__actions__)
 
-        # Clone all features/actions not owned at this stage.
+        # Clone all features/actions not owned at this stage and keep a
+        # reference to it in the proper dict.
         for base, owned in ((base_feats, feats), (base_actions, actions)):
             for k, v in ((k, v) for k, v in base.items() if k not in owned):
-                setattr(cls, k, v.clone())
+                clone = v.clone()
+                setattr(cls, k, clone)
+                owned[k] = clone
 
         # Add the special statically defined behaviours for the
         # features/actions.

@@ -12,9 +12,18 @@
 from __future__ import (division, unicode_literals, print_function,
                         absolute_import)
 
-from abc import ABC, ABCMeta, abstractmethod, abstractproperty
+from abc import ABCMeta, abstractmethod, abstractproperty
 
 from future.utils import with_metaclass
+
+try:
+    from abc import ABC
+except ImportError:
+    class ABC(with_metaclass(ABCMeta, object)):
+        """Backport of Python 3 class.
+
+        """
+        pass
 
 
 class AbstractHasFeatures(ABC):

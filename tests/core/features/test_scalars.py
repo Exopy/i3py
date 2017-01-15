@@ -280,6 +280,7 @@ class TestFloat(object):
 
             n = 0.0
 
+            @limit('test')
             def _limits_test(self):
                 self.n += 100
                 return FloatLimitsValidator(-1000., 1000., step=self.n,

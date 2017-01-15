@@ -370,7 +370,7 @@ class Action(AbstractAction, SupportMethodCustomization):
 
             """
             bound = self.sig.bind(driver, *args, **kwargs)
-            for i, (k, v) in enumerate(list(bound.parameters.items())):
+            for i, (k, v) in enumerate(list(bound.arguments.items())):
                 if units[1][i] is not None and isinstance(v, ureg.Quantity):
                     bound.parameters[k] = v.to(units[1][i]).m
 

@@ -12,10 +12,10 @@
 from __future__ import (division, unicode_literals, print_function,
                         absolute_import)
 
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from inspect import currentframe
 
-from .abstracts import AbstractSubSystem, AbstractChannel
+from .abstracts import ABC, AbstractSubSystem, AbstractChannel
 
 # Sentinel returned when decorating a method with a subpart.
 SUBPART_FUNC = object()

@@ -261,6 +261,10 @@ class TestFloat(object):
         u = get_unit_registry()
         assert f.pre_set(None, u.parse_expression('10 V')) == 10000.
 
+        f = Float(setter=True)
+        with raises(ValueError):
+            f.pre_set(None, u.parse_expression('10 V'))
+
     @mark.skipif(UNIT_SUPPORT is False, reason="Requires Pint")
     def test_with_static_limits_and_units(self):
         f = Float(setter=True, unit='mV',

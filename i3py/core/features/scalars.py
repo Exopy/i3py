@@ -140,7 +140,8 @@ class Float(LimitsValidated, Mapping, Enumerable):
             if self.unit:
                 value = value.to(self.unit).magnitude
             else:
-                value = value.magnitude
+                raise ValueError('Cannot convert Quantity object when no unit '
+                                 'is specified for the feature.')
 
         return value
 

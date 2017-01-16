@@ -163,7 +163,9 @@ def test_action_with_unit():
     assert isinstance(Dummy.test, Action)
 
     dummy = Dummy()
-    assert dummy.test(2, 3) == get_unit_registry().parse_expression('6 V')
+    ureg = get_unit_registry()
+    assert dummy.test(2, ureg.parse_expression('3000 mA')) ==\
+        ureg.parse_expression('6 V')
 
     from i3py.core.actions import action
 
@@ -182,6 +184,14 @@ def test_action_with_unit():
     dummy = Dummy()
 
     assert dummy.test(2, 3) == 6
+
+    with raises(ValueError):
+
+        class Dummy(DummyParent):
+
+            @Action(units=('ohm*A', ('ohm', 'A')))
+            def test(self, r, i):
+                return r*i
 
 
 def test_action_with_checks():

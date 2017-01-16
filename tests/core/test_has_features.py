@@ -48,11 +48,18 @@ class DocTester(DummyParent):
 """
 
 
-def test_unreachable_sources():
+def test_unreachable_sources(caplog, monkeypatch):
     """Test defining a driver whose source cannot be retrieved for doc analysis
 
     """
+    from i3py.core import has_features
+
+    def false_getsourcelines(*args):
+        raise OSError()
+
+    monkeypatch.setattr(has_features, 'getsourcelines', false_getsourcelines)
     exec_(source)
+    assert caplog.records
     # If this execute we are good
 
 

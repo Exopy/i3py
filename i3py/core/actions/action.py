@@ -362,7 +362,8 @@ class Action(AbstractAction, SupportMethodCustomization):
         """
         ureg = get_unit_registry()
         if len(units[1]) != len(self.sig.parameters):
-            msg = ''
+            msg = ('The number of provided units does not match the number of '
+                   'function arguments.')
             raise ValueError(msg)
 
         def convert_input(action, driver, *args, **kwargs):
@@ -372,7 +373,7 @@ class Action(AbstractAction, SupportMethodCustomization):
             bound = self.sig.bind(driver, *args, **kwargs)
             for i, (k, v) in enumerate(list(bound.arguments.items())):
                 if units[1][i] is not None and isinstance(v, ureg.Quantity):
-                    bound.parameters[k] = v.to(units[1][i]).m
+                    bound.arguments[k] = v.to(units[1][i]).m
 
             # remove driver from the args
             return bound.args[1:], bound.kwargs

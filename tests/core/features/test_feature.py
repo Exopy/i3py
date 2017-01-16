@@ -326,6 +326,23 @@ def test_clone():
     assert feat_ch._customs is not new._customs
 
 
+def test_analyse_function():
+    """Test analysing a function used to customize a method.
+
+    """
+    feat = Feature()
+    func = lambda feat, driver, value: value
+
+    # Test handling specifiers for get/set
+    for target in ('get', 'set'):
+        with raises(ValueError):
+            feat.analyse_function(target, func, (None,))
+
+    # Test handling wrong signature
+    with raises(ValueError):
+        feat.analyse_function('pre_get', func, ())
+
+
 def test_modify_behavior1():
     """Modify by replacing by a stand-alone method
 
@@ -342,7 +359,9 @@ def test_modify_behavior2():
 
     """
     feat = Feature()
-    meth = lambda feat, driver, value: value
+
+    def meth(feat, driver, value):
+        return value
     feat.modify_behavior('post_get', meth, ('append',), 't')
     feat.modify_behavior('post_get', meth, ('append',))
     assert 'custom' in feat._customs['post_get']

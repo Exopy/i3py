@@ -1,0 +1,14 @@
+- update tests for core
+- transfer pyvisa-i3py-sim to sim/visa with monkeypatching of pyvisa in __init__
+- complete pyvisa-i3py-sim now that core provide the right capabilities
+- add tests for simulated backend
+- document both core and sim/visa
+- request Ecpy team review
+- create testing automation system
+- add simulated DC power sources
+- add tests for DC power sources
+- document testing automation system
+- move to other drivers ...
+- Feature : use retry exception only if exception match a given condition
+            the validation function needs to be passed somehow but not in
+            retries_exception

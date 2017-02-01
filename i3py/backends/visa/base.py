@@ -30,7 +30,7 @@ _RESOURCE_MANAGERS = None
 
 
 def get_visa_resource_manager(backend='default'):
-    """Access a VISA ressource manager in use by Lantz.
+    """Access a VISA ressource manager in use by I3py.
 
     """
     global _RESOURCE_MANAGERS
@@ -53,7 +53,7 @@ def get_visa_resource_manager(backend='default'):
 
 
 def set_visa_resource_manager(rm, backend='default'):
-    """Set a VISA ressource manager in use by Lantz.
+    """Set a VISA ressource manager in use by I3py.
 
     This operation can only be performed once per backend id, and should be
     performed before any driver relying on this backend is created..

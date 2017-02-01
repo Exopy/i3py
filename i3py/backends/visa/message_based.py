@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # -----------------------------------------------------------------------------
-# Copyright 2016 by I3py Authors, see AUTHORS for more details.
+# Copyright 2016-2017 by I3py Authors, see AUTHORS for more details.
 #
 # Distributed under the terms of the BSD license.
 #
@@ -51,6 +51,7 @@ class VisaMessageDriver(BaseVisaDriver):
                    'Request',
                    7)
 
+    # XXX update once RegisterAction is finally there
     @Action()
     def read_status_byte(self):
         return byte_to_dict(self._resource.read_stb(), self.STATUS_BYTE)

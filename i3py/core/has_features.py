@@ -477,9 +477,9 @@ class HasFeatures(with_metaclass(HasFeaturesMeta, object)):
             Command used by the implementation to determine what should be done
             to set the instrument state.
         *args :
-            Additional arguments necessary to retrieve the instrument state.
+            Additional arguments necessary to set the instrument state.
         **kwargs :
-            Additional keywords arguments necessary to retrieve the instrument
+            Additional keywords arguments necessary to set the instrument
             state.
 
         """

@@ -1,0 +1,25 @@
+..
+   This file holds some common substitutions (mainly for referencing code).
+   To use it add the directive include:: substitutions.rst at the beginning of
+   the file.
+
+.. ============================================================================
+.. I3py substitutions
+.. ============================================================================
+
+.. |HasFeatures| replace:: :py:class:`~i3py.core.has_features.HasFeatures`
+
+.. |HasFeatures.default_get_feature| replace:: :py:meth:`~i3py.core.has_features.HasFeatures.default_get_feature`
+
+.. |HasFeatures.default_set_feature| replace:: :py:meth:`~i3py.core.has_features.HasFeatures.default_set_feature`
+
+.. |HasFeatures.default_check_operation| replace:: :py:meth:`~i3py.core.has_features.HasFeatures.default_check_operation`
+
+.. |subsystem| replace:: :py:class:`~i3py.core.declarative.subsystem`
+
+.. |channel| replace:: :py:class:`~i3py.core.declarative.channel`
+
+.. |set_feat| replace:: :py:class:`~i3py.core.declarative.set_feat`
+
+.. |set_action| replace:: :py:class:`~i3py.core.declarative.set_action`
+

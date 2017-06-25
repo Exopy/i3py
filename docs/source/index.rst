@@ -23,8 +23,9 @@ I3py is a Python package for instrument interfacing.
 
 - :doc:`dev_guide/index`
 
-   You need to add a new instrument to I3py, add a functionality or simply
-   understand what happens behind the scene you should start here.
+   You need to add a new instrument to I3py, write some tests, add a simulated 
+   instrument, a functionality or simply understand what happens behind the 
+   scene you should start here.
 
 - :doc:`faqs/index`
 

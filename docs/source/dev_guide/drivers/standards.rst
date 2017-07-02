@@ -2,5 +2,5 @@
 
 .. include:: ../substitutions.sub
 
-Satndards
+Standards
 =========

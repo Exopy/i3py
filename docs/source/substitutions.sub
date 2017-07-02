@@ -23,3 +23,14 @@
 
 .. |set_action| replace:: :py:class:`~i3py.core.declarative.set_action`
 
+.. |Feature.pre_get| replace:: :py:method:`~i3py.core.features.feature.Feature.pre_get`
+
+.. |Feature.get| replace:: :py:method:`~i3py.core.features.feature.Feature.get`
+
+.. |Feature.post_get| replace:: :py:method:`~i3py.core.features.feature.Feature.post_get`
+
+.. |Feature.pre_set| replace:: :py:method:`~i3py.core.features.feature.Feature.pre_set`
+
+.. |Feature.set| replace:: :py:method:`~i3py.core.features.feature.Feature.set`
+
+.. |Feature.post_set| replace:: :py:method:`~i3py.core.features.feature.Feature.post_set`

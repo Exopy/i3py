@@ -23,6 +23,12 @@
 
 .. |set_action| replace:: :py:class:`~i3py.core.declarative.set_action`
 
+.. |I3pyFailedGet| replace:: :py:class:`~i3py.core.errors.I3pyFailedGet`
+
+.. |I3pyFailedSet| replace:: :py:class:`~i3py.core.errors.I3pyFailedSet`
+
+.. |I3pyFailedCall| replace:: :py:class:`~i3py.core.errors.I3pyFailedCall`
+
 .. |Feature.pre_get| replace:: :py:method:`~i3py.core.features.feature.Feature.pre_get`
 
 .. |Feature.get| replace:: :py:method:`~i3py.core.features.feature.Feature.get`

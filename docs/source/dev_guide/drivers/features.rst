@@ -61,15 +61,46 @@ Working principle
           checks be left to setting.
           
         The value coming out of the post_get step is cached and then returned 
-        to the user.
+        to the user. If an error occurs during any of the step, if it is one
+        of the ones listed in the retries_exceptions attribute of the driver
+        the connection will be closed and re-opened and the operation attempted
+        anew. Otherwise or if the re-opening fails too many times (more than 
+        specified in the retries argument of the feature), an |I3pyFailedGet|
+        exceptions will be raised while still pointing to the original errors.
     
     
     Setting chain
     ^^^^^^^^^^^^^
     
+        When setting a feature first the value is checked against the cached 
+        value. If both values are found to be equal, the set is not performed 
+        as it would be useless. Otherwise, we proceed with the setting 
+        sequence, which, like the getting, happens in three steps:
         
+        - |Feature.pre_set|:
+          During this step, the state of the instrument can be checked and the 
+          value passed by the user validated and converted to a format
+          appropriate to pass to the instrument.
+          
+        - |Feature.set|:
+          This step is dedicated to actually communicating with the instrument
+          to set the value. If the instrument returns any value that can be 
+          used to check that the operation went without issue, it should be 
+          returned so that it can be passed up to the next method.
+          
+        - |Feature.post_set|:
+          This step main goal is to check that the operation of setting the 
+          value went without trouble. By default, it simply calls the 
+          |HasFeatures.default_check_operation| on the parent class.      
     
-    
+        Once the value has been set and if no error occured, the value 
+        specified by the user is cached.  If an error occurs during any of the
+        step, if it is one of the ones listed in the retries_exceptions
+        attribute of the driver the connection will be closed and re-opened 
+        and the operation attempted anew. Otherwise or if the re-opening fails
+        too many times (more than specified in the retries argument of the 
+        feature), an |I3pyFailedSet| exceptions will be raised while still 
+        pointing to the original errors.
 
 Usual configurations
 --------------------

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # -----------------------------------------------------------------------------
-# Copyright 2016 by I3py Authors, see AUTHORS for more details.
+# Copyright 2016-2017 by I3py Authors, see AUTHORS for more details.
 #
 # Distributed under the terms of the BSD license.
 #
@@ -9,9 +9,6 @@
 """BaseInstrument defines the common expected interface for all drivers.
 
 """
-from __future__ import (division, unicode_literals, print_function,
-                        absolute_import)
-from future.utils import with_metaclass
 from threading import RLock
 from weakref import WeakValueDictionary
 from textwrap import fill
@@ -47,7 +44,7 @@ class InstrumentSigleton(HasFeaturesMeta):
         return dr
 
 
-class BaseDriver(with_metaclass(InstrumentSigleton, HasFeatures)):
+class BaseDriver(HasFeatures, metaclass=InstrumentSigleton):
     """ Base class of all instrument drivers in I3py.
 
     This class defines the common interface drivers are expected to implement

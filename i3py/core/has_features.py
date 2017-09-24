@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # -----------------------------------------------------------------------------
-# Copyright 2016 by I3py Authors, see AUTHORS for more details.
+# Copyright 2016-2017 by I3py Authors, see AUTHORS for more details.
 #
 # Distributed under the terms of the BSD license.
 #
@@ -12,16 +12,11 @@ It handles the use of Features, Subsystem, and Channel and the possibility
 to customize Feature behaviour by defining specially named methods.
 
 """
-from __future__ import (division, unicode_literals, print_function,
-                        absolute_import)
-
 import logging
 from inspect import getsourcelines
 from itertools import chain
 from abc import ABCMeta
 from collections import defaultdict
-
-from future.utils import with_metaclass
 
 from .abstracts import (AbstractHasFeatures, AbstractFeature, AbstractAction,
                         AbstractMethodCustomizer)
@@ -227,7 +222,7 @@ class HasFeaturesMeta(ABCMeta):
         return cls
 
 
-class HasFeatures(with_metaclass(HasFeaturesMeta, object)):
+class HasFeatures(object, metaclass=HasFeaturesMeta):
     """Base class for objects using the Features mechanisms.
 
     """

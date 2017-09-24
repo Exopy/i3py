@@ -5,9 +5,8 @@ sudo : false
 dist: trusty
 
 python:
-  - "2.7"
-  - "3.4"
   - "3.5"
+  - "3.6"
 
 env:
   - PINT="N" PYVISA='N'
@@ -27,7 +26,7 @@ before_install:
 install:
   - conda create --yes -n $ENV_NAME python=$TRAVIS_PYTHON_VERSION pip > ${REDIRECT_TO};
   - source activate $ENV_NAME
-  - conda install --yes --quiet future pytest funcsigs> ${REDIRECT_TO};
+  - conda install --yes --quiet pytest funcsigs> ${REDIRECT_TO};
   - pip install -q pytest-cov pytest-catchlog stringparser
   # Use develop version of Pint
   - if [ $PINT == 'Y' ]; then pip install https://github.com/hgrecco/pint/zipball/develop; fi

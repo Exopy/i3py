@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # -----------------------------------------------------------------------------
-# Copyright 2016 by I3py Authors, see AUTHORS for more details.
+# Copyright 2016-2017 by I3py Authors, see AUTHORS for more details.
 #
 # Distributed under the terms of the BSD license.
 #
@@ -9,11 +9,6 @@
 """Tools to customize feature and help in their writings.
 
 """
-from __future__ import (division, unicode_literals, print_function,
-                        absolute_import)
-
-from future.utils import exec_
-
 from ..abstracts import AbstractGetSetFactory
 
 
@@ -99,7 +94,7 @@ class conditional(AbstractGetSetFactory):
                                      'driver.default_get_feature(self, val)')
 
         loc = {}
-        exec_(get_def, globals(), loc)
+        exec(get_def, globals(), loc)
 
         return loc['get']
 
@@ -111,6 +106,6 @@ class conditional(AbstractGetSetFactory):
             raise ValueError('Can build a setter only if default is True')
 
         loc = {}
-        exec_(SET_DEF.format(self._cond), globals(), loc)
+        exec(SET_DEF.format(self._cond), globals(), loc)
 
         return loc['set']

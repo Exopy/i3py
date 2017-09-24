@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # -----------------------------------------------------------------------------
-# Copyright 2016 by I3py Authors, see AUTHORS for more details.
+# Copyright 2016-2017 by I3py Authors, see AUTHORS for more details.
 #
 # Distributed under the terms of the BSD license.
 #
@@ -9,21 +9,9 @@
 """Abstract classes used in I3py.
 
 """
-from __future__ import (division, unicode_literals, print_function,
-                        absolute_import)
-
 from abc import ABCMeta, abstractmethod, abstractproperty
 
-from future.utils import with_metaclass
-
-try:
-    from abc import ABC
-except ImportError:
-    class ABC(with_metaclass(ABCMeta, object)):
-        """Backport of Python 3 class.
-
-        """
-        pass
+from abc import ABC
 
 
 class AbstractHasFeatures(ABC):
@@ -147,8 +135,8 @@ class AbstractSupportMethodCustomization(ABC):
         pass
 
 
-class AbstractFeature(with_metaclass(ABCMeta, property,
-                                     AbstractSupportMethodCustomization)):
+class AbstractFeature(property, AbstractSupportMethodCustomization,
+                      metaclass=ABCMeta):
     """Abstract class for Features.
 
     Attributes

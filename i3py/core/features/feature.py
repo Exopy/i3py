@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # -----------------------------------------------------------------------------
-# Copyright 2016 by I3py Authors, see AUTHORS for more details.
+# Copyright 2016-2017 by I3py Authors, see AUTHORS for more details.
 #
 # Distributed under the terms of the BSD license.
 #
@@ -9,14 +9,10 @@
 """Base descriptor for all instrument properties declaration.
 
 """
-from __future__ import (division, unicode_literals, print_function,
-                        absolute_import)
-
 from types import MethodType
 
 from stringparser import Parser
 from funcsigs import signature
-from future.utils import raise_from
 
 from ..errors import I3pyError, I3pyFailedGet, I3pyFailedSet
 from ..util import build_checker
@@ -423,7 +419,7 @@ class Feature(SupportMethodCustomization, AbstractFeature):
                 return val
         except Exception as e:
             msg = 'Failed to get the value of feature {} for driver {}.'
-            raise_from(I3pyFailedGet(msg.format(self.name, driver)), e)
+            raise I3pyFailedGet(msg.format(self.name, driver)) from e
 
     def _set(self, driver, value):
         """Setter defined when the user provides a value for the set arg.
@@ -441,7 +437,7 @@ class Feature(SupportMethodCustomization, AbstractFeature):
                     cache[name] = value
         except Exception as e:
             msg = 'Failed to set the value of feature {} to {} for driver {}.'
-            raise_from(I3pyFailedSet(msg.format(self.name, value, driver)), e)
+            raise I3pyFailedSet(msg.format(self.name, value, driver)) from e
 
     def _del(self, driver):
         """Deleter clearing the cache of the instrument for this Feature.

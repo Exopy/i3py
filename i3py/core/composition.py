@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # -----------------------------------------------------------------------------
-# Copyright 2016 by I3py Authors, see AUTHORS for more details.
+# Copyright 2016-2017 by I3py Authors, see AUTHORS for more details.
 #
 # Distributed under the terms of the BSD license.
 #
@@ -9,15 +9,11 @@
 """Tools for customization of method using declarative syntax.
 
 """
-from __future__ import (division, unicode_literals, print_function,
-                        absolute_import)
-
 from abc import abstractmethod, abstractproperty
 from types import MethodType
 from collections import OrderedDict, Mapping
 
 from funcsigs import signature
-from future.utils import with_metaclass, exec_
 
 from .abstracts import (AbstractMethodCustomizer,
                         AbstractSupportMethodCustomization)
@@ -123,11 +119,11 @@ class MetaMethodComposer(type):
                 ).format(name=name, args=', ' + ', '.join(sig) if sig else '',
                          chain=chain, ret=chain + ' = ' if chain else '')
         glob = dict(cls=cls)
-        exec_(decl, glob)
+        exec(decl, glob)
         return glob[name]
 
 
-class MethodComposer(with_metaclass(MetaMethodComposer, object)):
+class MethodComposer(object, metaclass=MetaMethodComposer):
     """Function like object used to compose feature methods calls.
 
     All methods to call are kept in an ordered fshion ensuring that they will

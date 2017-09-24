@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # -----------------------------------------------------------------------------
-# Copyright 2016 by I3py Authors, see AUTHORS for more details.
+# Copyright 2016-2017 by I3py Authors, see AUTHORS for more details.
 #
 # Distributed under the terms of the BSD license.
 #
@@ -9,12 +9,7 @@
 """Feature whose value is mapped to another Feature.
 
 """
-from __future__ import (division, unicode_literals, print_function,
-                        absolute_import)
-
 from types import MethodType
-
-from future.utils import exec_
 
 from .feature import Feature, get_chain, set_chain
 
@@ -50,7 +45,7 @@ class Alias(Feature):
             defs += '\n' + SET_DEF.format(accessor)
 
         loc = {}
-        exec_(defs, globals(), loc)
+        exec(defs, globals(), loc)
 
         self.get = MethodType(loc['get'], self)
         if settable:

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # -----------------------------------------------------------------------------
-# Copyright 2016 by I3py Authors, see AUTHORS for more details.
+# Copyright 2016-2017 by I3py Authors, see AUTHORS for more details.
 #
 # Distributed under the terms of the BSD license.
 #
@@ -9,13 +9,8 @@
 """Implements the Action class used to wrap public driver methods.
 
 """
-from __future__ import (division, unicode_literals, print_function,
-                        absolute_import)
-
 from functools import partial
 
-from future.utils import raise_from, exec_, with_metaclass
-from past.builtins import basestring
 from funcsigs import signature
 
 from ..errors import I3pyFailedCall
@@ -40,11 +35,11 @@ CALL_TEMPLATE = ("""
             res = self.action.call(self.driver, *args, **kwargs)
             return self.action.post_call(self.driver, res, *args, **kwargs)
         except Exception as e:
-            msg = ('An exception occurred while calling {msg} with the '
-                   'following arguments {msg} and keywords arguments {msg}.')
-            raise_from(I3pyFailedCall(msg.format(self.action.name,
-                                                 (self.driver,) + args,
-                                                 kwargs)), e)
+            msg = ('An exception occurred while calling {} with the '
+                   'following arguments {} and keywords arguments {}.')
+            fmt_msg = msg.format(self.action.name, (self.driver,) + args,
+                                 kwargs)
+            raise I3pyFailedCall(fmt_msg) from e
 """)
 
 
@@ -84,13 +79,13 @@ class MetaActionCall(type):
                 CALL_TEMPLATE
                 ).format(msg='{}', name=name,
                          sig=', ' + ', '.join(sig[1:]))
-        glob = dict(ActionCall=ActionCall, raise_from=raise_from,
+        glob = dict(ActionCall=ActionCall,
                     I3pyFailedCall=I3pyFailedCall)
-        exec_(decl, glob)
+        exec(decl, glob)
         return glob[name]
 
 
-class ActionCall(with_metaclass(MetaActionCall, object)):
+class ActionCall(object, metaclass=MetaActionCall):
     """Object returned when an Action is used as descriptor.
 
     Actually when an Action is used to decorate a function a custom subclass
@@ -434,7 +429,7 @@ class Action(AbstractAction, SupportMethodCustomization):
                 validators[name] = partial(validate_limits, limits=l,
                                            name=name)
 
-            elif isinstance(lims, basestring):
+            elif isinstance(lims, str):
                 validators[name] = partial(get_limits_and_validate,
                                            limits=lims, name=name)
 

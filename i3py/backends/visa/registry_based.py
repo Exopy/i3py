@@ -9,9 +9,6 @@
 """Base class for instrument using a binary registry.
 
 """
-from __future__ import (division, unicode_literals, print_function,
-                        absolute_import)
-
 from .base import BaseVisaDriver
 
 

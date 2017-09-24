@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # -----------------------------------------------------------------------------
-# Copyright 2016 by I3py Authors, see AUTHORS for more details.
+# Copyright 2016-2017 by I3py Authors, see AUTHORS for more details.
 #
 # Distributed under the terms of the BSD license.
 #
@@ -9,11 +9,6 @@
 """Collection of utility functions.
 
 """
-from __future__ import (division, unicode_literals, print_function,
-                        absolute_import)
-from future.utils import exec_
-from future.builtins import str
-
 from collections import OrderedDict
 from .errors import I3pyValueError, I3pyLimitsError
 
@@ -51,7 +46,7 @@ def build_checker(checks, signature, ret=''):
         func_def += '    return %s' % ret
 
     loc = {}
-    exec_(func_def, globals(), loc)
+    exec(func_def, globals(), loc)
     return loc['check']
 
 

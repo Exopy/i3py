@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # -----------------------------------------------------------------------------
-# Copyright 2016 by I3py Authors, see AUTHORS for more details.
+# Copyright 2016-2017 by I3py Authors, see AUTHORS for more details.
 #
 # Distributed under the terms of the BSD license.
 #
@@ -9,9 +9,6 @@
 """Feature for scalars values that are limited to a certain range.
 
 """
-from __future__ import (division, unicode_literals, print_function,
-                        absolute_import)
-from past.builtins import basestring
 from inspect import cleandoc
 
 from .feature import Feature
@@ -37,7 +34,7 @@ class LimitsValidated(Feature):
             if isinstance(limits, AbstractLimitsValidator):
                 self.limits = limits
                 validate = self.validate_limits
-            elif isinstance(limits, basestring):
+            elif isinstance(limits, str):
                 self.limits_id = limits
                 validate = self.get_limits_and_validate
             else:

@@ -9,11 +9,7 @@
 """Base class for VISA INstrument relying on text messages.
 
 """
-from __future__ import (division, unicode_literals, print_function,
-                        absolute_import)
-
 from inspect import cleandoc
-from future.builtins import str
 
 from pyvisa.rname import (ASRLInstr, GPIBInstr, TCPIPInstr, TCPIPSocket)
 from pyvisa import errors

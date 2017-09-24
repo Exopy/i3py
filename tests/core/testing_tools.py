@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # -----------------------------------------------------------------------------
-# Copyright 2016 by I3py Authors, see AUTHORS for more details.
+# Copyright 2016-2017 by I3py Authors, see AUTHORS for more details.
 #
 # Distributed under the terms of the BSD license.
 #
@@ -9,8 +9,6 @@
 """Module defining some common tools for testing i3py.
 
 """
-from __future__ import (division, unicode_literals, print_function,
-                        absolute_import)
 from threading import RLock
 
 from i3py.core.has_features import HasFeatures

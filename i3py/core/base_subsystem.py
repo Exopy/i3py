@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # -----------------------------------------------------------------------------
-# Copyright 2016 by I3py Authors, see AUTHORS for more details.
+# Copyright 2016-2017 by I3py Authors, see AUTHORS for more details.
 #
 # Distributed under the terms of the BSD license.
 #
@@ -9,10 +9,6 @@
 """Subsystems can be used to give a hierarchical organisation to a driver.
 
 """
-from __future__ import (division, unicode_literals, print_function,
-                        absolute_import)
-from future.utils import with_metaclass
-
 from .abstracts import AbstractSubSystem
 from .has_features import HasFeaturesMeta, HasFeatures
 
@@ -31,7 +27,7 @@ class DeclarationMeta(HasFeaturesMeta):
             return super(DeclarationMeta, self).__call__(*args, **kwargs)
 
 
-class SubSystem(with_metaclass(DeclarationMeta, HasFeatures)):
+class SubSystem(HasFeatures, DeclarationMeta):
     """SubSystem allow to split the implementation of a driver into multiple
     parts.
 

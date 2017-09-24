@@ -9,17 +9,12 @@
 """Base classes for instruments relying on the VISA communication protocol.
 
 """
-from __future__ import (division, unicode_literals, print_function,
-                        absolute_import)
-
-from future.utils import raise_from
-
 try:
     from pyvisa import constants
     from pyvisa import errors
 except ImportError as e:
     msg = 'The PyVISA library is necessary to use the visa backend.'
-    raise_from(ImportError(msg), e)
+    raise ImportError(msg) from e
 else:
     from .message_based import VisaMessageDriver
     from .registry_based import VisaRegistryDriver

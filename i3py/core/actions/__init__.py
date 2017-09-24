@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # -----------------------------------------------------------------------------
-# Copyright 2016 by I3py Authors, see AUTHORS for more details.
+# Copyright 2016-2017 by I3py Authors, see AUTHORS for more details.
 #
 # Distributed under the terms of the BSD license.
 #
@@ -9,9 +9,6 @@
 """Actions are used to wrap method and mark them as acting on the instrument.
 
 """
-from __future__ import (division, unicode_literals, print_function,
-                        absolute_import)
-
 from .action import AbstractAction, Action
 #from .register_action import RegisterAction
 

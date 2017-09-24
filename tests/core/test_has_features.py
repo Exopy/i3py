@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # -----------------------------------------------------------------------------
-# Copyright 2016 by I3py Authors, see AUTHORS for more details.
+# Copyright 2016-2017 by I3py Authors, see AUTHORS for more details.
 #
 # Distributed under the terms of the BSD license.
 #
@@ -9,10 +9,7 @@
 """Test basic metaclasses functionalities.
 
 """
-from __future__ import (division, unicode_literals, print_function,
-                        absolute_import)
 from pytest import raises
-from future.utils import exec_
 
 from i3py.core.declarative import (subsystem, set_feat, channel, set_action,
                                    limit)
@@ -58,7 +55,7 @@ def test_unreachable_sources(caplog, monkeypatch):
         raise OSError()
 
     monkeypatch.setattr(has_features, 'getsourcelines', false_getsourcelines)
-    exec_(source)
+    exec(source)
     assert caplog.records
     # If this execute we are good
 

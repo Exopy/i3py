@@ -9,9 +9,6 @@
 """Test for the VISA backend.
 
 """
-from __future__ import (division, unicode_literals, print_function,
-                        absolute_import)
-
 import os
 
 import pytest

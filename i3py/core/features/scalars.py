@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # -----------------------------------------------------------------------------
-# Copyright 2016 by I3py Authors, see AUTHORS for more details.
+# Copyright 2016-2017 by I3py Authors, see AUTHORS for more details.
 #
 # Distributed under the terms of the BSD license.
 #
@@ -9,11 +9,6 @@
 """Features for scalars values such float, int, string, etc...
 
 """
-from __future__ import (division, unicode_literals, print_function,
-                        absolute_import)
-# Used to get a 2/3 independent unicode conversion.
-from future.builtins import str as ustr
-
 from .enumerable import Enumerable
 from .limits_validated import LimitsValidated
 from .mapping import Mapping
@@ -45,7 +40,7 @@ class Unicode(Mapping, Enumerable):
                              ('append',), 'cast_to_unicode', True)
 
     def cast_to_unicode(self, driver, value):
-        return ustr(value)
+        return str(value)
 
 
 class Int(LimitsValidated, Mapping, Enumerable):

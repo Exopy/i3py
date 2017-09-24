@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # -----------------------------------------------------------------------------
-# Copyright 2016 by I3py Authors, see AUTHORS for more details.
+# Copyright 2016-2017 by I3py Authors, see AUTHORS for more details.
 #
 # Distributed under the terms of the BSD license.
 #
@@ -9,9 +9,6 @@
 """Core package of i3py defining the tools used to write the drivers.
 
 """
-from __future__ import (division, unicode_literals, print_function,
-                        absolute_import)
-
 from .has_features import subsystem, channel, set_feat, set_action
 from .errors import (I3pyError, I3pyInvalidCommand, I3pyTimeoutError,
                      I3pyInterfaceNotSupported)

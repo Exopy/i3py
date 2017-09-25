@@ -28,7 +28,7 @@ class HasFeaturesMeta(ABCMeta):
     """ Metaclass handling Feature customisation, subsystems registration...
 
     """
-    def __new__(meta, name, bases, dct):
+    def __new__(meta, name, bases, namespace, **kwds):
         # Pass over the class dict once and collect the information
         # necessary to implement the various behaviours.
         feats = {}                       # Feature declarations
@@ -41,24 +41,24 @@ class HasFeaturesMeta(ABCMeta):
         m_customizers = {}               # Sentinels customizing methods.
         limits = {}                      # Defined limits.
 
-        docs = dct.pop('_docs_') if '_docs_' in dct else None
+        docs = namespace.pop('_docs_') if '_docs_' in namespace else None
 
         # First we identify all subparts and keep only keys which are not
         # knwown aliases.
-        subparts = {k: v for k, v in dct.items()
+        subparts = {k: v for k, v in namespace.items()
                     if isinstance(v, SubpartDecl) and k not in v._aliases_}
         # Then we clean the namespace
         for s_name, subpart in subparts.items():
             subpart._name_ = s_name
             subparts[s_name] = subpart
-            subpart.clean_namespace(dct)
+            subpart.clean_namespace(namespace)
 
         # Names that should be removed from the class body
         to_remove = set()
 
         # Next we identify all other elements in the passed dict to clean it up
         # before creating the class.
-        for key, value in dct.items():
+        for key, value in namespace.items():
 
             if isinstance(value, AbstractFeature):
                 feats[key] = value
@@ -84,10 +84,11 @@ class HasFeaturesMeta(ABCMeta):
 
         # Clean up class dictionary.
         for k in chain(feat_paras, action_paras, m_customizers, to_remove):
-            del dct[k]
+            del namespace[k]
 
         # Create the class object.
-        cls = super(HasFeaturesMeta, meta).__new__(meta, name, bases, dct)
+        cls = super(HasFeaturesMeta, meta).__new__(meta, name, bases,
+                                                   namespace, **kwds)
 
         # Purge the list of base classes (for the most base class object is
         # present)

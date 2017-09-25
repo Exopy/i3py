@@ -51,8 +51,7 @@ class SubpartDecl(ABC):
         Returns
         -------
         ret : SUBPART_FUNC
-            Dummy letting the metaclass to remove this from the class
-            definition.
+            Dummy left for the metaclass to remove from the class definition.
 
         """
         object.__setattr__(self, func.__name__, func)
@@ -133,8 +132,7 @@ class SubpartDecl(ABC):
         docs = {k[-1]: v for k, v in s_docs.items()
                 if k[0] in self._aliases_ and len(k) == 2}
         meta = type(bases[0])
-        # Python 2 fix : class name can't be unicode
-        name = str(parent_name + self._name_.capitalize())
+        name = parent_name + self._name_.capitalize()
         dct = dict(self.__dict__)
         del dct['_name_']
         del dct['_parent_']

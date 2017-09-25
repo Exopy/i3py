@@ -27,7 +27,7 @@ class DeclarationMeta(HasFeaturesMeta):
             return super(DeclarationMeta, self).__call__(*args, **kwargs)
 
 
-class SubSystem(HasFeatures, DeclarationMeta):
+class SubSystem(HasFeatures, metaclass=DeclarationMeta):
     """SubSystem allow to split the implementation of a driver into multiple
     parts.
 

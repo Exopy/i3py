@@ -135,8 +135,7 @@ class AbstractSupportMethodCustomization(ABC):
         pass
 
 
-class AbstractFeature(property, AbstractSupportMethodCustomization,
-                      metaclass=ABCMeta):
+class AbstractFeature(property, AbstractSupportMethodCustomization):
     """Abstract class for Features.
 
     Attributes

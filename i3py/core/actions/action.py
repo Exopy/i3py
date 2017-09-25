@@ -35,8 +35,8 @@ CALL_TEMPLATE = ("""
             res = self.action.call(self.driver, *args, **kwargs)
             return self.action.post_call(self.driver, res, *args, **kwargs)
         except Exception as e:
-            msg = ('An exception occurred while calling {} with the '
-                   'following arguments {} and keywords arguments {}.')
+            msg = ('An exception occurred while calling {msg} with the '
+                   'following arguments {msg} and keywords arguments {msg}.')
             fmt_msg = msg.format(self.action.name, (self.driver,) + args,
                                  kwargs)
             raise I3pyFailedCall(fmt_msg) from e
@@ -73,6 +73,7 @@ class MetaActionCall(type):
         """Dynamically create a subclass of ActionCall for a signature.
 
         """
+        print(sig, sig[1:], ', '.join(sig[1:]))
         name = '{}ActionCall'.format(action.name)
         # Should store sig on class attribute
         decl = ('class {name}(ActionCall):\n' +

@@ -24,7 +24,6 @@ from ..util import (build_checker, validate_in, validate_limits,
 
 # XXX Action does not support kwargs only arguments
 
-
 CALL_TEMPLATE = ("""
     def __call__(self{sig}):
         try:
@@ -43,10 +42,16 @@ CALL_TEMPLATE = ("""
 """)
 
 
-class MetaActionCall(type):
-    """Metaclass for action call object offering custom instantiation.
+class ActionCall(object):
+    """Object returned when an Action is used as descriptor.
+
+    Actually when an Action is used to decorate a function a custom subclass
+    of this class is created with a __call__ method whose signature match the
+    decorated function signature.
 
     """
+    __slots__ = ('action', 'driver')
+
     #: Dict storing custom class for each signature
     sigs = {}
 
@@ -67,8 +72,9 @@ class MetaActionCall(type):
             cls.sigs[sig] = cls.create_callable(action, sig)
 
         custom_type = cls.sigs[sig]
-        return super(MetaActionCall, custom_type).__call__(action, driver)
+        return super(custom_type, custom_type).__new__(action, driver)
 
+    @classmethod
     def create_callable(cls, action, sig):
         """Dynamically create a subclass of ActionCall for a signature.
 
@@ -84,17 +90,6 @@ class MetaActionCall(type):
                     I3pyFailedCall=I3pyFailedCall)
         exec(decl, glob)
         return glob[name]
-
-
-class ActionCall(object, metaclass=MetaActionCall):
-    """Object returned when an Action is used as descriptor.
-
-    Actually when an Action is used to decorate a function a custom subclass
-    of this class is created with a __call__ method whose signature match the
-    decorated function signature.
-
-    """
-    __slots__ = ('action', 'driver')
 
     def __init__(self, action, driver):
         self.action = action
@@ -166,6 +161,21 @@ class Action(AbstractAction, SupportMethodCustomization):
             # created on the fly.
             self._desc = ActionCall(self, obj)
         return self._desc
+
+    def clone(self):
+        """Create a clone of itself.
+
+        """
+        new = type(self)(**self.creation_kwargs)
+        new(self.func)
+        new.copy_custom_behaviors(self)
+        return new
+
+    def create_default_settings(self):
+        """Create the default settings for an action.
+
+        """
+        return {'unit_return': UNIT_RETURN}
 
     def pre_call(self, driver, *args, **kwargs):
         """Method called before calling the decorated function.
@@ -377,13 +387,12 @@ class Action(AbstractAction, SupportMethodCustomization):
         self.modify_behavior('pre_call', convert_input, ('prepend',), 'units',
                              internal=True)
 
-        if not UNIT_RETURN:
-            return
-
         def convert_output(action, driver, result, *args, **kwargs):
             """Convert the output to the proper units.
 
             """
+            if not driver._settings[self.name]['unit_return']:
+                return result
             re_units = units[0]
             is_container = isinstance(re_units, (tuple, list))
             if not is_container:

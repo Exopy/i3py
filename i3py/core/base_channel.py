@@ -74,6 +74,10 @@ class ChannelContainer(AbstractChannelContainer):
         self._channels[ch_id] = ch
         return ch
 
+    def __iter__(self):
+        for id in self.available:
+            yield self[id]
+
 
 class Channel(SubSystem):
     """Channels are used to represent instrument channels identified by a id

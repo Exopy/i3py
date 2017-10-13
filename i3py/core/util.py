@@ -50,6 +50,9 @@ def build_checker(checks, signature, ret=''):
     return loc['check']
 
 
+# XXX add utility function for option handling
+
+
 # The next three function take all driver as first argument for homogeneity.
 
 def validate_in(driver, value, values, name):

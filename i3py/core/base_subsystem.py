@@ -10,24 +10,10 @@
 
 """
 from .abstracts import AbstractSubSystem
-from .has_features import HasFeaturesMeta, HasFeatures
+from .has_features import HasFeatures
 
 
-class DeclarationMeta(HasFeaturesMeta):
-    """Metaclass used to avoid creating an instance in classes declaration.
-
-    """
-    def __call__(self, *args, **kwargs):
-        """ Create a new instance only if a parent is passed as first argument.
-
-        """
-        if not args:
-            return self
-        else:
-            return super(DeclarationMeta, self).__call__(*args, **kwargs)
-
-
-class SubSystem(HasFeatures, metaclass=DeclarationMeta):
+class SubSystem(HasFeatures):
     """SubSystem allow to split the implementation of a driver into multiple
     parts.
 
@@ -75,3 +61,9 @@ class SubSystem(HasFeatures, metaclass=DeclarationMeta):
                                                    response)
 
 AbstractSubSystem.register(SubSystem)
+
+
+class SubSystemDecriptor(property):
+    """
+    """
+    pass

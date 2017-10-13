@@ -9,16 +9,19 @@
 """Helpers used to write driver classes in a declarative way.
 
 """
-from abc import abstractmethod
 from inspect import currentframe
 
-from .abstracts import ABC, AbstractSubSystem, AbstractChannel
+from .abstracts import (AbstractSubpartDeclarator,
+                        AbstractSubSystemDescriptor, AbstractSubSystem,
+                        AbstractChannelDescriptor, AbstractChannel,
+                        AbstractFeatureModifier, AbstractActionModifier,
+                        AbstractLimitDeclarator)
 
 # Sentinel returned when decorating a method with a subpart.
 SUBPART_FUNC = object()
 
 
-class SubpartDecl(ABC):
+class SubpartDecl(object):
     """Sentinel used to collect declarations or modifications for a subpart.
 
     Parameters
@@ -27,8 +30,12 @@ class SubpartDecl(ABC):
         Class or classes to use as base class when no matching subpart exists
         on the driver.
 
+    checks :
+
+    options :
+
     """
-    def __init__(self, bases=(), attributes=None):
+    def __init__(self, bases=(), checks='', options=None):
         self._name_ = ''
         if not isinstance(bases, tuple):
             bases = (bases,)
@@ -145,7 +152,6 @@ class SubpartDecl(ABC):
         new_class.__doc__ = part_doc
         return new_class
 
-    @abstractmethod
     def compute_base_classes(self):
         """Determine the base classes to use when creating a class.
 
@@ -154,7 +160,26 @@ class SubpartDecl(ABC):
         present in the specified ones.
 
         """
-        pass
+        raise NotImplementedError
+
+    def build_descriptor(self):
+        """Build the descriptor used access the subpart from the driver.
+
+        """
+        raise NotImplementedError
+
+
+AbstractSubpartDeclarator.register(SubpartDecl)
+
+
+# XXX implement
+class SubSystemDescriptor(object):
+    """
+    """
+    pass
+
+
+AbstractSubSystemDescriptor.register(SubSystemDescriptor)
 
 
 class subsystem(SubpartDecl):
@@ -180,6 +205,22 @@ class subsystem(SubpartDecl):
             bases = (SubSystem,) + bases
 
         return bases
+
+    # XXX implement
+    def build_descriptor(self, name, cls):
+        """
+        """
+        pass
+
+
+# XXX implement
+class ChannelDescriptor(SubSystemDescriptor):
+    """
+    """
+    pass
+
+
+AbstractChannelDescriptor.register(ChannelDescriptor)
 
 
 class channel(SubpartDecl):
@@ -247,8 +288,14 @@ class channel(SubpartDecl):
         else:
             return lambda driver: getattr(driver, self._available_)()
 
+    # XXX implement
+    def build_descriptor(self, name, cls):
+        """
+        """
+        pass
 
-class set_feat(ABC):
+
+class set_feat(object):
     """Placeholder used to alter a feature in a subclass.
 
     This can be used to lightly alter a Feature defined on a parent class
@@ -276,8 +323,10 @@ class set_feat(ABC):
 
         return new
 
+AbstractFeatureModifier.register(set_feat)
 
-class set_action(ABC):
+
+class set_action(object):
     """Placeholder used to alter an action in a subclass.
 
     This can be used to lightly alter an Action defined on a parent class.
@@ -306,7 +355,10 @@ class set_action(ABC):
         return new
 
 
-class limit(ABC):
+AbstractActionModifier.register(set_action)
+
+
+class limit(object):
     """Class to use as a decorator to mark a function as defining a limit.
 
     The decorated function should take as argument the driver part matching
@@ -322,3 +374,6 @@ class limit(ABC):
     def __call__(self, func):
         self.func = func
         return self
+
+
+AbstractLimitDeclarator.register(limit)

@@ -116,12 +116,18 @@ class Float(LimitsValidated, Mapping, Enumerable):
         self.modify_behavior('post_get', self.cast_to_float.__func__,
                              ('append',), 'cast', True)
 
+    def create_default_settings(self):
+        """Create the default settings for a feature.
+
+        """
+        return {'unit_return': UNIT_RETURN}
+
     def cast_to_float(self, driver, value):
         """Cast the value returned by the instrument to float or Quantity.
 
         """
         fval = float(value)
-        if self.unit and UNIT_RETURN:
+        if self.unit and driver._settings[self.name]['unit_return']:
             return fval*self.unit
 
         else:

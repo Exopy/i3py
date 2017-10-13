@@ -9,6 +9,7 @@
 """Module dedicated to testing action behavior.
 
 """
+# XXX test respect of settings
 from pytest import mark, raises
 
 from i3py.core.declarative import limit

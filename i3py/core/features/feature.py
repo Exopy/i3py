@@ -17,8 +17,7 @@ from funcsigs import signature
 from ..errors import I3pyError, I3pyFailedGet, I3pyFailedSet
 from ..util import build_checker
 from ..abstracts import AbstractFeature, AbstractGetSetFactory
-from ..composition import (SupportMethodCustomization, MethodComposer,
-                           normalize_signature)
+from ..composition import (SupportMethodCustomization, normalize_signature)
 
 
 class Feature(SupportMethodCustomization, AbstractFeature):
@@ -82,6 +81,8 @@ class Feature(SupportMethodCustomization, AbstractFeature):
         subclass customisation. This should not be manipulated by user code.
 
     """
+    # XXX Add option and set the settings accordingly to the option
+    # presence/absence
     def __init__(self, getter=None, setter=None, extract='', retries=0,
                  checks=None, discard=None):
         self._getter = getter
@@ -333,10 +334,17 @@ class Feature(SupportMethodCustomization, AbstractFeature):
         methods
 
         """
-        p = super(Feature, self).clone()
-        p.__doc__ = self.__doc__
+        new = type(self)(**self.creation_kwargs)
+        new.copy_custom_behaviors(self)
+        new.__doc__ = self.__doc__
 
-        return p
+        return new
+
+    def create_default_settings(self):
+        """Create the default settings for a feature.
+
+        """
+        return {}
 
     @property
     def self_alias(self):

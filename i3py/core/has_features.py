@@ -15,21 +15,27 @@ to customize Feature behaviour by defining specially named methods.
 import logging
 from inspect import getsourcelines
 from itertools import chain
-from abc import ABCMeta
 from collections import defaultdict
 
 from .abstracts import (AbstractHasFeatures, AbstractFeature, AbstractAction,
-                        AbstractMethodCustomizer)
-from .declarative import (set_feat, set_action, SubpartDecl, subsystem,
-                          channel, limit)
+                        AbstractMethodCustomizer, AbstractActionModifier,
+                        AbstractFeatureModifier, AbstractSubpartDeclarator,
+                        AbstractSubSystemDeclarator, AbstractChannelDeclarator,
+                        AbstractLimitDeclarator)
 
 
-class HasFeaturesMeta(ABCMeta):
-    """ Metaclass handling Feature customisation, subsystems registration...
+class HasFeatures(object):
+    """Base class for objects using the Features mechanisms.
 
     """
-    def __new__(meta, name, bases, namespace, **kwds):
-        # Pass over the class dict once and collect the information
+    #: Tuple of exception to consider when securing a communication (either via
+    #: secure_communication decorator or for features with a non zero
+    #: retries value)
+    retries_exceptions = ()
+
+    @classmethod
+    def __init_subclass__(cls, subclass):
+        # Pass over the class dict and collect the information
         # necessary to implement the various behaviours.
         feats = {}                       # Feature declarations
         actions = {}                     # Action declarations
@@ -41,12 +47,16 @@ class HasFeaturesMeta(ABCMeta):
         m_customizers = {}               # Sentinels customizing methods.
         limits = {}                      # Defined limits.
 
+        # Get the class dictionary
+        namespace = subclass.__dict__
+
         docs = namespace.pop('_docs_') if '_docs_' in namespace else None
 
         # First we identify all subparts and keep only keys which are not
         # knwown aliases.
         subparts = {k: v for k, v in namespace.items()
-                    if isinstance(v, SubpartDecl) and k not in v._aliases_}
+                    if (isinstance(v, AbstractSubpartDeclarator) and
+                        k not in v._aliases_)}
         # Then we clean the namespace
         for s_name, subpart in subparts.items():
             subpart._name_ = s_name
@@ -54,7 +64,7 @@ class HasFeaturesMeta(ABCMeta):
             subpart.clean_namespace(namespace)
 
         # Names that should be removed from the class body
-        to_remove = set()
+        to_remove = set('_docs_') if docs else set()
 
         # Next we identify all other elements in the passed dict to clean it up
         # before creating the class.
@@ -66,18 +76,18 @@ class HasFeaturesMeta(ABCMeta):
 
             elif isinstance(value, AbstractAction):
                 actions[key] = value
-                value.name = name
+                value.name = key
 
-            elif isinstance(value, set_feat):
+            elif isinstance(value, AbstractFeatureModifier):
                 feat_paras[key] = value
 
-            elif isinstance(value, set_action):
+            elif isinstance(value, AbstractActionModifier):
                 action_paras[key] = value
 
             elif isinstance(value, AbstractMethodCustomizer):
                 m_customizers[key] = value
 
-            elif isinstance(value, limit):
+            elif isinstance(value, AbstractLimitDeclarator):
                 to_remove.add(key)
                 limit_id = value.name
                 limits[limit_id] = value.func
@@ -86,13 +96,13 @@ class HasFeaturesMeta(ABCMeta):
         for k in chain(feat_paras, action_paras, m_customizers, to_remove):
             del namespace[k]
 
-        # Create the class object.
-        cls = super(HasFeaturesMeta, meta).__new__(meta, name, bases,
-                                                   namespace, **kwds)
-
-        # Purge the list of base classes (for the most base class object is
-        # present)
-        bases = [b for b in bases if issubclass(b, AbstractHasFeatures)]
+        # Get the base classes for this class from the mro, excluding
+        # classes more basic than AbstractHasFeatures
+        bases = []
+        for base_cls in cls.__mro__:
+            if (issubclass(base_cls, AbstractHasFeatures) and
+                    not issubclass(base_cls, tuple(bases))):
+                bases.append(base_cls)
 
         # Analyse the source code to find the doc for the defined Features.
         # This will work as long as two subpart are not aliased in the same
@@ -116,9 +126,8 @@ class HasFeaturesMeta(ABCMeta):
                         doc = ''
 
         # Make the feature build their docs from the provided docstrings.
-        for f in feats:
-            if f in docs:
-                feats[f].make_doc(docs[f])
+        for f in [f for f in feats if f in docs]:
+            feats[f].make_doc(docs[f])
 
         # Handle the subparts by creating dynamic subclasses.
         inherited_ss = dict([(k, v) for b in bases
@@ -134,11 +143,11 @@ class HasFeaturesMeta(ABCMeta):
             # parent class we use its class as a base class for the one we are
             # about to create.
             if part_name in inherited_ss:
-                subsystems[part_name] = part.build_cls(name,
+                subsystems[part_name] = part.build_cls(cls.__name__,
                                                        inherited_ss[part_name],
                                                        docs)
             elif part_name in inherited_ch:
-                ch_cls = part.build_cls(name, inherited_ch[part_name],
+                ch_cls = part.build_cls(cls.__name__, inherited_ch[part_name],
                                         docs)
 
                 # Must be valid otherwise parent declaration would be messed up
@@ -150,11 +159,11 @@ class HasFeaturesMeta(ABCMeta):
                 channels[part_name] = ch_cls
 
             else:
-                if isinstance(part, subsystem):
-                    subsystems[part_name] = part.build_cls(name, None,
+                if isinstance(part, AbstractSubSystemDeclarator):
+                    subsystems[part_name] = part.build_cls(cls.__name__, None,
                                                            docs)
-                elif isinstance(part, channel):
-                    ch_cls = part.build_cls(name, None, docs)
+                elif isinstance(part, AbstractChannelDeclarator):
+                    ch_cls = part.build_cls(cls.__name__, None, docs)
                     if not part._available_:
                         msg = 'No way to identify available channels for {}'
                         raise ValueError(msg.format(part_name))
@@ -162,9 +171,9 @@ class HasFeaturesMeta(ABCMeta):
 
         # Put references to the subsystem and channel classes on the class.
         for k, v in subsystems.items():
-            setattr(cls, k, v)
+            setattr(cls, k, subparts[k].build_descriptor(k, v))
         for k, v in channels.items():
-            setattr(cls, k, v)
+            setattr(cls, k, subparts[k].build_descriptor(k, v))
 
         inherited_ss.update(subsystems)
         subsystems = inherited_ss
@@ -220,39 +229,28 @@ class HasFeaturesMeta(ABCMeta):
         # Put a reference to the limits in the class.
         cls.__limits__ = limits
 
-        return cls
-
-
-class HasFeatures(object, metaclass=HasFeaturesMeta):
-    """Base class for objects using the Features mechanisms.
-
-    """
-    #: Tuple of exception to consider when securing a communication (either via
-    #: secure_communication decorator or for features with a non zero
-    #: retries value)
-    retries_exceptions = ()
+    __slots__ = ('_cache', '_settings', '_limits_cache',
+                 '_subsystem_instances', '_channel_container_instances',
+                 'use_cache')
 
     def __init__(self, caching_allowed=True):
 
+        # Cache for features values.
         self._cache = {}
+
+        # Parameters for features and actions.
+        self._settings = {f_a.name: f_a.create_default_settings()
+                          for f_a in chain(self.__feats__, self.__actions__)}
+
+        # Cache for the computed limits
         self._limits_cache = {}
 
-        subsystems = self.__subsystems__
-        channels = self.__channels__
+        if self.__subsystems__:
+            self._subsystem_instances = {}
+        if self.__channels__:
+            self._channel_container_instances = {}
 
         self.use_cache = caching_allowed
-
-        # Initializing subsystems.
-        for ss, cls in subsystems.items():
-            subsystem = cls(self, caching_allowed=caching_allowed)
-            setattr(self, ss, subsystem)
-
-        # Creating a channel container for each kind of declared channels.
-        for ch, cls in channels.items():
-            listing_function = cls._part_.build_list_channel_function()
-            ch_holder = cls._container_type_(cls, self, ch, listing_function,
-                                             cls._part_._ch_aliases_)
-            setattr(self, ch, ch_holder)
 
     def get_feat(self, name):
         """ Acces the feature matching the given name.
@@ -390,6 +388,11 @@ class HasFeatures(object, metaclass=HasFeaturesMeta):
                         ch_cache[ch] = channel_cont[ch]._cache.copy()
 
         return cache
+
+    def set_settings(self, name, key, value):
+        """
+        """
+        pass  # XXX implement
 
     @property
     def declared_limits(self):

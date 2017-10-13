@@ -19,6 +19,7 @@ from .abstracts import (AbstractMethodCustomizer,
                         AbstractSupportMethodCustomization)
 
 
+# XXX rework for keyword only args
 def normalize_signature(sig, alias=None):
     """Normalize a function signature for quick matching.
 
@@ -50,14 +51,45 @@ def normalize_signature(sig, alias=None):
     return tuple(norm_arg(p, alias) for p in sig.parameters.values())
 
 
-class MetaMethodComposer(type):
-    """Metaclass for method composer object offering custom instantiation.
+class MethodComposer(object):
+    """Function like object used to compose feature methods calls.
+
+    All methods to call are kept in an ordered fashion ensuring that they will
+    be called in the right order while allowing fancy insertion based on method
+    id.
+
+    Parameters
+    ----------
+    obj : SupportMethodCustomization
+        Object whose method is customized through the use of a MethodComposer.
+
+    func : callable
+        Original function this composer is replacing. This should be a function
+        and not a bound method.
+
+    alias : unicode
+        Name to use to replace 'self' in method signature.
+
+    chain_on : unicode
+        Comma separated list of functions arguments that are also values
+        returned by the function.
+
+    func_id : unicode, optional
+        Id of the original function to use in the composer.
+
+    Notes
+    -----
+    Method ids must be unique and duplicate names are removed without warning.
 
     """
+    #: Dict storing custom class for each signature
     sigs = {}
 
-    def __call__(cls, obj, func, alias, chain_on=None, func_id='old',
-                 signatures=None):
+    __slots__ = ('__self__', '__name__', '_alias', '_chain_on', '_names',
+                 '_methods', '_signatures')
+
+    def __new__(cls, obj, func, alias, chain_on, func_id='old',
+                signatures=None):
         """Create a custom subclass for each signature function.
 
         Parameters
@@ -92,16 +124,16 @@ class MetaMethodComposer(type):
             sigs = signatures
 
         id_ = (tuple(sigs), chain_on)
-        if id_ not in MetaMethodComposer.sigs:
+        if id_ not in MethodComposer.sigs:
             subclass = cls.create_composer(func.__name__, sigs, chain_on)
-            MetaMethodComposer.sigs[id_] = subclass
+            MethodComposer.sigs[id_] = subclass
 
-        custom_type = MetaMethodComposer.sigs[id_]
-        return super(MetaMethodComposer, custom_type).__call__(obj, func,
-                                                               alias, chain_on,
-                                                               func_id,
-                                                               sigs)
+        custom_type = MethodComposer.sigs[id_]
+        return super(custom_type, custom_type).__new__(obj, func, alias,
+                                                       chain_on, func_id,
+                                                       sigs)
 
+    @classmethod
     def create_composer(cls, name, sigs, chain_on):
         """Dynamically create a subclass of base composer for a signature.
 
@@ -121,41 +153,6 @@ class MetaMethodComposer(type):
         glob = dict(cls=cls)
         exec(decl, glob)
         return glob[name]
-
-
-class MethodComposer(object, metaclass=MetaMethodComposer):
-    """Function like object used to compose feature methods calls.
-
-    All methods to call are kept in an ordered fshion ensuring that they will
-    be called in the right order while allowing fancy insertion based on method
-    id.
-
-    Parameters
-    ----------
-    obj : SupportMethodCustomization
-        Object whose method is customized through the use of a MethodComposer.
-
-    func : callable
-        Original function this composer is replacing. This should be a function
-        and not a bound method.
-
-    alias : unicode
-        Name to use to replace 'self' in method signature.
-
-    chain_on : unicode
-        Comma separated list of functions arguments that are also values
-        returned by the function.
-
-    func_id : unicode, optional
-        Id of the original function to use in the composer.
-
-    Notes
-    -----
-    Method ids must be unique and duplicate names are removed without warning.
-
-    """
-    __slots__ = ('__self__', '__name__', '_alias', '_chain_on', '_names',
-                 '_methods', '_signatures')
 
     def __init__(self, obj, func, alias, chain_on, func_id='old',
                  signatures=None):

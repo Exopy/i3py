@@ -12,10 +12,11 @@
 from inspect import currentframe
 
 from .abstracts import (AbstractSubpartDeclarator,
-                        AbstractSubSystemDescriptor, AbstractSubSystem,
-                        AbstractChannelDescriptor, AbstractChannel,
+                        AbstractSubSystem, AbstractSubSystemDeclarator,
+                        AbstractChannel, AbstractChannelDeclarator,
                         AbstractFeatureModifier, AbstractActionModifier,
                         AbstractLimitDeclarator)
+from .utils import build_checker
 
 # Sentinel returned when decorating a method with a subpart.
 SUBPART_FUNC = object()
@@ -30,16 +31,32 @@ class SubpartDecl(object):
         Class or classes to use as base class when no matching subpart exists
         on the driver.
 
-    checks :
+    # XXX complete options
+    checks : str, optional
+        Booelan tests to execute before anything else when attempting use a
+        Feature or an Action of the subpart. Multiple assertion can be
+        separated with ';'. The subpart can be accessed through the name
+        driver just like in features.
 
     options :
 
+    descriptor_type : type
+        Class to use as descriptor for this subpart.
+
     """
-    def __init__(self, bases=(), checks='', options=None):
+    __slots__ = ('_name_', '_bases_', '_checks_', '_options_',
+                 '_descriptor_type_', '_parent_', '_aliases_', '_inners_',
+                 '_enter_locals_')
+
+    def __init__(self, bases=(), checks='', options=None,
+                 descriptor_type=None):
         self._name_ = ''
         if not isinstance(bases, tuple):
             bases = (bases,)
         self._bases_ = bases
+        self._checks_ = checks
+        self._options_ = options
+        self._descriptor_type_ = descriptor_type
         self._parent_ = None
         self._aliases_ = []
         self._inners_ = {}
@@ -150,6 +167,11 @@ class SubpartDecl(object):
         dct['_docs_'] = docs
         new_class = meta(name, bases, dct)
         new_class.__doc__ = part_doc
+
+        if self._checks_:
+            func = build_checker(self._checks_, ('driver',), 'True')
+            new_class._enabled_ = property(func)
+
         return new_class
 
     def compute_base_classes(self):
@@ -172,16 +194,6 @@ class SubpartDecl(object):
 AbstractSubpartDeclarator.register(SubpartDecl)
 
 
-# XXX implement
-class SubSystemDescriptor(object):
-    """
-    """
-    pass
-
-
-AbstractSubSystemDescriptor.register(SubSystemDescriptor)
-
-
 class subsystem(SubpartDecl):
     """Sentinel used to collect declarations or modifications for a subsystem.
 
@@ -190,6 +202,19 @@ class subsystem(SubpartDecl):
     bases : class or tuple of classes, optional
         Class or classes to use as base class when no matching subpart exists
         on the driver.
+
+    # XXX complete options
+    checks : str, optional
+        Booelan tests to execute before anything else when attempting use a
+        Feature or an Action of the subsytem. Multiple assertion can be
+        separated with ';'. The subsystem can be accessed through the name
+        driver just like in features.
+
+    options :
+
+    descriptor_type : type
+        Class to use as descriptor for this subsystem. Should be a sunclass of
+        AbstractSubSystemDescriptor.
 
     """
     def compute_base_classes(self):
@@ -206,21 +231,26 @@ class subsystem(SubpartDecl):
 
         return bases
 
-    # XXX implement
     def build_descriptor(self, name, cls):
+        """Build the descriptor that will be used to access the subsystem.
+
+        Parameters
+        ----------
+        name : str
+            Name under which the descriptor will be stored on the instance.
+
+        cls : type
+            Class built by a previous call to build_cls.
+
         """
-        """
-        pass
+        if self._descriptor_type_ is None:
+            from .base_subsystem import SubSystemDescriptor
+            self._descriptyor_type = SubSystemDescriptor
+
+        return self._descriptor_type_(cls, name, self._options_)
 
 
-# XXX implement
-class ChannelDescriptor(SubSystemDescriptor):
-    """
-    """
-    pass
-
-
-AbstractChannelDescriptor.register(ChannelDescriptor)
+AbstractSubSystemDeclarator.register(subsystem)
 
 
 class channel(SubpartDecl):
@@ -245,10 +275,25 @@ class channel(SubpartDecl):
     container_type : type, optional
         Container type to use to store channels.
 
+    # XXX complete options
+    checks : str, optional
+        Booelan tests to execute before anything else when attempting use a
+        Feature or an Action of the chnnel. Multiple assertion can be separated
+        with ';'. The channel can be accessed through the name driver just like
+        in features.
+
+    options :
+
+    descriptor_type : type
+        Class to use as descriptor for this subpart. Should be a sunclass of
+        AbstractSubSystemDescriptor.
+
     """
+    # XXX handle new arguments
     def __init__(self, available=None, bases=(), aliases=None,
-                 container_type=None):
-        super(channel, self).__init__(bases)
+                 container_type=None, options=None, checks=None,
+                 descriptor_type=None):
+        super(channel, self).__init__(bases, checks, options, descriptor_type)
         self._available_ = available
         self._ch_aliases_ = aliases if aliases else {}
         self._container_type_ = container_type
@@ -288,11 +333,29 @@ class channel(SubpartDecl):
         else:
             return lambda driver: getattr(driver, self._available_)()
 
-    # XXX implement
     def build_descriptor(self, name, cls):
+        """Build the descriptor that will be used to access the channel.
+
+        Parameters
+        ----------
+        name : str
+            Name under which the descriptor will be stored on the instance.
+
+        cls : type
+            Class built by a previous call to build_cls.
+
         """
-        """
-        pass
+        if self._descriptor_type_ is None:
+            from .base_channel import ChannelDescriptor
+            self._descriptyor_type = ChannelDescriptor
+
+        list_func = self.build_list_channel_function
+        return self._descriptor_type_(cls, name, self._options_,
+                                      self._container_type_, list_func,
+                                      self._aliases_)
+
+
+AbstractChannelDeclarator.register(channel)
 
 
 class set_feat(object):

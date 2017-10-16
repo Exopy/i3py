@@ -231,7 +231,7 @@ class HasFeatures(object):
 
     __slots__ = ('_cache', '_settings', '_limits_cache',
                  '_subsystem_instances', '_channel_container_instances',
-                 'use_cache')
+                 '_use_cache', '__dict__', '__weakref__')
 
     def __init__(self, caching_allowed=True):
 
@@ -250,7 +250,12 @@ class HasFeatures(object):
         if self.__channels__:
             self._channel_container_instances = {}
 
-        self.use_cache = caching_allowed
+        # Set enabled to true if the framework has not already set it to a
+        # descriptor
+        if not hasattr(self, '_enabled_'):
+            self._enabled_ = True
+
+        self._use_cache = caching_allowed
 
     def get_feat(self, name):
         """ Acces the feature matching the given name.

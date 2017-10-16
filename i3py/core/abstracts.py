@@ -74,6 +74,13 @@ class AbstractChannelContainer(ABC):
         pass
 
 
+class AbstractChannelDescriptor(property, ABC):
+    """Abstract subsystem descriptor.
+
+    """
+    pass
+
+
 class AbstractSubpartDeclarator(ABC):
     """Sentinel for subpart declaration in a class body.
 

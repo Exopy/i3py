@@ -10,7 +10,9 @@
 
 """
 from .base_subsystem import SubSystem
-from .abstracts import AbstractChannel, AbstractChannelContainer
+from .abstracts import (AbstractChannel, AbstractChannelContainer,
+                        AbstractChannelDescriptor)
+from .utils import check_options
 
 
 class ChannelContainer(AbstractChannelContainer):
@@ -133,3 +135,42 @@ class Channel(SubSystem):
 
 
 AbstractChannel.register(Channel)
+
+
+class ChannelDescriptor(object):
+    """Descriptor giving access to a channel container.
+
+    The channel container is returned only if the proper conditions are matched
+    in terms of static options (as specified through the options of the
+    channel declarator).
+
+    """
+    __slots__ = ('cls', 'name', 'options', 'container', 'list_available',
+                 'aliases')
+
+    def __init__(self, cls, name, options, container, list_available, aliases):
+        self.cls = cls
+        self.name = name
+        self.options = options
+        self.container = container
+        self.list_available = list_available
+        self.aliases = aliases
+
+    def __get__(self, instance, cls):
+        if not cls:
+            return self.cls
+        else:
+            if self.name not in instance._channel_container_instances:
+                if self.options:
+                    test, msg = check_options(instance, self.options)
+                    if not test:
+                        raise AttributeError()  # XXX complete message
+
+                cc = self.container(cls, instance, self.name,
+                                    self.list_available, self.aliases)
+                instance._channel_container_instances[self.name] = cc
+
+            return instance._channel_container_instances[self.name]
+
+
+AbstractChannelDescriptor.register(ChannelDescriptor)

@@ -9,8 +9,9 @@
 """Subsystems can be used to give a hierarchical organisation to a driver.
 
 """
-from .abstracts import AbstractSubSystem
+from .abstracts import AbstractSubSystem, AbstractSubSystemDescriptor
 from .has_features import HasFeatures
+from .utils import check_options
 
 
 class SubSystem(HasFeatures):
@@ -63,7 +64,35 @@ class SubSystem(HasFeatures):
 AbstractSubSystem.register(SubSystem)
 
 
-class SubSystemDecriptor(property):
+class SubSystemDescriptor(object):
+    """Descriptor giving access to a subsytem.
+
+    The subsystem is returned only if the proper conditions are matched
+    in terms of static options (as specified through the options of the
+    subsystem declarator).
+
     """
-    """
-    pass
+    __slots__ = ('cls', 'name', 'options')
+
+    def __init__(self, cls, name, options):
+        self.cls = cls
+        self.name = name
+        self.options = options
+
+    def __get__(self, instance, cls):
+        if not cls:
+            return self.cls
+        else:
+            if self.name not in instance._subsystem_instances:
+                if self.options:
+                    test, msg = check_options(instance, self.options)
+                    if not test:
+                        raise AttributeError()  # XXX complete message
+
+                ss = self.cls(parent=instance)
+                instance._subsystem_instances[self.name] = ss
+
+            return instance._subsystem_instances[self.name]
+
+
+AbstractSubSystemDescriptor.register(SubSystemDescriptor)

@@ -50,7 +50,11 @@ def build_checker(checks, signature, ret=''):
     return loc['check']
 
 
-# XXX add utility function for option handling
+# XXX implement
+def check_options(driver, options):
+    """
+    """
+    pass
 
 
 # The next three function take all driver as first argument for homogeneity.

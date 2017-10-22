@@ -141,7 +141,7 @@ class AbstractSubSystemDeclarator(AbstractSubpartDeclarator):
         raise NotImplementedError
 
     @abstractmethod
-    def compute_base_classes(self) -> tuple[type]:
+    def compute_base_classes(self) -> tuple:
         """Determine the base classes to use when creating a class.
 
         This should look into the classes stored in the _bases_ attribute and

@@ -14,7 +14,7 @@ from pytest import raises, mark
 
 from i3py.core.composition import customize
 from i3py.core.features.enumerable import Enumerable
-from i3py.core.features.scalars import Unicode, Int, Float
+from i3py.core.features.scalars import Str, Int, Float
 from i3py.core.limits import IntLimitsValidator, FloatLimitsValidator
 from i3py.core.unit import get_unit_registry, UNIT_SUPPORT
 from i3py.core.declarative import set_feat, limit
@@ -33,21 +33,21 @@ class TestEnumerableInit(TestFeatureInit):
     parameters = dict(values=(11, 2))
 
 
-class TestUnicodeInit(TestEnumerableInit, TestMappingInit):
+class TestStrInit(TestEnumerableInit, TestMappingInit):
 
-    cls = Unicode
+    cls = Str
 
 
-def test_unicode():
-    u = Unicode(setter=True, values=['On', 'Off'])
+def test_str():
+    u = Str(setter=True, values=['On', 'Off'])
     assert u.pre_set(None, 'On') == 'On'
     with raises(I3pyValueError):
         u.pre_set(None, 'TEST')
     assert isinstance(u.post_get(None, 1), type(''))
 
 
-def test_unicode_mapping():
-    m = Unicode(mapping={'On': 1, 'Off': 2})
+def test_str_mapping():
+    m = Str(mapping={'On': 1, 'Off': 2})
     assert m.post_get(None, 1) == 'On'
     assert m.post_get(None, 2) == 'Off'
 

@@ -298,7 +298,7 @@ class HasFeatures(object):
 
         Parameters
         ----------
-        name : unicode
+        name : str
             Name of the Feature to be retrieved
 
         Returns

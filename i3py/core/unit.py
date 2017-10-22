@@ -96,7 +96,7 @@ def to_quantity(value, unit):
     value : float
         Value to cast.
 
-    unit : unicode
+    unit : str
         Unit of the quantity to create.
 
     """

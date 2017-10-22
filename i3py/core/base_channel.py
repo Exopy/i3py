@@ -29,7 +29,7 @@ class ChannelContainer(AbstractChannelContainer):
     parent : HasFeatures
         Reference to the parent object holding the channel.
 
-    name : unicode
+    name : str
         Name of the channel subpart on the parent.
 
     list_available : callable

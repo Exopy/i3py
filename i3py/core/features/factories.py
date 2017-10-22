@@ -65,7 +65,7 @@ class conditional(AbstractGetSetFactory):
 
     Parameters
     ----------
-    conditional_value : unicode
+    conditional_value : str
         String of the form 'a if driver.b else c'. When setting the value is
         accessible as value.
 

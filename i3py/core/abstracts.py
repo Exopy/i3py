@@ -124,7 +124,7 @@ class AbstractSubSystemDeclarator(AbstractSubpartDeclarator):
 
         Parameters
         ----------
-        parent_name : unicode
+        parent_name : str
             Name of the parent class system. Used to build the name of the new
             class.
 
@@ -192,7 +192,7 @@ class AbstractSupportMethodCustomization(ABC):
 
         Parameters
         ----------
-        method_name : unicode
+        method_name : str
             Name of the method which should be modified.
 
         func : callable|None
@@ -211,7 +211,7 @@ class AbstractSupportMethodCustomization(ABC):
               It should refer to the id of a previous modification.
             ex : ('custom', 'add_after', 'old')
 
-        modif_id : unicode
+        modif_id : str
             Id of the modification, used to refer to it in later modification.
             It is this id that can be specified as target for 'add_before',
             'add_after', 'replace', remove'.
@@ -248,7 +248,7 @@ class AbstractFeature(property, AbstractSupportMethodCustomization):
 
     Attributes
     ----------
-    name : unicode
+    name : str
         Name under which this feature is known in the class to which it
         belongs. This is set by the framework.
 
@@ -300,7 +300,7 @@ class AbstractAction(AbstractSupportMethodCustomization):
 
     Attributes
     ----------
-    name : unicode
+    name : str
         Name under which this action is known in the class to which it
         belongs. This is set by the framework.
 
@@ -443,7 +443,7 @@ class AbstractMethodCustomizer(ABC):
         owner : SupportMethodCustomization
             Class owning the descriptor to customize.
 
-        decorate_name : unicode
+        decorate_name : str
             Name uder which the customization function appear in the class
             declaration.
 

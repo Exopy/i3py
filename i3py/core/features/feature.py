@@ -78,7 +78,7 @@ class Feature(SupportMethodCustomization, AbstractFeature):
 
     Attributes
     ----------
-    name : unicode
+    name : str
         Name of the Feature. This is set by the HasFeatures driver and
         should not be manipulated by user code.
     creation_kwargs : dict

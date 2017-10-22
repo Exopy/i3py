@@ -21,9 +21,8 @@ if UNIT_SUPPORT:
     from pint.quantity import _Quantity
 
 
-class Unicode(Mapping, Enumerable):
-    """ Feature casting the instrument answer to a unicode, support
-    enumeration.
+class Str(Mapping, Enumerable):
+    """ Feature casting the instrument answer to a str, support enumeration.
 
     """
     def __init__(self, getter=None, setter=None, values=(), mapping=None,
@@ -36,10 +35,10 @@ class Unicode(Mapping, Enumerable):
             Enumerable.__init__(self, getter, setter, values, extract,
                                 retries, checks, discard)
 
-        self.modify_behavior('post_get', self.cast_to_unicode.__func__,
-                             ('append',), 'cast_to_unicode', True)
+        self.modify_behavior('post_get', self.cast_to_str.__func__,
+                             ('append',), 'cast_to_str', True)
 
-    def cast_to_unicode(self, driver, value):
+    def cast_to_str(self, driver, value):
         return str(value)
 
 

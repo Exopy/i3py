@@ -283,7 +283,7 @@ class Action(AbstractAction, SupportMethodCustomization):
 
         Parameters
         ----------
-        meth_name : unicode
+        meth_name : str
             Name of the method that should be customized using the provided
             function.
 
@@ -302,7 +302,7 @@ class Action(AbstractAction, SupportMethodCustomization):
         signatures : list
             List of signatures that should be supported by a composer.
 
-        chain_on : unicode
+        chain_on : str
             Comma separated list of functions arguments that are also values
             returned by the function.
 

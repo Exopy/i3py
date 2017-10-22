@@ -18,13 +18,13 @@ def build_checker(checks, signature, ret=''):
 
     Parameters
     ----------
-    checks : unicode
+    checks : str
         ; separated string containing boolean test to assert.
 
-    signature : unicode or funcsigs.Signature
+    signature : str or funcsigs.Signature
         Signature of the check function to build.
 
-    ret : unicode
+    ret : str
         Name of the parameters to return. This string will be preceded by a
         return statement.
 

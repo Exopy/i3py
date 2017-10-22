@@ -295,7 +295,7 @@ class channel(SubpartDecl):
 
     Parameters
     ----------
-    available : unicode, tuple or list, optional
+    available : str, tuple or list, optional
         Name of the parent method to call to know which channels exist or list
         of channel ids. If absent the channel declaration on the base class is
         used instead.

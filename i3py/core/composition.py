@@ -28,7 +28,7 @@ def normalize_signature(sig, alias=None):
     sig : Signature
         Function signature
 
-    alias: unicode, optional
+    alias: str, optional
         Alias for self to use in signature.
 
     Returns
@@ -67,14 +67,14 @@ class MethodComposer(object):
         Original function this composer is replacing. This should be a function
         and not a bound method.
 
-    alias : unicode
+    alias : str
         Name to use to replace 'self' in method signature.
 
-    chain_on : unicode
+    chain_on : str
         Comma separated list of functions arguments that are also values
         returned by the function.
 
-    func_id : unicode, optional
+    func_id : str, optional
         Id of the original function to use in the composer.
 
     Notes
@@ -102,14 +102,14 @@ class MethodComposer(object):
             Original function this composer is replacing. This should be a
             function and not a bound method.
 
-        alias : unicode
+        alias : str
             Name to use to replace 'self' in method signature.
 
-        chain_on : unicode
+        chain_on : str
             Comma separated list of functions arguments that are also values
             returned by the function.
 
-        func_id : unicode, optional
+        func_id : str, optional
             Id of the original function to use in the composer.
 
         signatures : list, optional
@@ -179,7 +179,7 @@ class MethodComposer(object):
 
         Parameters
         ----------
-        name : unicode
+        name : str
             Id of the method. Used to find it when performing more complex
             operations on the list of methods.
         method : MethodType
@@ -196,7 +196,7 @@ class MethodComposer(object):
 
         Parameters
         ----------
-        name : unicode
+        name : str
             Id of the method. Used to find it when performing more complex
             operations on the list of methods.
         method : MethodType
@@ -213,9 +213,9 @@ class MethodComposer(object):
 
         Parameters
         ----------
-        anchor : unicode
+        anchor : str
             Id of the method after which to insert the given one.
-        name : unicode
+        name : str
             Id of the method. Used to find it when performing more complex
             operations on the list of methods.
         method : MethodType
@@ -233,9 +233,9 @@ class MethodComposer(object):
 
         Parameters
         ----------
-        anchor : unicode
+        anchor : str
             Id of the method before which to insert the given one.
-        name : unicode
+        name : str
             Id of the method. Used to find it when performing more complex
             operations on the list of methods.
         method : MethodType
@@ -256,7 +256,7 @@ class MethodComposer(object):
 
         Parameters
         ----------
-        name : unicode
+        name : str
             Id of the method of the method to replace.
         method : MethodType
             Method bound to a feature which will be called when this object
@@ -271,7 +271,7 @@ class MethodComposer(object):
 
         Parameters
         ----------
-        name : unicode
+        name : str
             Id of the method to remove.
 
         """
@@ -311,10 +311,10 @@ class customize(AbstractMethodCustomizer):
 
     Parameters
     ----------
-    desc_name : unicode
+    desc_name : str
         Name of the descriptor to customize.
 
-    meth_name : unicode
+    meth_name : str
         Name of the method of the descriptor to customize.
 
     specifiers : tuple, optional
@@ -328,7 +328,7 @@ class customize(AbstractMethodCustomizer):
           It should refer to the id of a previous modification.
         ex : ('add_after', 'old')
 
-    modif_id : unicode, optional
+    modif_id : str, optional
         Id of the modification used to identify it.
 
     """
@@ -355,7 +355,7 @@ class customize(AbstractMethodCustomizer):
         owner : SupportMethodCustomization
             Class owning the descriptor to customize.
 
-        decorated_name : unicode
+        decorated_name : str
             Name under which the customization function appear in the class
             declaration.
 
@@ -377,7 +377,7 @@ class SupportMethodCustomization(AbstractSupportMethodCustomization):
 
     Attributes
     ----------
-    name : unicode
+    name : str
         Name of the object. Used in error reporting.
 
     """
@@ -395,7 +395,7 @@ class SupportMethodCustomization(AbstractSupportMethodCustomization):
 
         Parameters
         ----------
-        meth_name : unicode
+        meth_name : str
             Name of the method that should be customized using the provided
             function.
 
@@ -415,7 +415,7 @@ class SupportMethodCustomization(AbstractSupportMethodCustomization):
         signatures : list
             List of signatures that should be supported by a composer.
 
-        chain_on : unicode
+        chain_on : str
             Comma separated list of functions arguments that are also values
             returned by the function.
 
@@ -446,7 +446,7 @@ class SupportMethodCustomization(AbstractSupportMethodCustomization):
 
         Parameters
         ----------
-        method_name : unicode
+        method_name : str
             Name of the method which should be modified.
 
         func : callable|None
@@ -465,7 +465,7 @@ class SupportMethodCustomization(AbstractSupportMethodCustomization):
               It should refer to the id of a previous modification.
             ex : ('add_after', 'old')
 
-        modif_id : unicode, optional
+        modif_id : str, optional
             Id of the modification, used to refer to it in later modification.
             It is this id that can be specified as target for 'add_before',
             'add_after', 'replace', remove'.

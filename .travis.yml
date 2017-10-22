@@ -5,8 +5,11 @@ sudo : false
 dist: trusty
 
 python:
-  - "3.5"
   - "3.6"
+
+branches:
+  only:
+    - master
 
 env:
   - PINT="N" PYVISA='N'

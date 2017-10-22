@@ -112,12 +112,15 @@ class Action(AbstractAction, SupportMethodCustomization):
         be converted. The first argument (self) should always be marked this
         way.
 
-    checks : unicode, optional
+    checks : str, optional
         Booelan tests to execute before calling the function. Multiple
         assertions can be separated with ';'. All the methods argument are
         available in the assertion execution namespace so one can access to the
         driver using self and to the arguments using their name (the signature
         of the wrapper is made to match the signature of the wrapped method).
+
+    options : str
+        # XXX
 
     values : dict, optional
         Dictionary mapping the arguments names to their allowed values.
@@ -156,6 +159,7 @@ class Action(AbstractAction, SupportMethodCustomization):
     def __get__(self, obj, objtype=None):
         if obj is None:
             return self
+        # XXX add handling of options here
         if self._desc is None:
             # A specialized class matching the wrapped function signature is
             # created on the fly.

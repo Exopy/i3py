@@ -10,12 +10,13 @@
 
 """
 from types import MethodType
+from time import perf_counter, sleep
 
 from stringparser import Parser
 from funcsigs import signature
 
 from ..errors import I3pyError, I3pyFailedGet, I3pyFailedSet
-from ..util import build_checker
+from ..util import build_checker, check_options
 from ..abstracts import AbstractFeature, AbstractGetSetFactory
 from ..composition import (SupportMethodCustomization, normalize_signature)
 
@@ -46,14 +47,14 @@ class Feature(SupportMethodCustomization, AbstractFeature):
         of the driver. If absent the Feature will be considered read-only.
         This is typically a string. If the default set behaviour is overwritten
         True should be passed to mark the property as settable.
-    extract : unicode or Parser, optional
+    extract : str or Parser, optional
         String or stringparser.Parser to use to extract the interesting value
         from the instrument answer.
     retries : int, optional
         Whether or not a failed communication should result in a new attempt
         to communicate after re-opening the communication. The value is used to
         determine how many times to retry.
-    checks : unicode or tuple(2)
+    checks : str or tuple(2)
         Booelan tests to execute before anything else when attempting to get or
         set a feature. Multiple assertion can be separated with ';'. The
         driver can be accessed under the name driver and in a setter the value
@@ -70,6 +71,10 @@ class Feature(SupportMethodCustomization, AbstractFeature):
         setting the Feature or dictionary specifying a list of feature whose
         cache should be discarded under the 'features' key and a list of limits
         to discard under the 'limits' key.
+    options: str
+        Similar to checks but applies always to both get and set. Only the
+        values of options should be tested (cf Option feature doc).
+        The result of this computation is cached for reduced cost.
 
     Attributes
     ----------
@@ -81,10 +86,8 @@ class Feature(SupportMethodCustomization, AbstractFeature):
         subclass customisation. This should not be manipulated by user code.
 
     """
-    # XXX Add option and set the settings accordingly to the option
-    # presence/absence
     def __init__(self, getter=None, setter=None, extract='', retries=0,
-                 checks=None, discard=None):
+                 checks=None, discard=None, options=None):
         self._getter = getter
         self._setter = setter
         self._retries = retries
@@ -92,7 +95,8 @@ class Feature(SupportMethodCustomization, AbstractFeature):
 
         self.creation_kwargs = {'getter': getter, 'setter': setter,
                                 'retries': retries, 'checks': checks,
-                                'extract': extract, 'discard': discard}
+                                'extract': extract, 'discard': discard,
+                                'options': options}
 
         super(Feature,
               self).__init__(self._get if getter is not None else None,
@@ -120,6 +124,13 @@ class Feature(SupportMethodCustomization, AbstractFeature):
                 self._parser = Parser(extract)
             self.modify_behavior('post_get', self.extract.__func__,
                                  ('prepend',), 'extract', internal=True)
+        if options:
+            self.modify_behavior('pre_get',
+                                 self._check_options_on_get.__func__,
+                                 ('prepend',), 'options', internal=True)
+            self.modify_behavior('pre_set',
+                                 self._check_options_on_set.__func__,
+                                 ('prepend',), 'options', internal=True)
 
     def make_doc(self, doc):
         """Build the doc of the feature based on the passed string and kwargs.
@@ -130,18 +141,22 @@ class Feature(SupportMethodCustomization, AbstractFeature):
                  else ('read only' if self.creation_kwargs['getter'] else
                        'write only'))
         doc += '\nThis %s feature is %s.' % (type(self).__name__, ftype)
+        if self.creation_kwargs['options']:
+            options = self.creation_kwargs['options']
+            doc += ('\nThe following options must be set for the feature to be'
+                    'usable:\n  - %s' % options)
         if self.creation_kwargs['checks']:
             checks = self.creation_kwargs['checks']
             if isinstance(checks, tuple):
                 doc += ('\nThe following checks are run :\n  - on get: %s\n'
                         '  - on set: %s') % (checks)
             else:
-                doc += ('The following checks are run on get and set:\n  - %s'
-                        % checks)
+                doc += ('\nThe following checks are run on get and '
+                        'set:\n  - %s' % checks)
         if self.creation_kwargs['discard']:
             discard = self.creation_kwargs['discard']
             if isinstance(discard, dict):
-                doc += ('On set operation the following cached values are '
+                doc += ('\nOn set operation the following cached values are '
                         'cleared:\n' +
                         '\n'.join(' - %s: %s' % (k, ', '.join(v))
                                   for k, v in discard.items()))
@@ -329,6 +344,21 @@ class Feature(SupportMethodCustomization, AbstractFeature):
         """
         return self._parser(value)
 
+    def check_options(self, driver, err_type):
+        """Check that the driver options allow to use this feature.
+
+        """
+        op, msg = driver._settings[self.name]['_options']
+        if op:
+            return
+        elif op is None:
+            op, msg = check_options(driver, self.creation_kwargs['options'])
+            driver._settings[self.name]['_options'] = op
+            if op:
+                return
+
+        raise err_type('Invalid options: %s' % msg)
+
     def clone(self):
         """Clone the Feature by copying all the local attributes and driver
         methods
@@ -344,7 +374,10 @@ class Feature(SupportMethodCustomization, AbstractFeature):
         """Create the default settings for a feature.
 
         """
-        return {}
+        settings = {'inter_set_delay': 0, '_last_set': 0}
+        if self.creation_kwargs['options']:
+            settings['_options'] = None
+        return settings
 
     @property
     def self_alias(self):
@@ -421,10 +454,12 @@ class Feature(SupportMethodCustomization, AbstractFeature):
                     return cache[name]
 
                 val = get_chain(self, driver)
-                if driver.use_cache:
+                if driver._use_cache:
                     cache[name] = val
 
                 return val
+        except I3pyFailedGet:
+            raise
         except Exception as e:
             msg = 'Failed to get the value of feature {} for driver {}.'
             raise I3pyFailedGet(msg.format(self.name, driver)) from e
@@ -433,6 +468,12 @@ class Feature(SupportMethodCustomization, AbstractFeature):
         """Setter defined when the user provides a value for the set arg.
 
         """
+        settings = driver._settings[self.name]
+        isd = settings['inter_set_delay']
+        if isd:
+            elapsed = perf_counter() - settings['_last_set']
+            if elapsed < isd:
+                sleep(isd - elapsed)
         try:
             with driver.lock:
                 cache = driver._cache
@@ -443,15 +484,32 @@ class Feature(SupportMethodCustomization, AbstractFeature):
                 set_chain(self, driver, value)
                 if driver.use_cache:
                     cache[name] = value
+        except I3pyFailedSet:
+            raise
         except Exception as e:
             msg = 'Failed to set the value of feature {} to {} for driver {}.'
             raise I3pyFailedSet(msg.format(self.name, value, driver)) from e
+        finally:
+            if isd:
+                settings['_last_set'] = perf_counter()
 
     def _del(self, driver):
         """Deleter clearing the cache of the instrument for this Feature.
 
         """
         driver.clear_cache(features=(self.name,))
+
+    def _check_options_on_get(self, driver):
+        """Check options. Signature matching a get modifier.
+
+        """
+        self.check_options(driver, I3pyFailedGet)
+
+    def _check_options_on_set(self, driver, value):
+        """Check options. Signature matching a set modifier.
+
+        """
+        self.check_options(driver, I3pyFailedSet)
 
 
 def get_chain(feat, driver):

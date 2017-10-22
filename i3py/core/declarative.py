@@ -31,14 +31,16 @@ class SubpartDecl(object):
         Class or classes to use as base class when no matching subpart exists
         on the driver.
 
-    # XXX complete options
     checks : str, optional
         Booelan tests to execute before anything else when attempting use a
         Feature or an Action of the subpart. Multiple assertion can be
         separated with ';'. The subpart can be accessed through the name
         driver just like in features.
 
-    options :
+    options : str, optional
+        Booelan tests on options to execute before creating the subpart.
+        Multiple assertion can be separated with ';'. The subpart can be
+        accessed through the name driver just like in features.
 
     descriptor_type : type
         Class to use as descriptor for this subpart.
@@ -122,14 +124,14 @@ class SubpartDecl(object):
             if k in cls_dict and cls_dict[k] is v:
                 del cls_dict[k]
 
-    def build_cls(self, parent_name, base, docs):
+    def build_cls(self, parent_cls, base, docs):
         """Build a class based declared base classes and attributes.
 
         Parameters
         ----------
-        parent_name : unicode
-            Name of the parent class system. Used to build the name of the new
-            class.
+        parent_cls : Type
+            Parent class system. Used to build the name of the new class and
+            identify if the parent class can be disabled at runtime.
 
         base : type or None
             Base type for the new class. This class is expected to be a valid
@@ -156,7 +158,9 @@ class SubpartDecl(object):
         docs = {k[-1]: v for k, v in s_docs.items()
                 if k[0] in self._aliases_ and len(k) == 2}
         meta = type(bases[0])
-        name = parent_name + self._name_.capitalize()
+        name = parent_cls.__name__ + self._name_.capitalize()
+
+        # Clean the class dictionary before creation
         dct = dict(self.__dict__)
         del dct['_name_']
         del dct['_parent_']
@@ -165,12 +169,42 @@ class SubpartDecl(object):
         del dct['_enter_locals_']
         del dct['_inners_']
         dct['_docs_'] = docs
-        new_class = meta(name, bases, dct)
-        new_class.__doc__ = part_doc
 
+        # Add a custom descriptor for enabling if the subsystem declares checks
         if self._checks_:
             func = build_checker(self._checks_, ('driver',), 'True')
-            new_class._enabled_ = property(func)
+
+            def enabled_getter(driver):
+                """Check this subpart and all its parents are enabled.
+
+                """
+                if not driver.parent._enabled_:
+                    driver._enabled_error_ = driver.parent._enabled_error_
+                    return False
+                try:
+                    return func(driver), ''
+                except AssertionError as e:
+                    driver._enabled_error_ = e
+                    return False
+
+            dct['_enabled_'] = property(enabled_getter)
+
+        # Add a custom descriptor for enabling if the subpart parent has one
+        elif hasattr(parent_cls, '_enabled_'):
+
+            def enabled_getter(driver):
+                """Check all of this subpart parents are enabled.
+
+                """
+                if not driver.parent._enabled_:
+                    driver._enabled_error_ = driver.parent._enabled_error_
+                    return False
+                return True
+
+            dct['_enabled_'] = property(enabled_getter)
+
+        new_class = meta(name, bases, dct)
+        new_class.__doc__ = part_doc
 
         return new_class
 
@@ -203,14 +237,16 @@ class subsystem(SubpartDecl):
         Class or classes to use as base class when no matching subpart exists
         on the driver.
 
-    # XXX complete options
     checks : str, optional
         Booelan tests to execute before anything else when attempting use a
         Feature or an Action of the subsytem. Multiple assertion can be
         separated with ';'. The subsystem can be accessed through the name
         driver just like in features.
 
-    options :
+    options : str, optional
+        Booelan tests on options to execute before creating the subpart.
+        Multiple assertion can be separated with ';'. The subpart can be
+        accessed through the name driver just like in features.
 
     descriptor_type : type
         Class to use as descriptor for this subsystem. Should be a sunclass of
@@ -275,21 +311,23 @@ class channel(SubpartDecl):
     container_type : type, optional
         Container type to use to store channels.
 
-    # XXX complete options
     checks : str, optional
         Booelan tests to execute before anything else when attempting use a
         Feature or an Action of the chnnel. Multiple assertion can be separated
         with ';'. The channel can be accessed through the name driver just like
         in features.
 
-    options :
+    options : str, optional
+        Booelan tests on options to execute before creating the subpart.
+        Multiple assertion can be separated with ';'. The options can be
+        accessed under their name directly:
+
 
     descriptor_type : type
         Class to use as descriptor for this subpart. Should be a sunclass of
         AbstractSubSystemDescriptor.
 
     """
-    # XXX handle new arguments
     def __init__(self, available=None, bases=(), aliases=None,
                  container_type=None, options=None, checks=None,
                  descriptor_type=None):

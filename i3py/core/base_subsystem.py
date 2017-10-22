@@ -80,14 +80,16 @@ class SubSystemDescriptor(object):
         self.options = options
 
     def __get__(self, instance, cls):
-        if not cls:
+        if instance is None:
             return self.cls
         else:
             if self.name not in instance._subsystem_instances:
                 if self.options:
                     test, msg = check_options(instance, self.options)
                     if not test:
-                        raise AttributeError()  # XXX complete message
+                        ex_msg = ('%s is not accessible with instrument '
+                                  'options: %s')
+                        raise AttributeError(ex_msg % (self.name, msg))
 
                 ss = self.cls(parent=instance)
                 instance._subsystem_instances[self.name] = ss

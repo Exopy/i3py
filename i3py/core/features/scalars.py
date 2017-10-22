@@ -120,7 +120,9 @@ class Float(LimitsValidated, Mapping, Enumerable):
         """Create the default settings for a feature.
 
         """
-        return {'unit_return': UNIT_RETURN}
+        settings = super().create_default_settings()
+        settings['unit_return'] = UNIT_RETURN
+        return settings
 
     def cast_to_float(self, driver, value):
         """Cast the value returned by the instrument to float or Quantity.

@@ -10,31 +10,32 @@
 
 """
 from threading import RLock
-from weakref import WeakValueDictionary
+from weakref import WeakKeyDictionary, WeakValueDictionary
 from textwrap import fill
 from inspect import cleandoc
 
+from .abstracts import AbstractBaseDriver
 from .errors import I3pyTimeoutError
-from .has_features import HasFeaturesMeta, HasFeatures
+from .has_features import HasFeatures
 
 
-class InstrumentSigleton(HasFeaturesMeta):
+class InstrumentSigleton(type):
     """Metaclass ensuring that a single driver is created per instrument.
 
     """
 
-    _instances_cache = {}
+    _instances_cache = WeakKeyDictionary
 
-    def __call__(self, *args, **kwargs):
+    def __call__(cls, *args, **kwargs):
         # This is done on first call rather than init to avoid useless memory
         # allocation.
-        if self not in self._instances_cache:
-            self._instances_cache[self] = WeakValueDictionary()
+        if cls not in cls._instances_cache:
+            cls._instances_cache[cls] = WeakValueDictionary()
 
-        cache = self._instances_cache[self]
-        driver_id = self.compute_id(args, kwargs)
+        cache = cls._instances_cache[cls]
+        driver_id = cls.compute_id(args, kwargs)
         if driver_id not in cache:
-            dr = super(InstrumentSigleton, self).__call__(*args, **kwargs)
+            dr = super(InstrumentSigleton, cls).__call__(*args, **kwargs)
 
             cache[driver_id] = dr
         else:
@@ -159,3 +160,6 @@ class BaseDriver(HasFeatures, metaclass=InstrumentSigleton):
 
         """
         self.finalize()
+
+
+AbstractBaseDriver.register(BaseDriver)

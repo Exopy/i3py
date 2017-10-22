@@ -19,6 +19,13 @@ class AbstractHasFeatures(ABC):
     pass
 
 
+class AbstractBaseDriver(ABC):
+    """Sentinel class for the identification of a driver.
+
+    """
+    pass
+
+
 class AbstractSubSystem(ABC):
     """Sentinel for subsystem identification.
 
@@ -166,13 +173,6 @@ class AbstractChannelDeclarator(AbstractSubpartDeclarator):
 
         """
         pass
-
-
-class AbstractChannelDescriptor(property, ABC):
-    """Abstract class for channel descriptor.
-
-    """
-    pass
 
 
 class AbstractSupportMethodCustomization(ABC):

@@ -16,12 +16,24 @@ import logging
 from inspect import getsourcelines
 from itertools import chain
 from collections import defaultdict
+from contextlib import contextmanager
 
 from .abstracts import (AbstractHasFeatures, AbstractFeature, AbstractAction,
                         AbstractMethodCustomizer, AbstractActionModifier,
                         AbstractFeatureModifier, AbstractSubpartDeclarator,
                         AbstractSubSystemDeclarator, AbstractChannelDeclarator,
                         AbstractLimitDeclarator)
+from .errors import I3pyFailedGet, I3pyFailedSet, I3pyFailedCall
+
+
+def check_enabling(name, driver, exc_type):
+    """Check if the driver is enabled.
+
+    """
+    if not driver._enabled_:
+        msg = '{} cannot be accessed for {}'
+        raise exc_type(msg.format(name,
+                                  driver)) from driver._enabled_error_
 
 
 class HasFeatures(object):
@@ -50,6 +62,9 @@ class HasFeatures(object):
         # Get the class dictionary
         namespace = subclass.__dict__
 
+        # Identify whether the class can be disbaled at runtime
+        rt_enabling = '_enabled_' in namespace
+
         docs = namespace.pop('_docs_') if '_docs_' in namespace else None
 
         # First we identify all subparts and keep only keys which are not
@@ -73,10 +88,29 @@ class HasFeatures(object):
             if isinstance(value, AbstractFeature):
                 feats[key] = value
                 value.name = key
+                if rt_enabling:
+                    value.modify_behavior('pre_get',
+                                          lambda feat, driver:
+                                              check_enabling(key, driver,
+                                                             I3pyFailedGet),
+                                          ('prepend',), 'enabling',
+                                          internal=True)
+                    value.modify_behavior('pre_set',
+                                          lambda feat, driver:
+                                              check_enabling(key, driver,
+                                                             I3pyFailedSet),
+                                          ('prepend',), 'enabling',
+                                          internal=True)
 
             elif isinstance(value, AbstractAction):
                 actions[key] = value
                 value.name = key
+                if rt_enabling:
+                    def _check(action, driver, *args, **kwargs):
+                        return check_enabling(key, driver, I3pyFailedCall)
+                    value.modify_behavior('pre_call', _check,
+                                          ('prepend',), 'enabling',
+                                          internal=True)
 
             elif isinstance(value, AbstractFeatureModifier):
                 feat_paras[key] = value
@@ -143,11 +177,11 @@ class HasFeatures(object):
             # parent class we use its class as a base class for the one we are
             # about to create.
             if part_name in inherited_ss:
-                subsystems[part_name] = part.build_cls(cls.__name__,
+                subsystems[part_name] = part.build_cls(cls,
                                                        inherited_ss[part_name],
                                                        docs)
             elif part_name in inherited_ch:
-                ch_cls = part.build_cls(cls.__name__, inherited_ch[part_name],
+                ch_cls = part.build_cls(cls, inherited_ch[part_name],
                                         docs)
 
                 # Must be valid otherwise parent declaration would be messed up
@@ -160,10 +194,10 @@ class HasFeatures(object):
 
             else:
                 if isinstance(part, AbstractSubSystemDeclarator):
-                    subsystems[part_name] = part.build_cls(cls.__name__, None,
+                    subsystems[part_name] = part.build_cls(cls, None,
                                                            docs)
                 elif isinstance(part, AbstractChannelDeclarator):
-                    ch_cls = part.build_cls(cls.__name__, None, docs)
+                    ch_cls = part.build_cls(cls, None, docs)
                     if not part._available_:
                         msg = 'No way to identify available channels for {}'
                         raise ValueError(msg.format(part_name))
@@ -231,7 +265,8 @@ class HasFeatures(object):
 
     __slots__ = ('_cache', '_settings', '_limits_cache',
                  '_subsystem_instances', '_channel_container_instances',
-                 '_use_cache', '__dict__', '__weakref__')
+                 '_use_cache', '__dict__', '__weakref__',
+                 '_enabled_error_')
 
     def __init__(self, caching_allowed=True):
 
@@ -251,7 +286,8 @@ class HasFeatures(object):
             self._channel_container_instances = {}
 
         # Set enabled to true if the framework has not already set it to a
-        # descriptor
+        # descriptor. In this case the framework optimize out the checking
+        # of the values in Action and properties.
         if not hasattr(self, '_enabled_'):
             self._enabled_ = True
 
@@ -394,10 +430,41 @@ class HasFeatures(object):
 
         return cache
 
-    def set_settings(self, name, key, value):
+    def read_settings(self, name):
+        """Read the values of the publicly available settings.
+
+        Parameters
+        ----------
+        name : str
+            Name of the Feature/Action whose settings to recover
+
         """
+        return {k: v for k, v in self._settings[name].items()
+                if not k[0] == '_'}
+
+    def set_setting(self, name, key, value):
+        """Set the value of a settings.
+
+        Names starting with an underscore are considered privet and cannot be
+        set.
+
         """
-        pass  # XXX implement
+        settings = self._settings[name]
+        if key.startswith('_'):
+            raise KeyError('Cannot set private setting.')
+        elif key not in settings:
+            raise KeyError('Setting does not exist.')
+        settings[key] = value
+
+    @contextmanager
+    def temporary_setting(self, name, key, value):
+        """Temporary set a setting.
+
+        """
+        old_val = self._settings[name][key]
+        self.set_setting(name, key, value)
+        yield
+        self.set_setting(name, key, old_val)
 
     @property
     def declared_limits(self):

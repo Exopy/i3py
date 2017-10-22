@@ -297,7 +297,7 @@ class MethodComposer(object):
         return self
 
     def _check_duplicates(self, name):
-        """Remove the name from the list to avoid having duplicate ids.
+        """Avoid duplicate ids.
 
         """
         if name in self._names:

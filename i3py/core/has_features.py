@@ -45,8 +45,27 @@ class HasFeatures(object):
     #: retries value)
     retries_exceptions = ()
 
+    # XXX copy docs from abstracts
+    #:
+    __feats__ = {}
+
+    #:
+    __actions__ = {}
+
+    #:
+    __subsystems__ = {}
+
+    #:
+    __channels__ = {}
+
+    #:
+    __limits__ = {}
+
     @classmethod
-    def __init_subclass__(cls, subclass):
+    def __init_subclass__(cls, **kwargs):
+
+        super().__init_subclass__(**kwargs)
+
         # Pass over the class dict and collect the information
         # necessary to implement the various behaviours.
         feats = {}                       # Feature declarations
@@ -60,12 +79,16 @@ class HasFeatures(object):
         limits = {}                      # Defined limits.
 
         # Get the class dictionary
-        namespace = subclass.__dict__
+        namespace = cls.__dict__
 
         # Identify whether the class can be disbaled at runtime
         rt_enabling = '_enabled_' in namespace
 
-        docs = namespace.pop('_docs_') if '_docs_' in namespace else None
+        if '_docs_' in namespace:
+            docs = namespace.pop('_docs_')
+            del cls._docs_
+        else:
+            docs = None
 
         # First we identify all subparts and keep only keys which are not
         # knwown aliases.
@@ -128,15 +151,15 @@ class HasFeatures(object):
 
         # Clean up class dictionary.
         for k in chain(feat_paras, action_paras, m_customizers, to_remove):
-            del namespace[k]
+            delattr(cls, k)
 
         # Get the base classes for this class from the mro, excluding
         # classes more basic than AbstractHasFeatures
-        bases = []
-        for base_cls in cls.__mro__:
+        bases = ()
+        for base_cls in cls.__mro__[1:]:
             if (issubclass(base_cls, AbstractHasFeatures) and
-                    not issubclass(base_cls, tuple(bases))):
-                bases.append(base_cls)
+                    not (issubclass(base_cls, bases))):
+                bases += (base_cls,)
 
         # Analyse the source code to find the doc for the defined Features.
         # This will work as long as two subpart are not aliased in the same

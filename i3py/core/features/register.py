@@ -10,7 +10,7 @@
 
 """
 from .feature import Feature
-from ..util import byte_to_dict, dict_to_byte
+from ..utils import byte_to_dict, dict_to_byte
 
 
 class Register(Feature):

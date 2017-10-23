@@ -16,7 +16,7 @@ from stringparser import Parser
 from funcsigs import signature
 
 from ..errors import I3pyError, I3pyFailedGet, I3pyFailedSet
-from ..util import build_checker, check_options
+from ..utils import build_checker, check_options
 from ..abstracts import AbstractFeature, AbstractGetSetFactory
 from ..composition import (SupportMethodCustomization, normalize_signature)
 
@@ -72,9 +72,10 @@ class Feature(SupportMethodCustomization, AbstractFeature):
         cache should be discarded under the 'features' key and a list of limits
         to discard under the 'limits' key.
     options: str
-        Similar to checks but applies always to both get and set. Only the
-        values of options should be tested (cf Option feature doc).
-        The result of this computation is cached for reduced cost.
+        Assertions in the form option_name['option_field'] == possible_values
+        or any other valid boolean test. Multiple assertions can be separated
+        by ; . Always apply to both get and set.  The result of this
+        computation is cached for reduced cost.
 
     Attributes
     ----------

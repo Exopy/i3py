@@ -18,8 +18,8 @@ from ..abstracts import AbstractAction
 from ..composition import SupportMethodCustomization, normalize_signature
 from ..limits import IntLimitsValidator, FloatLimitsValidator
 from ..unit import UNIT_SUPPORT, UNIT_RETURN, get_unit_registry
-from ..util import (build_checker, validate_in, validate_limits,
-                    get_limits_and_validate)
+from ..utils import (build_checker, validate_in, validate_limits,
+                     get_limits_and_validate, check_options)
 
 
 # XXX Action does not support kwargs only arguments
@@ -120,7 +120,9 @@ class Action(AbstractAction, SupportMethodCustomization):
         of the wrapper is made to match the signature of the wrapped method).
 
     options : str
-        # XXX
+        Assertions in the form option_name['option_field'] == possible_values
+        or any other valid boolean test. Multiple assertions can be separated
+        by ;
 
     values : dict, optional
         Dictionary mapping the arguments names to their allowed values.
@@ -159,7 +161,14 @@ class Action(AbstractAction, SupportMethodCustomization):
     def __get__(self, obj, objtype=None):
         if obj is None:
             return self
-        # XXX add handling of options here
+        op, msg = obj._settings[self.name]['_options']
+        if op is None:
+            op, msg = check_options(obj, self.creation_kwargs['options'])
+            obj._settings[self.name]['_options'] = op
+
+        if not op:
+            raise AttributeError('Invalid options: %s' % msg)
+
         if self._desc is None:
             # A specialized class matching the wrapped function signature is
             # created on the fly.

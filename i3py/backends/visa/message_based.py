@@ -14,7 +14,7 @@ from inspect import cleandoc
 from pyvisa.rname import (ASRLInstr, GPIBInstr, TCPIPInstr, TCPIPSocket)
 from pyvisa import errors
 
-from ...core.util import byte_to_dict
+from ...core.utils import byte_to_dict
 from ...core.actions import Action
 
 from .base import (BaseVisaDriver, VisaFeature, VisaAction,

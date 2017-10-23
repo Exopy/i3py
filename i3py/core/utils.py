@@ -9,8 +9,11 @@
 """Collection of utility functions.
 
 """
+from pprint import pformat
 from collections import OrderedDict
+
 from .errors import I3pyValueError, I3pyLimitsError
+from .abstracts import AbstractBaseDriver, AbstractOptions
 
 
 def build_checker(checks, signature, ret=''):
@@ -50,11 +53,41 @@ def build_checker(checks, signature, ret=''):
     return loc['check']
 
 
-# XXX implement
-def check_options(driver, options):
+def check_options(driver_or_options, option_values):
+    """Check that the specified options match their expected values.
+
+    Parameters
+    ----------
+    driver_or_options : AbstractHasFeature or dict
+        Driver from which to collect the opttions or equivalent dictionary
+        with the options values (as dict of dict)
+
+    options_values: str
+        Assertions in the form option_name['option_field'] == possible_values
+        or any other valid boolean test. Multiple assertions can be separated
+        by ;
+
     """
-    """
-    pass
+    if not isinstance(driver_or_options, dict):
+        options = {}
+        d = driver_or_options
+        while True:
+            for o in [f for f in d.__feats__
+                      if isinstance(d, AbstractOptions)]:
+                options[o] = getattr(d, o)
+            if isinstance(d, AbstractBaseDriver):
+                break
+            else:
+                d = d.parent
+    else:
+        options = driver_or_options
+
+    for test in option_values.split(';'):
+        if not eval(test, options):
+            msg = 'The following options does match %s (options are %s)'
+            return False, msg % (test, pformat(options))
+
+    return True, ''
 
 
 # The next three function take all driver as first argument for homogeneity.

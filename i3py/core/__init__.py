@@ -9,7 +9,7 @@
 """Core package of i3py defining the tools used to write the drivers.
 
 """
-from .has_features import subsystem, channel, set_feat, set_action
+from .declarative import subsystem, channel, set_feat, set_action
 from .errors import (I3pyError, I3pyInvalidCommand, I3pyTimeoutError,
                      I3pyInterfaceNotSupported)
 from .limits import IntLimitsValidator, FloatLimitsValidator

@@ -24,7 +24,7 @@ class InstrumentSigleton(type):
 
     """
 
-    _instances_cache = WeakKeyDictionary
+    _instances_cache = WeakKeyDictionary()
 
     def __call__(cls, *args, **kwargs):
         # This is done on first call rather than init to avoid useless memory

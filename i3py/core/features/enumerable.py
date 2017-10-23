@@ -10,7 +10,7 @@
 
 """
 from .feature import Feature
-from ..util import validate_in
+from ..utils import validate_in
 
 
 class Enumerable(Feature):

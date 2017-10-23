@@ -13,7 +13,7 @@ from .enumerable import Enumerable
 from .limits_validated import LimitsValidated
 from .mapping import Mapping
 from ..unit import get_unit_registry, UNIT_SUPPORT, UNIT_RETURN
-from ..util import raise_limits_error
+from ..utils import raise_limits_error
 from ..limits import IntLimitsValidator, FloatLimitsValidator
 from .feature import set_chain, get_chain
 

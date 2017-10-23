@@ -12,7 +12,7 @@
 from inspect import cleandoc
 
 from .feature import Feature
-from ..util import validate_limits
+from ..utils import validate_limits
 from ..limits import AbstractLimitsValidator
 
 

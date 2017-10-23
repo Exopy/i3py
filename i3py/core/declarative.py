@@ -38,9 +38,9 @@ class SubpartDecl(object):
         driver just like in features.
 
     options : str, optional
-        Booelan tests on options to execute before creating the subpart.
-        Multiple assertion can be separated with ';'. The subpart can be
-        accessed through the name driver just like in features.
+        Assertions in the form option_name['option_field'] == possible_values
+        or any other valid boolean test. Multiple assertions can be separated
+        by ;
 
     descriptor_type : type
         Class to use as descriptor for this subpart.
@@ -110,19 +110,19 @@ class SubpartDecl(object):
         self._enter_locals_ = None
         self._inners_ = {k: v for k, v in frame_locals.items() if k in diff}
 
-    def clean_namespace(self, cls_dict):
+    def clean_namespace(self, cls):
         """Remove all inner names if the value is the one seen.
 
         Parameters
         ----------
-        cls_dict : dict
-            Dictionary from which to remove names belonging only to the
+        cls : type
+            Class from which to remove names belonging only to the
             subpart.
 
         """
         for k, v in self._inners_.items():
-            if k in cls_dict and cls_dict[k] is v:
-                del cls_dict[k]
+            if k in cls.__dict__ and getattr(cls, k) is v:
+                delattr(cls, k)
 
     def build_cls(self, parent_cls, base, docs):
         """Build a class based declared base classes and attributes.
@@ -244,9 +244,9 @@ class subsystem(SubpartDecl):
         driver just like in features.
 
     options : str, optional
-        Booelan tests on options to execute before creating the subpart.
-        Multiple assertion can be separated with ';'. The subpart can be
-        accessed through the name driver just like in features.
+        Assertions in the form option_name['option_field'] == possible_values
+        or any other valid boolean test. Multiple assertions can be separated
+        by ;
 
     descriptor_type : type
         Class to use as descriptor for this subsystem. Should be a sunclass of

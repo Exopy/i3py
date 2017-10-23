@@ -16,7 +16,21 @@ class AbstractHasFeatures(ABC):
     """Sentinel class for the collections of Features.
 
     """
-    pass
+    # XXX document
+    #:
+    __feats__ = {}
+
+    #:
+    __actions__ = {}
+
+    #:
+    __subsystems__ = {}
+
+    #:
+    __channels__ = {}
+
+    #:
+    __limits__ = {}
 
 
 class AbstractBaseDriver(ABC):
@@ -280,6 +294,17 @@ class AbstractFeature(property, AbstractSupportMethodCustomization):
 
         """
         pass
+
+
+class AbstractOptions(AbstractFeature):
+    """Abstract class for Options features.
+
+    Options features are used to represent "hardware" options that cannot
+    change while the system is connected to the instrument. Options name should
+    only be used once inside a driver.
+
+    """
+    pass
 
 
 class AbstractFeatureModifier(ABC):

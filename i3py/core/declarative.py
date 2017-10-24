@@ -160,14 +160,9 @@ class SubpartDecl(object):
         meta = type(bases[0])
         name = parent_cls.__name__ + self._name_.capitalize()
 
-        # Clean the class dictionary before creation
+        # Add docs to the class dictionary before creation (the slots are not
+        # listed in __dict__)
         dct = dict(self.__dict__)
-        del dct['_name_']
-        del dct['_parent_']
-        del dct['_bases_']
-        del dct['_aliases_']
-        del dct['_enter_locals_']
-        del dct['_inners_']
         dct['_docs_'] = docs
 
         # Add a custom descriptor for enabling if the subsystem declares checks
@@ -205,8 +200,21 @@ class SubpartDecl(object):
 
         new_class = meta(name, bases, dct)
         new_class.__doc__ = part_doc
+        new_class._declaration_ = self
 
         return new_class
+
+    def update_from_ancestor(self, ancestor_decl):
+        """Update the declaration with parameters from inherited subpart.
+
+        """
+        self._descriptor_type_ = (self._descriptor_type_ or
+                                  ancestor_decl._descriptor_type_)
+        if ancestor_decl._checks_:
+            self._checks_ = (';'.join(self._checks_, ancestor_decl._checks)
+                             if self._checks_ else ancestor_decl._checks)
+            self._options_ = (';'.join(self._options_, ancestor_decl._options_)
+                              if self._options_ else ancestor_decl._options_)
 
     def compute_base_classes(self):
         """Determine the base classes to use when creating a class.
@@ -253,6 +261,13 @@ class subsystem(SubpartDecl):
         AbstractSubSystemDescriptor.
 
     """
+    def __init__(self, bases=(), checks='', options=None,
+                 descriptor_type=None):
+        if descriptor_type is None:
+            from .base_subsystem import SubSystemDescriptor
+            descriptor_type = SubSystemDescriptor
+        super().__init__(bases, checks, options, descriptor_type)
+
     def compute_base_classes(self):
         """Add SubSystem in the base classes if necessary.
 
@@ -331,7 +346,10 @@ class channel(SubpartDecl):
     def __init__(self, available=None, bases=(), aliases=None,
                  container_type=None, options=None, checks=None,
                  descriptor_type=None):
-        super(channel, self).__init__(bases, checks, options, descriptor_type)
+        if descriptor_type is None:
+            from .base_channel import ChannelDescriptor
+            descriptor_type = ChannelDescriptor
+        super().__init__(bases, checks, options, descriptor_type)
         self._available_ = available
         self._ch_aliases_ = aliases if aliases else {}
         self._container_type_ = container_type
@@ -339,14 +357,17 @@ class channel(SubpartDecl):
             from .base_channel import ChannelContainer
             self._container_type_ = ChannelContainer
 
-    def build_cls(self, parent_name, base, docs):
-        """Reimplemented to set the _container_type_ attribute.
+    def update_from_ancestor(self, ancestor_decl):
+        """Update the declaration with parameters from inherited subpart.
 
         """
-        cls = super(channel, self).build_cls(parent_name, base, docs)
-        cls._container_type_ = self._container_type_
-        cls._part_ = self
-        return cls
+        super().update_from_ancestor(ancestor_decl)
+        self._available_ = self._available_ or ancestor_decl._available_
+        self._ch_aliases_.update(ancestor_decl._ch_aliases_)
+
+        from .base_channel import ChannelContainer
+        if self._container_type_ is ChannelContainer:
+            self._container_type_ = ancestor_decl._container_type_
 
     def compute_base_classes(self):
         """Add Channel in the base classes if necessary.
@@ -387,10 +408,10 @@ class channel(SubpartDecl):
             from .base_channel import ChannelDescriptor
             self._descriptyor_type = ChannelDescriptor
 
-        list_func = self.build_list_channel_function
+        list_func = self.build_list_channel_function()
         return self._descriptor_type_(cls, name, self._options_,
                                       self._container_type_, list_func,
-                                      self._aliases_)
+                                      self._ch_aliases_)
 
 
 AbstractChannelDeclarator.register(channel)

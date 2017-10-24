@@ -71,7 +71,7 @@ class ChannelContainer(AbstractChannelContainer):
 
         parent = self._parent
         ch = self._cls(parent, ch_id,
-                       caching_allowed=parent.use_cache
+                       caching_allowed=parent._use_cache
                        )
         self._channels[ch_id] = ch
         return ch
@@ -168,7 +168,7 @@ class ChannelDescriptor(object):
                                   'options: %s')
                         raise AttributeError(ex_msg % (self.name, msg))
 
-                cc = self.container(cls, instance, self.name,
+                cc = self.container(self.cls, instance, self.name,
                                     self.list_available, self.aliases)
                 instance._channel_container_instances[self.name] = cc
 

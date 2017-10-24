@@ -85,7 +85,7 @@ class HasFeatures(object):
         rt_enabling = '_enabled_' in namespace
 
         if '_docs_' in namespace:
-            docs = namespace.pop('_docs_')
+            docs = namespace['_docs_']
             del cls._docs_
         else:
             docs = None
@@ -99,10 +99,10 @@ class HasFeatures(object):
         for s_name, subpart in subparts.items():
             subpart._name_ = s_name
             subparts[s_name] = subpart
-            subpart.clean_namespace(namespace)
+            subpart.clean_namespace(cls)
 
         # Names that should be removed from the class body
-        to_remove = set('_docs_') if docs else set()
+        to_remove = set()
 
         # Next we identify all other elements in the passed dict to clean it up
         # before creating the class.
@@ -111,6 +111,8 @@ class HasFeatures(object):
             if isinstance(value, AbstractFeature):
                 feats[key] = value
                 value.name = key
+                # If the subpart can be disabled at runtime add the proper
+                # checks
                 if rt_enabling:
                     value.modify_behavior('pre_get',
                                           lambda feat, driver:
@@ -128,6 +130,8 @@ class HasFeatures(object):
             elif isinstance(value, AbstractAction):
                 actions[key] = value
                 value.name = key
+                # If the subpart can be disabled at runtime add the proper
+                # checks
                 if rt_enabling:
                     def _check(action, driver, *args, **kwargs):
                         return check_enabling(key, driver, I3pyFailedCall)
@@ -186,10 +190,11 @@ class HasFeatures(object):
         for f in [f for f in feats if f in docs]:
             feats[f].make_doc(docs[f])
 
-        # Handle the subparts by creating dynamic subclasses.
-        inherited_ss = dict([(k, v) for b in bases
+        # Collect the subsystems and channels in reversed order to preseve
+        # the mro overriding
+        inherited_ss = dict([(k, v) for b in reversed(bases)
                              for k, v in b.__subsystems__.items()])
-        inherited_ch = dict([(k, v) for b in bases
+        inherited_ch = dict([(k, v) for b in reversed(bases)
                              for k, v in b.__channels__.items()])
 
         # Create subsystem and channels classes
@@ -197,22 +202,17 @@ class HasFeatures(object):
             if not hasattr(part, 'retries_exceptions'):
                 part.retries_exceptions = cls.retries_exceptions
             # If a subpart with the same name has already been declared on a
-            # parent class we use its class as a base class for the one we are
-            # about to create.
+            # parent class we update the declaration with the old one and
+            # use its class as a base class for the one we are about to create.
             if part_name in inherited_ss:
-                subsystems[part_name] = part.build_cls(cls,
-                                                       inherited_ss[part_name],
-                                                       docs)
-            elif part_name in inherited_ch:
-                ch_cls = part.build_cls(cls, inherited_ch[part_name],
-                                        docs)
+                old_cls = inherited_ss[part_name]
+                part.update_from_ancestor(old_cls._declaration_)
+                subsystems[part_name] = part.build_cls(cls, old_cls, docs)
 
-                # Must be valid otherwise parent declaration would be messed up
-                inherited_part = inherited_ch[part_name]._part_
-                part._available_ = (part._available_ or
-                                    inherited_part._available_)
-                part._ch_aliases_ = (part._ch_aliases_ or
-                                     inherited_part._ch_aliases_)
+            elif part_name in inherited_ch:
+                old_cls = inherited_ch[part_name]
+                part.update_from_ancestor(old_cls._declaration_)
+                ch_cls = part.build_cls(cls, old_cls, docs)
                 channels[part_name] = ch_cls
 
             else:
@@ -251,11 +251,9 @@ class HasFeatures(object):
         # reverse update preserves the mro of overridden features and actions.
         base_feats = {}
         base_actions = {}
-        for base in reversed(cls.__mro__[1:]):
-            if base is not AbstractHasFeatures \
-                    and issubclass(base, AbstractHasFeatures):
-                base_feats.update(base.__feats__)
-                base_actions.update(base.__actions__)
+        for base in reversed(bases):
+            base_feats.update(base.__feats__)
+            base_actions.update(base.__actions__)
 
         # Clone all features/actions not owned at this stage and keep a
         # reference to it in the proper dict.
@@ -298,7 +296,8 @@ class HasFeatures(object):
 
         # Parameters for features and actions.
         self._settings = {f_a.name: f_a.create_default_settings()
-                          for f_a in chain(self.__feats__, self.__actions__)}
+                          for f_a in chain(self.__feats__.values(),
+                                           self.__actions__.values())}
 
         # Cache for the computed limits
         self._limits_cache = {}

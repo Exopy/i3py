@@ -26,7 +26,8 @@ class Str(Mapping, Enumerable):
 
     """
     def __init__(self, getter=None, setter=None, values=(), mapping=None,
-                 extract='', retries=0, checks=None, discard=None):
+                 extract='', retries=0, checks=None, discard=None,
+                 options=None):
 
         if mapping:
             Mapping.__init__(self, getter, setter, mapping, extract,
@@ -50,7 +51,7 @@ class Int(LimitsValidated, Mapping, Enumerable):
     """
     def __init__(self, getter=None, setter=None, values=(), mapping=None,
                  limits=None, extract='', retries=0, checks=None,
-                 discard=None):
+                 discard=None, options=None):
         if mapping:
             Mapping.__init__(self, getter, setter, mapping, extract,
                              retries, checks, discard)
@@ -84,18 +85,18 @@ class Float(LimitsValidated, Mapping, Enumerable):
     """
     def __init__(self, getter=None, setter=None, values=(), mapping=None,
                  limits=None, unit=None, extract='', retries=0, checks=None,
-                 discard=None):
+                 discard=None, options=None):
         if mapping:
             Mapping.__init__(self, getter, setter, mapping, extract,
-                             retries, checks, discard)
+                             retries, checks, discard, options)
         elif values and not limits:
             Enumerable.__init__(self, getter, setter, values, extract,
-                                retries, checks, discard)
+                                retries, checks, discard, options)
         else:
             if isinstance(limits, (tuple, list)):
                 limits = FloatLimitsValidator(*limits, unit=unit)
             LimitsValidated.__init__(self, getter, setter, limits, extract,
-                                     retries, checks, discard)
+                                     retries, checks, discard, options)
 
         if UNIT_SUPPORT and unit:
             ureg = get_unit_registry()
@@ -172,7 +173,7 @@ class Float(LimitsValidated, Mapping, Enumerable):
 
             set_chain(self, driver, value)
 
-            if driver.use_cache:
+            if driver._use_cache:
                 if UNIT_SUPPORT and self.unit:
                     if isinstance(value, _Quantity):
                         value = (value.magnitude, value)
@@ -193,7 +194,7 @@ class Float(LimitsValidated, Mapping, Enumerable):
                 return cache[name][-1]
 
             val = get_chain(self, driver)
-            if driver.use_cache:
+            if driver._use_cache:
                 if UNIT_SUPPORT and self.unit:
                     cache[name] = (val.magnitude, val)
                 else:

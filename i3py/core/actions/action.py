@@ -55,7 +55,7 @@ class ActionCall(object):
     #: Dict storing custom class for each signature
     sigs = {}
 
-    def __call__(cls, action, driver):
+    def __new__(cls, action, driver):
         """Create a custom subclass for each signature action.
 
         Parameters
@@ -72,14 +72,13 @@ class ActionCall(object):
             cls.sigs[sig] = cls.create_callable(action, sig)
 
         custom_type = cls.sigs[sig]
-        return super(custom_type, custom_type).__new__(action, driver)
+        return object.__new__(custom_type)
 
     @classmethod
     def create_callable(cls, action, sig):
         """Dynamically create a subclass of ActionCall for a signature.
 
         """
-        print(sig, sig[1:], ', '.join(sig[1:]))
         name = '{}ActionCall'.format(action.name)
         # Should store sig on class attribute
         decl = ('class {name}(ActionCall):\n' +
@@ -140,12 +139,14 @@ class Action(AbstractAction, SupportMethodCustomization):
     same unit as the one used by the limits.
 
     """
+
     def __init__(self, **kwargs):
         super(Action, self).__init__()
         self.name = ''
         self.func = None
         self.creation_kwargs = kwargs
         self._desc = None
+        self._use_options = bool(kwargs.get('options', False))
 
     def __call__(self, func):
         if self.func:
@@ -161,13 +162,15 @@ class Action(AbstractAction, SupportMethodCustomization):
     def __get__(self, obj, objtype=None):
         if obj is None:
             return self
-        op, msg = obj._settings[self.name]['_options']
-        if op is None:
-            op, msg = check_options(obj, self.creation_kwargs['options'])
-            obj._settings[self.name]['_options'] = op
 
-        if not op:
-            raise AttributeError('Invalid options: %s' % msg)
+        if self._use_options is True:
+            op, msg = obj._settings[self.name]['_options']
+            if op is None:
+                op, msg = check_options(obj, self.creation_kwargs['options'])
+                obj._settings[self.name]['_options'] = op
+
+            if not op:
+                raise AttributeError('Invalid options: %s' % msg)
 
         if self._desc is None:
             # A specialized class matching the wrapped function signature is
@@ -188,7 +191,10 @@ class Action(AbstractAction, SupportMethodCustomization):
         """Create the default settings for an action.
 
         """
-        return {'unit_return': UNIT_RETURN}
+        settings = {'unit_return': UNIT_RETURN}
+        if self._use_options:
+            settings['_options'] = None
+        return settings
 
     def pre_call(self, driver, *args, **kwargs):
         """Method called before calling the decorated function.

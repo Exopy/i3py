@@ -129,9 +129,7 @@ class MethodComposer(object):
             MethodComposer.sigs[id_] = subclass
 
         custom_type = MethodComposer.sigs[id_]
-        return super(custom_type, custom_type).__new__(obj, func, alias,
-                                                       chain_on, func_id,
-                                                       sigs)
+        return object.__new__(custom_type)
 
     @classmethod
     def create_composer(cls, name, sigs, chain_on):

@@ -25,9 +25,10 @@ class Register(Feature):
 
     """
     def __init__(self, getter=None, setter=None, names=(), length=8,
-                 extract='', retries=0, checks=None, discard=None):
+                 extract='', retries=0, checks=None, discard=None,
+                 options=None):
         Feature.__init__(self, getter, setter, extract, retries,
-                         checks, discard)
+                         checks, discard, options)
 
         if isinstance(names, dict):
             aux = list(range(length))

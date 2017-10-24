@@ -26,9 +26,9 @@ class Mapping(Feature):
 
     """
     def __init__(self, getter=None, setter=None, mapping=None, extract='',
-                 retries=0, checks=None, discard=None):
+                 retries=0, checks=None, discard=None, options=None):
         Feature.__init__(self, getter, setter, extract, retries,
-                         checks, discard)
+                         checks, discard, options)
 
         mapping = mapping if mapping else {}
         if isinstance(mapping, (tuple, list)):

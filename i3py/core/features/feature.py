@@ -87,6 +87,7 @@ class Feature(SupportMethodCustomization, AbstractFeature):
         subclass customisation. This should not be manipulated by user code.
 
     """
+
     def __init__(self, getter=None, setter=None, extract='', retries=0,
                  checks=None, discard=None, options=None):
         self._getter = getter
@@ -125,13 +126,8 @@ class Feature(SupportMethodCustomization, AbstractFeature):
                 self._parser = Parser(extract)
             self.modify_behavior('post_get', self.extract.__func__,
                                  ('prepend',), 'extract', internal=True)
-        if options:
-            self.modify_behavior('pre_get',
-                                 self._check_options_on_get.__func__,
-                                 ('prepend',), 'options', internal=True)
-            self.modify_behavior('pre_set',
-                                 self._check_options_on_set.__func__,
-                                 ('prepend',), 'options', internal=True)
+
+        self._use_options = bool(options)
 
     def make_doc(self, doc):
         """Build the doc of the feature based on the passed string and kwargs.
@@ -345,7 +341,7 @@ class Feature(SupportMethodCustomization, AbstractFeature):
         """
         return self._parser(value)
 
-    def check_options(self, driver, err_type):
+    def check_options(self, driver):
         """Check that the driver options allow to use this feature.
 
         """
@@ -358,7 +354,8 @@ class Feature(SupportMethodCustomization, AbstractFeature):
             if op:
                 return
 
-        raise err_type('Invalid options: %s' % msg)
+        msg = 'Options does not allow to access %s : %s' % (self.name, msg)
+        raise AttributeError(msg)
 
     def clone(self):
         """Clone the Feature by copying all the local attributes and driver
@@ -376,7 +373,7 @@ class Feature(SupportMethodCustomization, AbstractFeature):
 
         """
         settings = {'inter_set_delay': 0, '_last_set': 0}
-        if self.creation_kwargs['options']:
+        if self._use_options:
             settings['_options'] = None
         return settings
 
@@ -447,6 +444,8 @@ class Feature(SupportMethodCustomization, AbstractFeature):
         """Getter defined when the user provides a value for the get arg.
 
         """
+        if self._use_options:
+            self.check_options(driver)
         try:
             with driver.lock:
                 cache = driver._cache
@@ -469,6 +468,9 @@ class Feature(SupportMethodCustomization, AbstractFeature):
         """Setter defined when the user provides a value for the set arg.
 
         """
+        if self._use_options:
+            self.check_options(driver)
+
         settings = driver._settings[self.name]
         isd = settings['inter_set_delay']
         if isd:
@@ -483,7 +485,7 @@ class Feature(SupportMethodCustomization, AbstractFeature):
                     return
 
                 set_chain(self, driver, value)
-                if driver.use_cache:
+                if driver._use_cache:
                     cache[name] = value
         except I3pyFailedSet:
             raise
@@ -499,18 +501,6 @@ class Feature(SupportMethodCustomization, AbstractFeature):
 
         """
         driver.clear_cache(features=(self.name,))
-
-    def _check_options_on_get(self, driver):
-        """Check options. Signature matching a get modifier.
-
-        """
-        self.check_options(driver, I3pyFailedGet)
-
-    def _check_options_on_set(self, driver, value):
-        """Check options. Signature matching a set modifier.
-
-        """
-        self.check_options(driver, I3pyFailedSet)
 
 
 def get_chain(feat, driver):

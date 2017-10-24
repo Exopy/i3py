@@ -27,7 +27,7 @@ class LimitsValidated(Feature):
 
     """
     def __init__(self, getter=None, setter=None, limits=None, extract='',
-                 retries=0, checks=None, discard=None):
+                 retries=0, checks=None, discard=None, options=None):
         Feature.__init__(self, getter, setter, extract,
                          retries, checks, discard)
         if limits:

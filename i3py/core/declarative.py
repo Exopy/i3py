@@ -296,9 +296,11 @@ class subsystem(SubpartDecl):
         """
         if self._descriptor_type_ is None:
             from .base_subsystem import SubSystemDescriptor
-            self._descriptyor_type = SubSystemDescriptor
+            dsc_type = SubSystemDescriptor
+        else:
+            dsc_type = self._descriptor_type_
 
-        return self._descriptor_type_(cls, name, self._options_)
+        return dsc_type(cls, name, self._options_)
 
 
 AbstractSubSystemDeclarator.register(subsystem)
@@ -346,16 +348,10 @@ class channel(SubpartDecl):
     def __init__(self, available=None, bases=(), aliases=None,
                  container_type=None, options=None, checks=None,
                  descriptor_type=None):
-        if descriptor_type is None:
-            from .base_channel import ChannelDescriptor
-            descriptor_type = ChannelDescriptor
         super().__init__(bases, checks, options, descriptor_type)
         self._available_ = available
         self._ch_aliases_ = aliases if aliases else {}
         self._container_type_ = container_type
-        if container_type is None:
-            from .base_channel import ChannelContainer
-            self._container_type_ = ChannelContainer
 
     def update_from_ancestor(self, ancestor_decl):
         """Update the declaration with parameters from inherited subpart.
@@ -364,10 +360,8 @@ class channel(SubpartDecl):
         super().update_from_ancestor(ancestor_decl)
         self._available_ = self._available_ or ancestor_decl._available_
         self._ch_aliases_.update(ancestor_decl._ch_aliases_)
-
-        from .base_channel import ChannelContainer
-        if self._container_type_ is ChannelContainer:
-            self._container_type_ = ancestor_decl._container_type_
+        self._container_type_ = (self._container_type_ or
+                                 ancestor_decl._container_type_)
 
     def compute_base_classes(self):
         """Add Channel in the base classes if necessary.
@@ -406,12 +400,19 @@ class channel(SubpartDecl):
         """
         if self._descriptor_type_ is None:
             from .base_channel import ChannelDescriptor
-            self._descriptyor_type = ChannelDescriptor
+            dsc_type = ChannelDescriptor
+        else:
+            dsc_type = self._descriptor_type_
+
+        if self._container_type_ is None:
+            from .base_channel import ChannelContainer
+            ctn_type = ChannelContainer
+        else:
+            ctn_type = self._container_type_
 
         list_func = self.build_list_channel_function()
-        return self._descriptor_type_(cls, name, self._options_,
-                                      self._container_type_, list_func,
-                                      self._ch_aliases_)
+        return dsc_type(cls, name, self._options_, ctn_type, list_func,
+                        self._ch_aliases_)
 
 
 AbstractChannelDeclarator.register(channel)

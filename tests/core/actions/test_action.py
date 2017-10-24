@@ -176,10 +176,10 @@ def test_action_with_unit():
             def test(self, r, i):
                 return r*i
 
+        dummy = Dummy()
+
     finally:
         action.UNIT_RETURN = True
-
-    dummy = Dummy()
 
     assert dummy.test(2, 3) == 6
 

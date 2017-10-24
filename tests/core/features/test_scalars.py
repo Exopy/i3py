@@ -162,14 +162,22 @@ class TestFloat(object):
 
     @mark.skipif(UNIT_SUPPORT is False, reason="Requires Pint")
     def test_post_get_with_unit(self):
-        f = Float(unit='V')
-        assert hasattr(f.post_get(None, 0.1), 'magnitude')
-        assert f.post_get(None, 0.1).to('mV').magnitude == 100.
+
+        class FloatHolder(DummyParent):
+            f = Float(unit='V')
+
+        f = FloatHolder.f
+        assert hasattr(f.post_get(FloatHolder(), 0.1), 'magnitude')
+        assert f.post_get(FloatHolder(), 0.1).to('mV').magnitude == 100.
 
     @mark.skipif(UNIT_SUPPORT is False, reason="Requires Pint")
     def test_post_get_with_extract_and_unit(self):
-        f = Float(unit='V', extract='This is the value {}')
-        val = f.post_get(None, 'This is the value 0.1')
+
+        class FloatHolder(DummyParent):
+            f = Float(unit='V', extract='This is the value {}')
+
+        f = FloatHolder.f
+        val = f.post_get(FloatHolder(), 'This is the value 0.1')
         assert hasattr(val, 'magnitude')
         assert val.to('mV').magnitude == 100.
 
@@ -177,19 +185,36 @@ class TestFloat(object):
     def test_post_get_with_unit_return_float(self):
         from i3py.core.features import scalars
         scalars.UNIT_RETURN = False
-        try:
+
+        class FloatHolder(DummyParent):
             f = Float(unit='V')
-            assert f.post_get(None, 0.1) == 0.1
+
+        try:
+            assert FloatHolder.f.post_get(FloatHolder(), 0.1) == 0.1
         finally:
             scalars.UNIT_RETURN = True
+
+    @mark.skipif(UNIT_SUPPORT is False, reason="Requires Pint")
+    def test_post_get_settings_unit_return_float(self):
+
+        class FloatHolder(DummyParent):
+            f = Float(unit='V')
+
+        p = FloatHolder()
+        with p.temporary_setting('f', 'unit_return', False):
+            assert FloatHolder.f.post_get(p, 0.1) == 0.1
 
     @mark.skipif(UNIT_SUPPORT is False, reason="Requires Pint")
     def test_post_get_with_extract_and_unit_return_float(self):
         from i3py.core.features import scalars
         scalars.UNIT_RETURN = False
-        try:
+
+        class FloatHolder(DummyParent):
             f = Float(unit='V', extract='This is the value {}')
-            val = f.post_get(None, 'This is the value 0.1')
+
+        try:
+            val = FloatHolder.f.post_get(FloatHolder(),
+                                         'This is the value 0.1')
             assert val == 0.1
         finally:
             scalars.UNIT_RETURN = True
@@ -219,10 +244,14 @@ class TestFloat(object):
 
     @mark.skipif(UNIT_SUPPORT is False, reason="Requires Pint")
     def test_with_mapping_units(self):
-        m = Float(mapping={1.0: 'On', 2.0: 'Off'}, unit='mV')
+
+        class FloatHolder(DummyParent):
+            m = Float(mapping={1.0: 'On', 2.0: 'Off'}, unit='mV')
+
+        m = FloatHolder.m
         u = get_unit_registry()
-        assert m.post_get(None, 'On') == u.parse_expression('1.0 mV')
-        assert m.post_get(None, 'Off') == u.parse_expression('2.0 mV')
+        assert m.post_get(FloatHolder(), 'On') == u.parse_expression('1.0 mV')
+        assert m.post_get(FloatHolder(), 'Off') == u.parse_expression('2.0 mV')
 
         assert m.pre_set(None, u.parse_expression('0.001 V')) == 'On'
         assert m.pre_set(None, u.parse_expression('0.002 V')) == 'Off'

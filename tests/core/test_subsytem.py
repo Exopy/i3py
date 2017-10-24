@@ -9,14 +9,8 @@
 """Test basic subsystem instance functionalities.
 
 """
-from i3py.core.has_features import subsystem
-from i3py.core.base_subsystem import SubSystem
+from i3py.core.declarative import subsystem
 from .testing_tools import DummyParent
-
-
-def test_declaration_meta():
-
-    assert SubSystem() is SubSystem
 
 
 class SSParent(DummyParent):

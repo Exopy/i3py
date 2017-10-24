@@ -51,7 +51,7 @@ def test_subpart_decl_call(subpart_decl):
 
 
 def test_subpart_decl_context(subpart_decl):
-    """Test that wen used as a context manager the frame is properly cleaned.
+    """Test that when used as a context manager the frame is properly cleaned.
 
     Also check the collection of aliases.
 
@@ -72,28 +72,40 @@ def test_subpart_decl_context(subpart_decl):
     assert 'ss' in subpart_decl._aliases_
 
     # Check cleaning locals from inner values.
-    namespace = locals()  # This is just a copy modifying it has no effect
-    subpart_decl.clean_namespace(namespace)
+    class Container:
+        pass
+
+    for k, v in locals().items():
+        setattr(Container, k, v)
+    subpart_decl.clean_namespace(Container)
     for n in ('ss', 'test', 'b'):
-        assert n not in namespace
+        assert n not in Container.__dict__
 
     # Check that identity test prevent from cleaning overwritten values
     b = 2
-    namespace = locals()  # This is just a copy modifying it has no effect
-    subpart_decl.clean_namespace(namespace)
-    assert 'b' in namespace
+
+    class Container:
+        pass
+
+    for k, v in locals().items():
+        setattr(Container, k, v)
+    subpart_decl.clean_namespace(Container)
+    assert 'b' in Container.__dict__
 
 
 def test_subpart_decl_build_cls(subpart_decl):
     """Test that the class creation does get the docs and set the attributes.
 
     """
+    class Test:
+        pass
+
     with subpart_decl as ss:
         ss.a = Feature()
 
     subpart_decl._name_ = 'sub'
-    cls = subpart_decl.build_cls('Test', None, {'sub': 'Test docs',
-                                                'ss.a': 'A docs'})
+    cls = subpart_decl.build_cls(Test, None, {'sub': 'Test docs',
+                                              'ss.a': 'A docs'})
     assert cls.__doc__ == 'Test docs'
     assert cls.__name__ == 'TestSub'
     assert not hasattr(cls, '_docs_')
@@ -102,7 +114,10 @@ def test_subpart_decl_build_cls(subpart_decl):
     for att in ('_name_', '_parent_', '_bases_', '_aliases_'):
         assert not hasattr(cls, att)
 
-    cls2 = subpart_decl.build_cls('T', cls, {})
+    class T:
+        pass
+
+    cls2 = subpart_decl.build_cls(T, cls, {})
     assert cls2.__name__ == 'TSub'
     assert cls2.mro()[1] is cls
 

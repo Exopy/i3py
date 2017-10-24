@@ -83,7 +83,7 @@ class MethodComposer(object):
 
     """
     #: Dict storing custom class for each signature
-    sigs = {}
+    signatures = {}
 
     __slots__ = ('__self__', '__name__', '_alias', '_chain_on', '_names',
                  '_methods', '_signatures')
@@ -119,17 +119,23 @@ class MethodComposer(object):
 
         """
         if not signatures:
-            sigs = [normalize_signature(signature(func), alias)]
-        else:
-            sigs = signatures
+            signatures = [normalize_signature(signature(func), alias)]
 
-        id_ = (tuple(sigs), chain_on)
-        if id_ not in MethodComposer.sigs:
-            subclass = cls.create_composer(func.__name__, sigs, chain_on)
-            MethodComposer.sigs[id_] = subclass
+        id_ = (tuple(signatures), chain_on)
+        if id_ not in MethodComposer.signatures:
+            subclass = cls.create_composer(func.__name__, signatures, chain_on)
+            MethodComposer.signatures[id_] = subclass
 
-        custom_type = MethodComposer.sigs[id_]
-        return object.__new__(custom_type)
+        custom_type = MethodComposer.signatures[id_]
+        composer = object.__new__(custom_type)
+        composer.__self__ = obj
+        composer.__name__ = func.__name__
+        composer._alias = alias
+        composer._chain_on = chain_on
+        composer._methods = [func]
+        composer._names = [func_id]
+        composer._signatures = signatures
+        return composer
 
     @classmethod
     def create_composer(cls, name, sigs, chain_on):
@@ -152,22 +158,14 @@ class MethodComposer(object):
         exec(decl, glob)
         return glob[name]
 
-    def __init__(self, obj, func, alias, chain_on, func_id='old',
-                 signatures=None):
-        self.__self__ = obj
-        self.__name__ = func.__name__
-        self._alias = alias
-        self._chain_on = chain_on
-        self._methods = [func]
-        self._names = [func_id]
-        self._signatures = signatures
-
     def clone(self, new_obj=None):
         """Create a full copy of the composer.
 
         """
+        print(self._signatures)
         new = type(self)(new_obj or self.__self__, self, self._alias,
                          self._chain_on, '', self._signatures)
+        print(new._signatures)
         new._names = self._names[:]
         new._methods = self._methods[:]
         return new

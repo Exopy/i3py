@@ -72,8 +72,8 @@ def check_options(driver_or_options, option_values):
         options = {}
         d = driver_or_options
         while True:
-            for o in [f for f in d.__feats__
-                      if isinstance(d, AbstractOptions)]:
+            for o in [name for name, feat in d.__feats__.items()
+                      if isinstance(feat, AbstractOptions)]:
                 options[o] = getattr(d, o)
             if isinstance(d, AbstractBaseDriver):
                 break
@@ -83,9 +83,10 @@ def check_options(driver_or_options, option_values):
         options = driver_or_options
 
     for test in option_values.split(';'):
-        if not eval(test, options):
-            msg = 'The following options does match %s (options are %s)'
-            return False, msg % (test, pformat(options))
+        # Eval add builtins to the dict hence the copy
+        if not eval(test, options.copy()):
+            msg = 'The following options does match {} (options are {})'
+            return False, msg.format(test, pformat(options))
 
     return True, ''
 

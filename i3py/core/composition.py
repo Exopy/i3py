@@ -162,10 +162,8 @@ class MethodComposer(object):
         """Create a full copy of the composer.
 
         """
-        print(self._signatures)
         new = type(self)(new_obj or self.__self__, self, self._alias,
                          self._chain_on, '', self._signatures)
-        print(new._signatures)
         new._names = self._names[:]
         new._methods = self._methods[:]
         return new
@@ -482,6 +480,7 @@ class SupportMethodCustomization(AbstractSupportMethodCustomization):
         # This is done before analysing the function to preserve the real
         # intented modification even if the analysis simplify it.
         if not internal:
+            original_specifiers = specifiers
             if not specifiers:
                 self._customs[method_name] = func
             elif method_name not in self._customs:
@@ -508,37 +507,43 @@ class SupportMethodCustomization(AbstractSupportMethodCustomization):
             # Preserve the id in case of future mofication
             self._old_ids[method_name] = modif_id
             setattr(self, method_name, MethodType(func, self))
-            return
+            # For an intended full replacement we already logged the operation
+            if not internal and not original_specifiers:
+                return
 
-        # Otherwise we make sure we have a MethodsComposer.
-        composer = getattr(self, method_name)
-        if not isinstance(composer, MethodComposer):
-            # Try to get a smart id from the object in case it was set by a
-            # a previous modification.
-            composer = MethodComposer(self, composer.__func__, self.self_alias,
-                                      chain_on,
-                                      self._old_ids.get(method_name, 'old'),
-                                      signatures=sigs)
-
-        # We now update the composer.
-        composer_method_name = specifiers[0]
-        composer_method = getattr(composer, composer_method_name)
-        if composer_method_name in ('add_before', 'add_after'):
-            composer_method(specifiers[1], modif_id, func)
-        elif composer_method_name == 'replace':
-            composer_method(specifiers[1], func)
-        elif composer_method_name == 'remove':
-            composer_method(specifiers[1])
         else:
-            composer_method(modif_id, func)
+            # Otherwise we make sure we have a MethodsComposer.
+            composer = getattr(self, method_name)
+            if not isinstance(composer, MethodComposer):
+                # Try to get a smart id from the object in case it was set by a
+                # a previous modification.
+                composer = MethodComposer(self, composer.__func__,
+                                          self.self_alias, chain_on,
+                                          self._old_ids.get(method_name,
+                                                            'old'),
+                                          signatures=sigs)
 
-        # Finally we update the _customs dict and reassign the composer.
-        setattr(self, method_name, composer)
+            # We now update the composer.
+            composer_method_name = specifiers[0]
+            composer_method = getattr(composer, composer_method_name)
+            if composer_method_name in ('add_before', 'add_after'):
+                composer_method(specifiers[1], modif_id, func)
+            elif composer_method_name == 'replace':
+                composer_method(specifiers[1], func)
+            elif composer_method_name == 'remove':
+                composer_method(specifiers[1])
+            else:
+                composer_method(modif_id, func)
+
+            # Finally we reassign the composer.
+            setattr(self, method_name, composer)
+
+        # Finally we update the _customs dict
         if not internal:
             customs = self._customs[method_name]
-            if composer_method_name == 'remove':
+            if original_specifiers[0] == 'remove':
                 del customs[modif_id]
-            elif composer_method_name == 'replace':
+            elif original_specifiers[0] == 'replace':
                 replaced = specifiers[1]
                 if replaced in customs:
                     old = list(customs[replaced])
@@ -552,7 +557,7 @@ class SupportMethodCustomization(AbstractSupportMethodCustomization):
                         n = composer._names[ind-1]
                         customs[replaced] = (func, ('add_after', n))
             else:
-                op = (func, specifiers)
+                op = (func, original_specifiers)
                 customs[modif_id] = op
 
     def copy_custom_behaviors(self, obj):

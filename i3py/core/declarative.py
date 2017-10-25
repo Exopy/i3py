@@ -167,7 +167,7 @@ class SubpartDecl(object):
 
         # Add a custom descriptor for enabling if the subsystem declares checks
         if self._checks_:
-            func = build_checker(self._checks_, ('driver',), 'True')
+            func = build_checker(self._checks_, '(driver)', 'True')
 
             def enabled_getter(driver):
                 """Check this subpart and all its parents are enabled.
@@ -211,8 +211,9 @@ class SubpartDecl(object):
         self._descriptor_type_ = (self._descriptor_type_ or
                                   ancestor_decl._descriptor_type_)
         if ancestor_decl._checks_:
-            self._checks_ = (';'.join(self._checks_, ancestor_decl._checks)
-                             if self._checks_ else ancestor_decl._checks)
+            self._checks_ = (';'.join(self._checks_, ancestor_decl._checks_)
+                             if self._checks_ else ancestor_decl._checks_)
+        if ancestor_decl._options_:
             self._options_ = (';'.join(self._options_, ancestor_decl._options_)
                               if self._options_ else ancestor_decl._options_)
 
@@ -261,13 +262,6 @@ class subsystem(SubpartDecl):
         AbstractSubSystemDescriptor.
 
     """
-    def __init__(self, bases=(), checks='', options=None,
-                 descriptor_type=None):
-        if descriptor_type is None:
-            from .base_subsystem import SubSystemDescriptor
-            descriptor_type = SubSystemDescriptor
-        super().__init__(bases, checks, options, descriptor_type)
-
     def compute_base_classes(self):
         """Add SubSystem in the base classes if necessary.
 

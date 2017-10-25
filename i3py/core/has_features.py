@@ -118,14 +118,12 @@ class HasFeatures(object):
                                           lambda feat, driver:
                                               check_enabling(key, driver,
                                                              I3pyFailedGet),
-                                          ('prepend',), 'enabling',
-                                          internal=True)
+                                          ('prepend',), 'enabling')
                     value.modify_behavior('pre_set',
-                                          lambda feat, driver:
+                                          lambda feat, driver, value:
                                               check_enabling(key, driver,
                                                              I3pyFailedSet),
-                                          ('prepend',), 'enabling',
-                                          internal=True)
+                                          ('prepend',), 'enabling')
 
             elif isinstance(value, AbstractAction):
                 actions[key] = value
@@ -134,10 +132,10 @@ class HasFeatures(object):
                 # checks
                 if rt_enabling:
                     def _check(action, driver, *args, **kwargs):
-                        return check_enabling(key, driver, I3pyFailedCall)
+                        check_enabling(key, driver, I3pyFailedCall)
+                        return args, kwargs
                     value.modify_behavior('pre_call', _check,
-                                          ('prepend',), 'enabling',
-                                          internal=True)
+                                          ('prepend',), 'enabling')
 
             elif isinstance(value, AbstractFeatureModifier):
                 feat_paras[key] = value
@@ -310,7 +308,7 @@ class HasFeatures(object):
         # Set enabled to true if the framework has not already set it to a
         # descriptor. In this case the framework optimize out the checking
         # of the values in Action and properties.
-        if not hasattr(self, '_enabled_'):
+        if '_enabled_' not in dir(self):
             self._enabled_ = True
 
         self._use_cache = caching_allowed
@@ -381,11 +379,11 @@ class HasFeatures(object):
             self._cache = {}
             if subsystems:
                 for ss in self.__subsystems__:
-                    getattr(self, ss).clear_cache(channels=channels)
+                    getattr(self, ss).clear_cache(subsystems, channels)
             if channels and self.__channels__:
                 for chs in self.__channels__:
                     for ch in getattr(self, chs):
-                        ch.clear_cache(subsystems)
+                        ch.clear_cache(subsystems, channels)
 
     def check_cache(self, subsystems=True, channels=True, features=None):
         """Return the value of the cache of the object.

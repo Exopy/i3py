@@ -10,12 +10,13 @@
 
 """
 from .declarative import subsystem, channel, set_feat, set_action
+from .composition import customize
 from .errors import (I3pyError, I3pyInvalidCommand, I3pyTimeoutError,
                      I3pyInterfaceNotSupported)
 from .limits import IntLimitsValidator, FloatLimitsValidator
 from .unit import set_unit_registry, get_unit_registry
 
-__all__ = ['subsystem', 'channel', 'set_action', 'set_feat',
+__all__ = ['subsystem', 'channel', 'set_action', 'set_feat', 'customize',
            'I3pyError', 'I3pyInvalidCommand', 'I3pyTimeoutError',
            'I3pyInterfaceNotSupported',
            'set_unit_registry', 'get_unit_registry',

@@ -155,7 +155,7 @@ class Action(AbstractAction, SupportMethodCustomization):
         self.__doc__ = func.__doc__
         self.sig = signature(func)
         self.func = func
-        self.name = func.__name__
+        self.name = self.__name__ = func.__name__
         self.customize_call(func, self.creation_kwargs)
         return self
 

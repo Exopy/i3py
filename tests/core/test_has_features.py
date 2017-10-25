@@ -394,6 +394,10 @@ class CopyTest2(_CopyTest):
         pass
 
 
+# XXX Test copying a modification that was not a replacement but ended as a
+# replacement
+
+
 def test_copying_custom_behavior1():
     """Test copying an appending.
 
@@ -948,3 +952,9 @@ def test_get_feat():
         test = Feature()
 
     assert Tester().get_feat('test') is Tester.test
+
+
+# --- Settings API ------------------------------------------------------------
+
+# XXX write
+

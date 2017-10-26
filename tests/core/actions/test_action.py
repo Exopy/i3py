@@ -12,12 +12,15 @@
 # XXX test respect of settings
 from pytest import mark, raises
 
-from i3py.core.declarative import limit
+from i3py.core import limit, customize
 from i3py.core.actions import Action
 from i3py.core.limits import IntLimitsValidator
 from i3py.core.unit import UNIT_SUPPORT, get_unit_registry
 from i3py.core.errors import I3pyFailedCall
-from ..testing_tools import DummyParent
+from i3py.core.features import Options
+from ..testing_tools import DummyParent, DummyDriver
+
+# XXX check that the trick to get a nice traceback does work
 
 
 def test_naked_action():
@@ -48,6 +51,33 @@ def test_handling_double_decoration():
 
     with raises(RuntimeError):
         Dummy.test(lambda x: x)
+
+
+def test_options_action():
+    """Test handling options in an Action definition.
+
+    """
+    class Dummy(DummyDriver):
+
+        _test_ = True
+
+        op = Options()
+
+        @customize('op', 'get')
+        def _get(feat, driver):
+            return {'test': driver._test_}
+
+        @Action(options='op["test"]')
+        def test(self):
+            return type(self)
+
+    a = Dummy()
+    assert a.test
+
+    Dummy._test_ = False
+    b = Dummy()
+    with raises(AttributeError):
+        b.test
 
 
 def test_values_action():

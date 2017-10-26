@@ -16,6 +16,8 @@ from .errors import I3pyValueError, I3pyLimitsError
 from .abstracts import AbstractBaseDriver, AbstractOptions
 
 
+# XXX rework to use a fixed template and write a function to deal with the
+# error reporting
 def build_checker(checks, signature, ret=''):
     """Assemble a checker function from the provided assertions.
 

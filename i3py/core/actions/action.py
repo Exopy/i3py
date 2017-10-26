@@ -10,8 +10,8 @@
 
 """
 from functools import partial
-
-from funcsigs import signature
+from inspect import signature, currentframe
+from types import CodeType
 
 from ..errors import I3pyFailedCall
 from ..abstracts import AbstractAction
@@ -22,7 +22,7 @@ from ..utils import (build_checker, validate_in, validate_limits,
                      get_limits_and_validate, check_options)
 
 
-# XXX Action does not support kwargs only arguments
+LINENO = currentframe().f_lineno
 
 CALL_TEMPLATE = ("""
     def __call__(self{sig}):
@@ -87,8 +87,24 @@ class ActionCall(object):
                          sig=', ' + ', '.join(sig[1:]))
         glob = dict(ActionCall=ActionCall,
                     I3pyFailedCall=I3pyFailedCall)
-        exec(decl, glob)
-        return glob[name]
+
+        # Consider that this file is the source of the of the function
+        code = compile(decl, __file__, 'exec')
+        exec(code, glob)
+        cls = glob[name]
+
+        # Set the lineno to point to the string source.
+        func = cls.__call__
+        fcode = cls.__call__.__code__
+        func.__code__ = CodeType(fcode.co_argcount, fcode.co_kwonlyargcount,
+                                 fcode.co_nlocals, fcode.co_stacksize,
+                                 fcode.co_flags, fcode.co_code,
+                                 fcode.co_consts, fcode.co_names,
+                                 fcode.co_varnames, fcode.co_filename,
+                                 fcode.co_name, LINENO+3, fcode.co_lnotab,
+                                 fcode.co_freevars, fcode.co_cellvars)
+
+        return cls
 
     def __init__(self, action, driver):
         self.action = action
@@ -193,7 +209,7 @@ class Action(AbstractAction, SupportMethodCustomization):
         """
         settings = {'unit_return': UNIT_RETURN}
         if self._use_options:
-            settings['_options'] = None
+            settings['_options'] = (None, '')
         return settings
 
     def pre_call(self, driver, *args, **kwargs):

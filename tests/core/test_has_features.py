@@ -9,6 +9,8 @@
 """Test basic metaclasses functionalities.
 
 """
+from contextlib import ExitStack
+
 from pytest import raises
 
 from i3py.core.declarative import (subsystem, set_feat, channel, set_action,
@@ -394,8 +396,39 @@ class CopyTest2(_CopyTest):
         pass
 
 
-# XXX Test copying a modification that was not a replacement but ended as a
-# replacement
+class CopyModfifcationTurnedToReplacement(ToCustom):
+    """Class used to check that modification that were turned to replcament
+    are properly copied
+
+    """
+    def __init__(self):
+        super().__init__()
+        self.counter = 0
+
+    @customize('feat', 'post_get', ('append',), '_anch2_')
+    def _test2(feat, driver, value):
+        driver.counter += 1
+        return value
+
+
+def test_copying_custom_behvior():
+    """Test copying a modification that was turned into a replacment.
+
+    """
+    class Subclass(CopyModfifcationTurnedToReplacement):
+        pass
+
+    # Chech the test class work
+    c = CopyModfifcationTurnedToReplacement()
+    assert c.counter == 0
+    c.feat
+    assert c.counter == 1
+
+    # Check the subclass works
+    s = Subclass()
+    assert s.counter == 0
+    s.feat
+    assert s.counter == 1
 
 
 def test_copying_custom_behavior1():
@@ -956,5 +989,23 @@ def test_get_feat():
 
 # --- Settings API ------------------------------------------------------------
 
-# XXX write
+def test_managing_settings():
+    """Test getting, setting and temporarily setting settings.
 
+    """
+    c = ToCustom()
+    assert c.read_settings('feat')['inter_set_delay'] == 0
+    c.set_setting('feat', 'inter_set_delay', 1)
+    assert c.read_settings('feat')['inter_set_delay'] == 1
+    with raises(KeyError):
+        c.set_setting('feat', '_last_set', 1)
+    with raises(KeyError):
+        c.set_setting('feat', 'xxxx', 1)
+
+    with ExitStack() as stack:
+        stack.enter_context(raises(RuntimeError))
+        stack.enter_context(c.temporary_setting('feat', 'inter_set_delay', 0))
+        assert c.read_settings('feat')['inter_set_delay'] == 0
+        raise RuntimeError()
+
+    assert c.read_settings('feat')['inter_set_delay'] == 1

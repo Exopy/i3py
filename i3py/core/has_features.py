@@ -483,8 +483,10 @@ class HasFeatures(object):
         """
         old_val = self._settings[name][key]
         self.set_setting(name, key, value)
-        yield
-        self.set_setting(name, key, old_val)
+        try:
+            yield
+        finally:
+            self.set_setting(name, key, old_val)
 
     @property
     def declared_limits(self):

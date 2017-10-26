@@ -374,7 +374,7 @@ class Feature(SupportMethodCustomization, AbstractFeature):
         """
         settings = {'inter_set_delay': 0, '_last_set': 0}
         if self._use_options:
-            settings['_options'] = None
+            settings['_options'] = (None, '')
         return settings
 
     @property

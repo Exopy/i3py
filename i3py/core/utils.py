@@ -9,6 +9,8 @@
 """Collection of utility functions.
 
 """
+from types import CodeType
+from inspect import currentframe
 from pprint import pformat
 from collections import OrderedDict
 
@@ -16,8 +18,44 @@ from .errors import I3pyValueError, I3pyLimitsError
 from .abstracts import AbstractBaseDriver, AbstractOptions
 
 
-# XXX rework to use a fixed template and write a function to deal with the
-# error reporting
+def update_function_lineno(func, lineno):
+    """Update the co_lineno of the code object of a function.
+
+    """
+    fcode = func.__code__
+    func.__code__ = CodeType(fcode.co_argcount, fcode.co_kwonlyargcount,
+                             fcode.co_nlocals, fcode.co_stacksize,
+                             fcode.co_flags, fcode.co_code,
+                             fcode.co_consts, fcode.co_names,
+                             fcode.co_varnames, fcode.co_filename,
+                             fcode.co_name, lineno, fcode.co_lnotab,
+                             fcode.co_freevars, fcode.co_cellvars)
+    return func
+
+
+# TODO use AST analysis to provide more infos about assertion
+# failure. Take inspiration from pytest.assertions.rewrite.
+def report_on_assertion_error(assertion, namespace):
+    """Build a string explaining why an assertion failed.
+
+    The explanantion is built from the string representing the assertion and
+    the namespace in which the assertion was evaluated.
+
+    """
+    return f'Assertion {assertion} failed when evaluated with {namespace}'
+
+
+LINENO = currentframe().f_lineno
+
+CHECKER_TEMPLATE = """
+def check{signature}:
+    for a_str, a_code in assertions.items():
+        assert eval(a_code), report_on_assertion_error(a_str, locals())
+    return {ret}
+
+"""
+
+
 def build_checker(checks, signature, ret=''):
     """Assemble a checker function from the provided assertions.
 
@@ -39,20 +77,18 @@ def build_checker(checks, signature, ret=''):
         Function to use
 
     """
-    func_def = 'def check' + str(signature) + ':\n'
-    assertions = checks.split(';')
-    for assertion in assertions:
-        # TODO use AST manipulation to provide more infos about assertion
-        # failure. Take inspiration from pytest.assertions.rewrite.
-        a_mess = '"""Assertion %s failed"""' % assertion
-        func_def += '    assert ' + assertion + ', ' + a_mess + '\n'
+    # Closure variable for the compilation of the checker function
+    assertions = {a_str.strip(): compile(a_str.strip(),
+                                         '<'+a_str.strip()+'>', 'eval')
+                  for a_str in checks.split(';')}
+    func_def = CHECKER_TEMPLATE.format(signature=str(signature),
+                                       ret=ret or 'None')
+    loc = {'assertions': assertions}
+    glob = globals().copy()
+    glob.update(loc)
+    exec(compile(func_def, __file__, 'exec'), glob, loc)
 
-    if ret:
-        func_def += '    return %s' % ret
-
-    loc = {}
-    exec(func_def, globals(), loc)
-    return loc['check']
+    return update_function_lineno(loc['check'], LINENO + 3)
 
 
 def check_options(driver_or_options, option_values):

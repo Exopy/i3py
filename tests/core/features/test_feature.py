@@ -527,7 +527,6 @@ def test_inter_set_delay():
     with d.temporary_setting('feat_cac', 'inter_set_delay', 0.5):
         d.feat_cac = 2
         old = d._settings['feat_cac']['_last_set']
-        print(old)
         d.feat_cac = 3
 
     assert d._settings['feat_cac']['_last_set'] - old > .5

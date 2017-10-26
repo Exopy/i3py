@@ -11,7 +11,6 @@
 """
 from functools import partial
 from inspect import signature, currentframe
-from types import CodeType
 
 from ..errors import I3pyFailedCall
 from ..abstracts import AbstractAction
@@ -19,7 +18,8 @@ from ..composition import SupportMethodCustomization, normalize_signature
 from ..limits import IntLimitsValidator, FloatLimitsValidator
 from ..unit import UNIT_SUPPORT, UNIT_RETURN, get_unit_registry
 from ..utils import (build_checker, validate_in, validate_limits,
-                     get_limits_and_validate, check_options)
+                     get_limits_and_validate, check_options,
+                     update_function_lineno)
 
 
 LINENO = currentframe().f_lineno
@@ -94,15 +94,7 @@ class ActionCall(object):
         cls = glob[name]
 
         # Set the lineno to point to the string source.
-        func = cls.__call__
-        fcode = cls.__call__.__code__
-        func.__code__ = CodeType(fcode.co_argcount, fcode.co_kwonlyargcount,
-                                 fcode.co_nlocals, fcode.co_stacksize,
-                                 fcode.co_flags, fcode.co_code,
-                                 fcode.co_consts, fcode.co_names,
-                                 fcode.co_varnames, fcode.co_filename,
-                                 fcode.co_name, LINENO+3, fcode.co_lnotab,
-                                 fcode.co_freevars, fcode.co_cellvars)
+        update_function_lineno(cls.__call__, LINENO + 3)
 
         return cls
 

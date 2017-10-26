@@ -350,7 +350,7 @@ class Feature(SupportMethodCustomization, AbstractFeature):
             return
         elif op is None:
             op, msg = check_options(driver, self.creation_kwargs['options'])
-            driver._settings[self.name]['_options'] = op
+            driver._settings[self.name]['_options'] = op, msg
             if op:
                 return
 
@@ -488,7 +488,7 @@ class Feature(SupportMethodCustomization, AbstractFeature):
                 if driver._use_cache:
                     cache[name] = value
         except I3pyFailedSet:
-            raise
+            raise  # pragma: no cover
         except Exception as e:
             msg = 'Failed to set the value of feature {} to {} for driver {}.'
             raise I3pyFailedSet(msg.format(self.name, value, driver)) from e

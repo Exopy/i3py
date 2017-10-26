@@ -484,25 +484,36 @@ def test_options():
 
         _test_ = True
 
+        _val = 1
+
         op = Options()
 
         @customize('op', 'get')
         def _get(feat, driver):
             return {'test': driver._test_}
 
-        feat = Feature(True, options="op['test']")
+        feat = Feature(True, True, options="op['test']")
 
         @customize('feat', 'get')
         def _get_feat(feat, driver):
-            return 1
+            return driver._val
+
+        @customize('feat', 'set')
+        def _set_feat(feat, driver, value):
+            driver._val = value
 
     a = Dummy()
     assert a.feat
+
+    a.feat = 2
+    assert a.feat == 2  # test the caching seen in the coverage
 
     Dummy._test_ = False
     b = Dummy()
     with raises(AttributeError):
         b.feat
+    with raises(AttributeError):
+        b.feat = 1
 
 
 def test_inter_set_delay():
@@ -529,7 +540,7 @@ def test_inter_set_delay():
         old = d._settings['feat_cac']['_last_set']
         d.feat_cac = 3
 
-    assert d._settings['feat_cac']['_last_set'] - old > .5
+    assert round(d._settings['feat_cac']['_last_set'] - old, 2) >= .5
 
 
 # Other behaviors are tested by the tests in test_has_features.py

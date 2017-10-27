@@ -29,14 +29,22 @@ Working principle
 
     First we will describe the process involved in retrieving a feature value
     then switch to describing the setting of it.
+	
+	.. note::
+	
+		The first two arguments of a feature are always the getter and setter.
+		If their value is set to None, the feature the corresponding operation
+		won't be possible for the feature. A feature is always deletable and 
+		deleting it conrresponds to discarding the cached value if any exists.
 
     Getting chain
     ^^^^^^^^^^^^^
     
-        First when getting a feature, we check whether or not its current value
-        is known. If it is, the cached value is directly returned otherwise
-        the system proceed with the retrieval sequence, in three steps as 
-        follows:
+        First when getting a feature, we check if the instrument options allow
+		to access it, and if not an AttributeError is raised. Next, we check
+		whether or not its current value is known. If it is, the cached value 
+		is directly returned otherwise the system proceed with the retrieval 
+		sequence, in three steps as follows:
         
         - |Feature.pre_get|: 
           This setp is in charge to check that we can actually retrieve the
@@ -72,10 +80,12 @@ Working principle
     Setting chain
     ^^^^^^^^^^^^^
     
-        When setting a feature first the value is checked against the cached 
-        value. If both values are found to be equal, the set is not performed 
-        as it would be useless. Otherwise, we proceed with the setting 
-        sequence, which, like the getting, happens in three steps:
+        First when setting a feature, we check if the instrument options allow
+		to access it, and if not an AttributeError is raised. Next, the value 
+		is checked against the cached value. If both values are found to be 
+		equal, the set is not performed as it would be useless. Otherwise, we 
+		proceed with the setting sequence, which, like the getting, happens in
+		three steps:
         
         - |Feature.pre_set|:
           During this step, the state of the instrument can be checked and the 
@@ -86,7 +96,10 @@ Working principle
           This step is dedicated to actually communicating with the instrument
           to set the value. If the instrument returns any value that can be 
           used to check that the operation went without issue, it should be 
-          returned so that it can be passed up to the next method.
+          returned so that it can be passed up to the next method. By default,
+          it will call the |HasFeatures.default_set_feature| method defined on 
+          the class it belongs and pass it the value of the setter argument 
+          passed to the feature when it was created.
           
         - |Feature.post_set|:
           This step main goal is to check that the operation of setting the 
@@ -105,8 +118,42 @@ Working principle
 Usual configurations
 --------------------
 
+In addition to the 'getter' and 'setter' previously mentionned I3py features 
+provides a number of often required checks, data extraction and data conversion
+utilities. The following list illustrates them:
+
+	- 'options': available on all Feature subclasses
+
+	- 'checks': available on all Feature subclasses
+	  
+	- 'extract': available on all Feature subclasses
+	
+	- 'discard': available on all Feature subclasses
+	
+	- 'values': available on Str, Int and Float
+	
+	- 'mapping': available on Str, Int and Float
+	
+	- 'limits': available on Int and Float
+	
+	- 'aliases': available on Bool
+	
+
+.. note::
+	
+	.. todo:: add description of limits definition
+	
+.. note::
+
+	.. todo:: add special description for Alias
+	
+.. note::
+
+	.. todo:: add special description for Register
+
 
 Flexible getter/setter
----------------------- 
+----------------------
 
-Features are nothing else than standard Python properties on steroids
+.. todo:: describe the use of factories
+

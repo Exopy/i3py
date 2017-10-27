@@ -9,7 +9,10 @@
 """Tools to customize feature and help in their writings.
 
 """
+from inspect import currentframe
+
 from ..abstracts import AbstractGetSetFactory
+from ..utils import update_function_lineno
 
 
 class constant(AbstractGetSetFactory):
@@ -45,16 +48,23 @@ class constant(AbstractGetSetFactory):
         """
         return None  # pragma: no cover
 
+LINENO_GET = currentframe().f_lineno
+
 
 GET_DEF =\
-"""def get(self, driver):
+"""
+def get(self, driver):
     val = {}
     return {}
 
 """
 
+
+LINENO_SET = currentframe().f_lineno
+
 SET_DEF =\
-"""def set(self, driver, value):
+"""
+def set(self, driver, value):
     cmd = {}
     return driver.default_set_feature(self, cmd, value)
 """
@@ -94,9 +104,15 @@ class conditional(AbstractGetSetFactory):
                                      'driver.default_get_feature(self, val)')
 
         loc = {}
-        exec(get_def, globals(), loc)
+        # Consider that this file is the source of the function
+        code = compile(get_def, __file__, 'exec')
+        exec(code, globals(), loc)
+        func = loc['get']
 
-        return loc['get']
+        # Set the lineno to point to the string source.
+        update_function_lineno(func, LINENO_GET + 3)
+
+        return func
 
     def build_setter(self):
         """Build the setter.
@@ -106,6 +122,12 @@ class conditional(AbstractGetSetFactory):
             raise ValueError('Can build a setter only if default is True')
 
         loc = {}
-        exec(SET_DEF.format(self._cond), globals(), loc)
+        # Consider that this file is the source of the function
+        code = compile(SET_DEF.format(self._cond), __file__, 'exec')
+        exec(code, globals(), loc)
+        func = loc['set']
 
-        return loc['set']
+        # Set the lineno to point to the string source.
+        update_function_lineno(func, LINENO_GET + 3)
+
+        return func

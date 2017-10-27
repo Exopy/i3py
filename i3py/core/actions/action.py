@@ -88,7 +88,7 @@ class ActionCall(object):
         glob = dict(ActionCall=ActionCall,
                     I3pyFailedCall=I3pyFailedCall)
 
-        # Consider that this file is the source of the of the function
+        # Consider that this file is the source of the function
         code = compile(decl, __file__, 'exec')
         exec(code, glob)
         cls = glob[name]

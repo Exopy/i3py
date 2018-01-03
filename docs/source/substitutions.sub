@@ -23,6 +23,8 @@
 
 .. |set_action| replace:: :py:class:`~i3py.core.declarative.set_action`
 
+.. |limits| replace:: :py:func:`~i3py.core.declarative.limit`
+
 .. |I3pyFailedGet| replace:: :py:class:`~i3py.core.errors.I3pyFailedGet`
 
 .. |I3pyFailedSet| replace:: :py:class:`~i3py.core.errors.I3pyFailedSet`
@@ -42,3 +44,7 @@
 .. |Feature.post_set| replace:: :py:method:`~i3py.core.features.feature.Feature.post_set`
 
 .. |Options| replace:: :py:method:`~i3py.core.features.options.Options`
+
+.. |Alias| replace:: :py:class:`~i3py.core.features.alias.Alias`
+
+.. |AbstractGetSetFactory| replace:: :py:class:`~i3py.core.abstracts.AbstractGetSetFactory`

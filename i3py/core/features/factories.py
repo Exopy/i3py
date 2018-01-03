@@ -50,7 +50,6 @@ class constant(AbstractGetSetFactory):
 
 LINENO_GET = currentframe().f_lineno
 
-
 GET_DEF =\
 """
 def get(self, driver):
@@ -110,7 +109,7 @@ class conditional(AbstractGetSetFactory):
         func = loc['get']
 
         # Set the lineno to point to the string source.
-        update_function_lineno(func, LINENO_GET + 3)
+        update_function_lineno(func, LINENO_GET + 4)
 
         return func
 
@@ -128,6 +127,6 @@ class conditional(AbstractGetSetFactory):
         func = loc['set']
 
         # Set the lineno to point to the string source.
-        update_function_lineno(func, LINENO_GET + 3)
+        update_function_lineno(func, LINENO_SET + 4)
 
         return func

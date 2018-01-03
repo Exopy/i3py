@@ -74,7 +74,7 @@ class Feature(SupportMethodCustomization, AbstractFeature):
     options: str
         Assertions in the form option_name['option_field'] == possible_values
         or any other valid boolean test. Multiple assertions can be separated
-        by ; . Always apply to both get and set.  The result of this
+        by ; . Always apply to both get and set. The result of this
         computation is cached for reduced cost.
 
     Attributes

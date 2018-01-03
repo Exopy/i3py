@@ -123,29 +123,51 @@ provides a number of often required checks, data extraction and data conversion
 utilities. The following list illustrates them:
 
 	- 'options': available on all Feature subclasses
+      A ; separated list of checks to perform on options values to determine if
+      the Feature can be used. Options are defined using the |Options| feature.
+      The test is performed a single time and then cached.
 
 	- 'checks': available on all Feature subclasses
+      Similar to options, but can be used to check any value and is performed
+      each time the feature is get or set.
 	  
 	- 'extract': available on all Feature subclasses
+      A format string specifying how to extract the value of interest from the 
+      instrument response.
 	
 	- 'discard': available on all Feature subclasses
+      A list of features whose cache value should be discarded when the feature
+      value is set. Alternatively a dict whose keys are 'features' and 'limits'
+      can be used to also specify to discard some cached limits.
 	
 	- 'values': available on Str, Int and Float
+      A tuple of acceptable values for the feature.
 	
 	- 'mapping': available on Str, Int and Float
+      A mapping between user meaningful values and instrument meaningful ones.
 	
 	- 'limits': available on Int and Float
+      A 2-tuple, 3-tuple or str specifying the minimal and maximal values 
+      allowed and optionally the resolution that the feature can take. In the 
+      case of a str, the string specifies the named limit to use (see the 
+      following paragraph about defining limits).
 	
 	- 'aliases': available on Bool
-	
-
-.. note::
-	
-	.. todo:: add description of limits definition
+      A dictionary whose keys are True and False and whose values (list)
+      specifies accepted aliases for True and False for setting.
 	
 .. note::
+    
+    In many cases, the range of allowed values for a specific feature is not 
+    fixed but may be related to another feature value. To handle this case,
+    I3py allows to define dynamic limits using the |limits| decorator. The 
+    decorated method should return an instance of |IntLimitsValidator| or 
+    |FloatLimitsValidator| depending the kind of value this limit applies to.
+	
+.. note::
 
-	.. todo:: add special description for Alias
+	The |Alias| feature is a special feature allowing to delegate the actual 
+    work of getting/setting to another feature.
 	
 .. note::
 
@@ -155,5 +177,13 @@ utilities. The following list illustrates them:
 Flexible getter/setter
 ----------------------
 
-.. todo:: describe the use of factories
+In some cases, the command to use to get/set a Feature may depend on the state
+of the instrument. This use case can be handled by using a custom get/set 
+method as described in :ref:`dev_driv_advanced`. However as such cases can be
+quite common, I3py provides an alternative mechanism based on factory class to
+which the building of the get/set method can be deferred. Such factory classes
+should inherit from |AbstractGetSetFactory| and can be used for the 
+getter/setter arguments of a feature.
 
+The factories implemented in I3py can be found in 
+`i3py.core.features.factories`.

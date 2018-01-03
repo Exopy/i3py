@@ -13,7 +13,7 @@ from types import MethodType
 from time import perf_counter, sleep
 
 from stringparser import Parser
-from funcsigs import signature
+from inspect import signature
 
 from ..errors import I3pyError, I3pyFailedGet, I3pyFailedSet
 from ..utils import build_checker, check_options

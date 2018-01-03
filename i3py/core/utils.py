@@ -64,7 +64,7 @@ def build_checker(checks, signature, ret=''):
     checks : str
         ; separated string containing boolean test to assert.
 
-    signature : str or funcsigs.Signature
+    signature : str or inspect.Signature
         Signature of the check function to build.
 
     ret : str

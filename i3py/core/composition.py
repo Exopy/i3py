@@ -13,7 +13,7 @@ from abc import abstractmethod, abstractproperty
 from types import MethodType
 from collections import OrderedDict, Mapping
 
-from funcsigs import signature
+from inspect import signature
 
 from .abstracts import (AbstractMethodCustomizer,
                         AbstractSupportMethodCustomization)

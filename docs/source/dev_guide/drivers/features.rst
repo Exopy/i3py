@@ -33,9 +33,9 @@ Working principle
 	.. note::
 	
 		The first two arguments of a feature are always the getter and setter.
-		If their value is set to None, the feature the corresponding operation
-		won't be possible for the feature. A feature is always deletable and 
-		deleting it conrresponds to discarding the cached value if any exists.
+		If their value is set to None, the corresponding operation won't be 
+        possible for the feature. A feature is always deletable and deleting it
+        corresponds to discarding the cached value if any exists.
 
     Getting chain
     ^^^^^^^^^^^^^
@@ -47,9 +47,9 @@ Working principle
 		sequence, in three steps as follows:
         
         - |Feature.pre_get|: 
-          This setp is in charge to check that we can actually retrieve the
+          This step is in charge to check that we can actually retrieve the
           value from the instrument. Some assertions about the instrument 
-          options and current state can for example be performed.
+          current state can for example be performed.
           
         - |Feature.get|:
           This step is tasked with the actual communication with the 
@@ -118,41 +118,41 @@ Working principle
 Usual configurations
 --------------------
 
-In addition to the 'getter' and 'setter' previously mentionned I3py features 
+In addition to the 'getter' and 'setter' previously mentioned I3py features 
 provides a number of often required checks, data extraction and data conversion
 utilities. The following list illustrates them:
 
-	- 'options': available on all Feature subclasses
+	- 'options': available on all |Feature| subclasses
       A ; separated list of checks to perform on options values to determine if
       the Feature can be used. Options are defined using the |Options| feature.
       The test is performed a single time and then cached.
 
-	- 'checks': available on all Feature subclasses
+	- 'checks': available on all |Feature| subclasses
       Similar to options, but can be used to check any value and is performed
       each time the feature is get or set.
 	  
-	- 'extract': available on all Feature subclasses
+	- 'extract': available on all |Feature| subclasses
       A format string specifying how to extract the value of interest from the 
       instrument response.
 	
-	- 'discard': available on all Feature subclasses
+	- 'discard': available on all |Feature| subclasses
       A list of features whose cache value should be discarded when the feature
       value is set. Alternatively a dict whose keys are 'features' and 'limits'
       can be used to also specify to discard some cached limits.
 	
-	- 'values': available on Str, Int and Float
+	- 'values': available on |Str|, |Int| and |Float|
       A tuple of acceptable values for the feature.
 	
-	- 'mapping': available on Str, Int and Float
+	- 'mapping': available on |Str|, |Int| and |Float|
       A mapping between user meaningful values and instrument meaningful ones.
 	
-	- 'limits': available on Int and Float
+	- 'limits': available on |Int| and |Float|
       A 2-tuple, 3-tuple or str specifying the minimal and maximal values 
       allowed and optionally the resolution that the feature can take. In the 
       case of a str, the string specifies the named limit to use (see the 
       following paragraph about defining limits).
 	
-	- 'aliases': available on Bool
+	- 'aliases': available on |Bool|
       A dictionary whose keys are True and False and whose values (list)
       specifies accepted aliases for True and False for setting.
 	

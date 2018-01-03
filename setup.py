@@ -30,6 +30,6 @@ setup(
         ],
     zip_safe=False,
     packages=find_packages(exclude=['tests', 'tests.*']),
-    requires=['funcsigs', 'stringparser'],
-    install_requires=['funcsigs', 'stringparser'],
+    requires=['stringparser'],
+    install_requires=['stringparser'],
 )

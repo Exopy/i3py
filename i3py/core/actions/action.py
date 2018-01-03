@@ -103,53 +103,12 @@ class ActionCall(object):
         self.driver = driver
 
 
-class Action(AbstractAction, SupportMethodCustomization):
+class BaseAction(AbstractAction, SupportMethodCustomization):
     """Wraps a method with pre and post processing operations.
 
-    All parameters must be passed as keyword arguments.
-
-    All public driver methods should be decorated as an Action to make them
-    easy to identify and hence make instrospection easier.
-
-    Parameters
-    ----------
-    units : tuple, optional
-        Tuple of length 2 containing the return unit and the unit of each
-        passed argument. None can be used to mark that an argument should not
-        be converted. The first argument (self) should always be marked this
-        way.
-
-    checks : str, optional
-        Booelan tests to execute before calling the function. Multiple
-        assertions can be separated with ';'. All the methods argument are
-        available in the assertion execution namespace so one can access to the
-        driver using self and to the arguments using their name (the signature
-        of the wrapper is made to match the signature of the wrapped method).
-
-    options : str
-        Assertions in the form option_name['option_field'] == possible_values
-        or any other valid boolean test. Multiple assertions can be separated
-        by ;
-
-    values : dict, optional
-        Dictionary mapping the arguments names to their allowed values.
-
-    limits : dict, optional
-        Dictionary mapping the arguments names to their allowed limits. Limits
-        can a be a tuple of length 2, or 3 (min, max, step) or the name of
-        the limits to use to check the input.
-
-    Notes
-    -----
-    A single argument should be value checked or limit checked but not both,
-    unit conversion is performed before anything else. When limit validating
-    against a driver limits the parameter should ALWAYS be converted to the
-    same unit as the one used by the limits.
-
     """
-
     def __init__(self, **kwargs):
-        super(Action, self).__init__()
+        super().__init__()
         self.name = ''
         self.func = None
         self.creation_kwargs = kwargs
@@ -199,7 +158,7 @@ class Action(AbstractAction, SupportMethodCustomization):
         """Create the default settings for an action.
 
         """
-        settings = {'unit_return': UNIT_RETURN}
+        settings = {}
         if self._use_options:
             settings['_options'] = (None, '')
         return settings
@@ -281,26 +240,6 @@ class Action(AbstractAction, SupportMethodCustomization):
         """
         self.call = func
 
-        if 'limits' in kwargs or 'values' in kwargs:
-            self.add_values_limits_validation(kwargs.get('values', {}),
-                                              kwargs.get('limits', {}))
-
-        if 'checks' in kwargs:
-            sig = normalize_signature(self.sig, alias='driver')
-            check_sig = ('(action' +
-                         (', ' + ', '.join(sig) if sig else '') + ')')
-            check_args = build_checker(kwargs['checks'], check_sig)
-
-            def checker_wrapper(action, driver, *args, **kwargs):
-                check_args(action, driver, *args, **kwargs)
-                return args, kwargs
-
-            self.modify_behavior('pre_call', checker_wrapper,
-                                 ('append',), 'checks', internal=True)
-
-        if UNIT_SUPPORT and 'units' in kwargs:
-            self.add_unit_support(kwargs['units'])
-
     def analyse_function(self, meth_name, func, specifiers):
         """Analyse the possibility to use a function for a method.
 
@@ -352,9 +291,7 @@ class Action(AbstractAction, SupportMethodCustomization):
             sigs = [('action', 'driver', '*args', '**kwargs'), act_sig]
             chain_on = 'args, kwargs'
             # The base version of pre_call is no-op so we can directly replace
-            # Python 2/3 compatibility hack.
-            original = getattr(Action.pre_call, '__func__', Action.pre_call)
-            if self.pre_call.__func__ is original:
+            if self.pre_call.__func__ is Action.pre_call:
                 specifiers = ()
 
         elif meth_name == 'post_call':
@@ -362,8 +299,7 @@ class Action(AbstractAction, SupportMethodCustomization):
                     ('action', 'driver', 'result') + act_sig[2:]]
             chain_on = 'result'
             # The base version of post_call is no-op so we can directly replace
-            original = getattr(Action.post_call, '__func__', Action.post_call)
-            if self.post_call.__func__ is original:
+            if self.post_call.__func__ is Action.post_call:
                 specifiers = ()
 
         else:
@@ -388,6 +324,85 @@ class Action(AbstractAction, SupportMethodCustomization):
 
         """
         return 'driver'
+
+
+class Action(BaseAction):
+    """Wraps a method with pre and post processing operations.
+
+    All parameters must be passed as keyword arguments.
+
+    All public driver methods should be decorated as an Action to make them
+    easy to identify and hence make instrospection easier.
+
+    Parameters
+    ----------
+    options : str, optional
+        Assertions in the form option_name['option_field'] == possible_values
+        or any other valid boolean test. Multiple assertions can be separated
+        by ;
+
+    checks : str, optional
+        Booelan tests to execute before calling the function. Multiple
+        assertions can be separated with ';'. All the method arguments are
+        available in the assertion execution namespace so one can access to the
+        driver using self and to the arguments using their name (the signature
+        of the wrapper is made to match the signature of the wrapped method).
+
+    values : dict, optional
+        Dictionary mapping the arguments names to their allowed values.
+
+    limits : dict, optional
+        Dictionary mapping the arguments names to their allowed limits. Limits
+        can a be a tuple of length 2, or 3 (min, max, step) or the name of
+        the limits to use to check the input.
+
+    units : tuple, optional
+        Tuple of length 2 containing the return unit and the unit of each
+        passed argument. None can be used to mark that an argument should not
+        be converted. The first argument (self) should always be marked this
+        way.
+
+    Notes
+    -----
+    A single argument should be value checked or limit checked but not both,
+    unit conversion is performed before anything else. When limit validating
+    against a driver limits the parameter should ALWAYS be converted to the
+    same unit as the one used by the limits.
+
+    """
+    def create_default_settings(self):
+        """Create the default settings for an action.
+
+        """
+        settings = super().create_default_settings()
+        settings['unit_return'] = UNIT_RETURN
+        return settings
+
+    def customize_call(self, func, kwargs):
+        """Store the function in call attributes and customize pre/post based
+        on the kwargs.
+
+        """
+        super().customize_call(func, kwargs)
+        if 'limits' in kwargs or 'values' in kwargs:
+            self.add_values_limits_validation(kwargs.get('values', {}),
+                                              kwargs.get('limits', {}))
+
+        if 'checks' in kwargs:
+            sig = normalize_signature(self.sig, alias='driver')
+            check_sig = ('(action' +
+                         (', ' + ', '.join(sig) if sig else '') + ')')
+            check_args = build_checker(kwargs['checks'], check_sig)
+
+            def checker_wrapper(action, driver, *args, **kwargs):
+                check_args(action, driver, *args, **kwargs)
+                return args, kwargs
+
+            self.modify_behavior('pre_call', checker_wrapper,
+                                 ('append',), 'checks', internal=True)
+
+        if UNIT_SUPPORT and 'units' in kwargs:
+            self.add_unit_support(kwargs['units'])
 
     def add_unit_support(self, units):
         """Wrap a func using Pint to automatically convert Quantity to float.

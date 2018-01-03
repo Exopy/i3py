@@ -29,7 +29,7 @@ before_install:
 install:
   - conda create --yes -n $ENV_NAME python=$TRAVIS_PYTHON_VERSION pip > ${REDIRECT_TO};
   - source activate $ENV_NAME
-  - conda install --yes --quiet pytest funcsigs> ${REDIRECT_TO};
+  - conda install --yes --quiet pytest> ${REDIRECT_TO};
   - pip install -q pytest-cov pytest-catchlog stringparser
   # Use develop version of Pint
   - if [ $PINT == 'Y' ]; then pip install https://github.com/hgrecco/pint/zipball/develop; fi

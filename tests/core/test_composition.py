@@ -10,7 +10,7 @@
 
 """
 import pytest
-from funcsigs import signature
+from inspect import signature
 
 from i3py.core.abstracts import AbstractSupportMethodCustomization
 from i3py.core.composition import (normalize_signature, MethodComposer,

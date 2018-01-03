@@ -31,6 +31,8 @@
 
 .. |I3pyFailedCall| replace:: :py:class:`~i3py.core.errors.I3pyFailedCall`
 
+.. |Feature| replace:: :py:class:`~i3py.core.features.feature.Feature`
+
 .. |Feature.pre_get| replace:: :py:method:`~i3py.core.features.feature.Feature.pre_get`
 
 .. |Feature.get| replace:: :py:method:`~i3py.core.features.feature.Feature.get`
@@ -43,8 +45,26 @@
 
 .. |Feature.post_set| replace:: :py:method:`~i3py.core.features.feature.Feature.post_set`
 
-.. |Options| replace:: :py:method:`~i3py.core.features.options.Options`
+.. |Options| replace:: :py:class:`~i3py.core.features.options.Options`
+
+.. |Str| replace:: :py:class:`~i3py.core.features.scalars.Str`
+
+.. |Int| replace:: :py:class:`~i3py.core.features.scalars.Int`
+
+.. |Float| replace:: :py:class:`~i3py.core.features.scalars.Float`
+
+.. |Bool| replace:: :py:class:`~i3py.core.features.bool.Bool`
 
 .. |Alias| replace:: :py:class:`~i3py.core.features.alias.Alias`
 
 .. |AbstractGetSetFactory| replace:: :py:class:`~i3py.core.abstracts.AbstractGetSetFactory`
+
+.. |BaseAction| replace:: :py:class:`~i3py.core.actions.action.BaseAction`
+
+.. |BaseAction.pre_call| replace:: :py:method:`~i3py.core.actions.action.BaseAction.pre_call`
+
+.. |BaseAction.call| replace:: :py:method:`~i3py.core.actions.action.BaseAction.call`
+
+.. |BaseAction.post_call| replace:: :py:method:`~i3py.core.actions.action.BaseAction.post_call`
+
+.. |Action| replace:: :py:class:`~i3py.core.actions.action.Action`

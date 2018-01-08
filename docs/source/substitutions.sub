@@ -7,6 +7,8 @@
 .. I3py substitutions
 .. ============================================================================
 
+.. |AbstractSubSystem| replace:: :py:class:`~i3py.core.abstract.AbstractSubSystem`
+
 .. |HasFeatures| replace:: :py:class:`~i3py.core.has_features.HasFeatures`
 
 .. |HasFeatures.default_get_feature| replace:: :py:meth:`~i3py.core.has_features.HasFeatures.default_get_feature`
@@ -68,3 +70,7 @@
 .. |BaseAction.post_call| replace:: :py:method:`~i3py.core.actions.action.BaseAction.post_call`
 
 .. |Action| replace:: :py:class:`~i3py.core.actions.action.Action`
+
+.. |AbstractSubSystemDescriptor| replace:: :py:class:`i3py.core.abstract.AbstractSubSystemDescriptor`
+
+.. |SubSystemDescriptor| replace:: :py:class:`i3py.core.subsystem.SubSystemDescriptor`

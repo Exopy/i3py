@@ -31,7 +31,7 @@ declaration and on the working principle of options and checks.
     .. codeblock::
 
         class MyDriver(VisaMessageDriver):
-            """My driver (suppporting *IDN?) docstring.
+            """My driver with a subsystem.
 
             """
 
@@ -105,14 +105,77 @@ declaration and on the working principle of options and checks.
         When a inheriting a subsystem from a parent driver, the options and 
         checks defined in the subsystem call are appended to the ones existing
         on the subsystem of the parent driver.
+        
+    Features working in subsystems
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    
+    .. todo:: explain how get/set work
 
 Channels
 --------
 
+    In several respects, channels are very similar to subsystems. Just as them,
+    they follow mostly the same logic as far as subclassing is concerned and 
+    also support checks and options which work in the same way. The key 
+    difference between subsystems and channels is that where only one subsystem
+    is instantiated per driver, multiple instances of a channel can be tied to
+    the same driver. The following section will describe the differences 
+    between channels and subsystems.
+
     Declaration
     ^^^^^^^^^^^
+    
+    Channels are declared in the body of a driver using the following 
+    syntax as already hinted in :ref:dev_driv_overview. The key difference with
+    a subsystem is that a way to identify the valid channels id is generally
+    required as first argument.
+    
+    .. codeblock::
+
+        class MyDriver(VisaMessageDriver):
+            """My driver with a channel.
+
+            """
+
+            channels = channel((1, 2, 3),
+                               aliases={1: ('A', 'a'), 2: 'B', 3: 'C'})
+            with channels as c:
+
+                c.frequency = Float('CH{ch_id}:FREQ?', 'OSC:FREQ {}')
+                
+                @c
+                @Action()
+                def is_sync(self):
+                    pass
+                    
+    The valid ids for channel can be declared as above as a tuple or 
+    list, which make sense when the number of channel is hardcoded in the 
+    device. Alternatively, one can pass the name of a method existing on the 
+    parent whose signature should be (self) -> Iterable.
+    
+    In some cases, it may be handy to provide alternate names for channels for
+    the sake of clarity. One can do so by declaring aliases. Aliases should be
+    a dictionary whose keys match the ids of the channels and whose values are
+    the allowed alternatives. Alternatives can be specified either as a simple
+    value or as a list/tuple.
+    
+    When subclassing a driver which has channels, if no channels ids are 
+    provided the method used on the parent driver will be inherited, and the 
+    aliases mapping will be updated with any new value provided.
+    
+    .. note::
+    
+        As for subsystems one can specify base classes for a channel and the 
+        same inheritance rules apply.
 
     Usage
     ^^^^^
+    
+    
+    
+    Features working in channels
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    
+    .. todo:: explain how get/set work
 
 

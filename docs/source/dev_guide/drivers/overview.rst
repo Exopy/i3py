@@ -185,7 +185,7 @@ Actions can also be attached to a subsystems:
 .. codeblock::
 
     class MyDriver(VisaMessageDriver):
-        """My driver (suppporting *IDN?) docstring.
+        """My driver (supporting *IDN?) docstring.
 
         """
 

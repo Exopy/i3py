@@ -15,7 +15,7 @@ from .abstracts import (AbstractChannel, AbstractChannelContainer,
 from .utils import check_options
 
 
-class ChannelContainer(AbstractChannelContainer):
+class ChannelContainer(object):
     """Default container storing references to the instrument channels.
 
     Note that is the responsability of the user to check that a channel is
@@ -45,8 +45,16 @@ class ChannelContainer(AbstractChannelContainer):
         self._channels = {}
         self._name = name
         self._parent = parent
-        self._aliases = aliases
         self._list = list_available
+        self._aliases = {}
+        # So far aliases map ch_ids to possible aliases. To identify an alias
+        # we need to invert this mapping.
+        for k, v in aliases.items():
+            if isinstance(v, (tuple, list)):
+                for nk in v:
+                    self._aliases[nk] = k
+            else:
+                self._aliases[v] = k
 
     @property
     def available(self):
@@ -69,6 +77,11 @@ class ChannelContainer(AbstractChannelContainer):
         if ch_id in self._channels:
             return self._channels[ch_id]
 
+        chs = self.available
+        if ch_id not in chs:
+            msg = f'{ch_id} is not listed among the available channels: {chs}'
+            raise KeyError(msg)
+
         parent = self._parent
         ch = self._cls(parent, ch_id,
                        caching_allowed=parent._use_cache
@@ -79,6 +92,9 @@ class ChannelContainer(AbstractChannelContainer):
     def __iter__(self):
         for id in self.available:
             yield self[id]
+
+
+AbstractChannelContainer.register(ChannelContainer)
 
 
 class Channel(SubSystem):

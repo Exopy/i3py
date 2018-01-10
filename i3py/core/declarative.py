@@ -316,8 +316,8 @@ class channel(SubpartDecl):
         on the driver.
 
     aliases : dict, optional
-        Dictionary providing aliases for channels ids. Aliases can be simple
-        values, list or tuple.
+        Dictionary mapping channel ids to their allowed aliases. Aliases can be
+        simple values, list or tuple.
 
     container_type : type, optional
         Container type to use to store channels.
@@ -332,7 +332,6 @@ class channel(SubpartDecl):
         Booelan tests on options to execute before creating the subpart.
         Multiple assertion can be separated with ';'. The options can be
         accessed under their name directly:
-
 
     descriptor_type : type
         Class to use as descriptor for this subpart. Should be a sunclass of

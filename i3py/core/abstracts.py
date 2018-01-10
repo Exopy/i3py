@@ -86,7 +86,7 @@ class AbstractChannelContainer(ABC):
         """
         pass
 
-    @abstractproperty
+    @abstractmethod
     def __getitem__(self, ch_id):
         pass
 

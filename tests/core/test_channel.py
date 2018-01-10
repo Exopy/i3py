@@ -41,7 +41,7 @@ class ChParent2(DummyParent):
 
 class ChParent3(DummyParent):
 
-    ch = channel(('a',), aliases={0: 'a'})
+    ch = channel(('a',), aliases={'a': 0, 'b': 1})
 
 
 class ChOptionsParent(DummyDriver):
@@ -147,6 +147,14 @@ def test_listing_aliases():
 def test_access_through_alias():
     a = ChParent3()
     assert a.ch['a'] is a.ch[0]
+
+
+def test_accessing_non_existing_channel():
+    a = ChParent3()
+    with pytest.raises(KeyError):
+        a.ch['b']
+    with pytest.raises(KeyError):
+        a.ch[1]
 
 
 def test_ch_options():

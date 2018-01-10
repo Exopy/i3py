@@ -31,12 +31,12 @@ I3py drivers are organized along the following concepts:
 - the "driver" is at the highest level, it is responsible for handling the
   communication with the physical instrument.
 - the parameters of the instrument that can be read and possibly set by the
-  user, and whose value does not change spontaneouly (any measured quantity
-  typically falls outside this category) are decribed using "features", which
-  are advanced and higly customizable descriptors (ie properties, please refer
+  user, and whose value does not change spontaneously (any measured quantity
+  typically falls outside this category) are described using "features", which
+  are advanced and highly customizable descriptors (ie properties, please refer
   to Python documentation if you do not know what a property is).
 - the operations that an instrument can perform (such as a measure), are
-  decribed using an "action" that is a simple wrapper around a method. It
+  described using an "action" that is a simple wrapper around a method. It
   provides optionally some validation/conversion of the argument and return
   values.
 - finally drivers can be structured in "subsystems" and multiple channels or
@@ -62,7 +62,7 @@ and all the 'standards' your instrument supports.
 .. codeblock::
 
     class MyDriver(VisaMessageDriver, IEEEIdentify):
-        """My driver (suppporting *IDN?) docstring.
+        """My driver (supporting *IDN?) docstring.
 
         """
         pass
@@ -88,7 +88,7 @@ For more details about what are standards and how to use them please refer to
 Adding a Feature
 ----------------
 
-A Feature describes a property lof the instrument, that, as already mentionned
+A Feature describes a property of the instrument, that, as already mentioned
 does not change in a spontaneous way. This restriction comes from the fact that
 the values of features are cached. They can and should be discarded when some
 other setting of the driver is modified, but not in a spontaneous manner.
@@ -99,7 +99,7 @@ a Feature subclass to an identifier. As illustrated in the example below :
 .. codeblock::
 
     class MyDriver(VisaMessageDriver, IEEEIdentify):
-        """My driver (suppporting *IDN?) docstring.
+        """My driver (supporting *IDN?) docstring.
 
         """
         mode = Unicode('MODE?', 'MODE {}', values=('CW', 'PULSED'))
@@ -121,7 +121,7 @@ arguments values.
 .. codeblock::
 
     class MyNewDriver(MyDriver):
-        """My driver (suppporting *IDN?) docstring.
+        """My driver (supporting *IDN?) docstring.
 
         """
         mode = set_feat(values=('CW', 'PULSED', 'TRIGGERED'))
@@ -155,7 +155,7 @@ one, you only have to declare a method:
 
 The above ewample shows how to check the value of an argument is valid.
 
-The detailed working of actions is decribed in :ref:`dev_driv_actions` section.
+The detailed working of actions is described in :ref:`dev_driv_actions` section.
 Just like  features several classes of actions exist and are describe in the
 API. Actions support advanced customization just like features which are
 described in section :ref:`dev_driv_advanced`
@@ -171,7 +171,7 @@ features such as amplitude and frequency as shown below:
 .. codeblock::
 
     class MyDriver(VisaMessageDriver):
-        """My driver (suppporting *IDN?) docstring.
+        """My driver (supporting *IDN?) docstring.
 
         """
 

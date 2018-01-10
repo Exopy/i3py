@@ -109,7 +109,11 @@ declaration and on the working principle of options and checks.
     Features working in subsystems
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     
-    .. todo:: explain how get/set work
+    In order for features to work in subsystems, subsystems implement:
+    |HasFeatures.default_get_feature|, |HasFeatures.default_set_feature|, 
+    |HasFeatures.default_check_operation|. As a subsystem is nothing but a 
+    container, it simply propagate the call to its parent, without altering the
+    arguments.
 
 Channels
 --------
@@ -209,6 +213,16 @@ Channels
     Features working in channels
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     
-    .. todo:: explain how get/set work
+    In order for features to work in channels, channels implement:
+    |HasFeatures.default_get_feature|, |HasFeatures.default_set_feature|, 
+    |HasFeatures.default_check_operation|. In the case of the first two
+    methods, a channel add its id under the keyword argument `ch_id` to the 
+    keyword arguments and propagate the call the parent driver. For the third 
+    method the call is simply forwarded on the parent.
 
-
+    The default behavior is well fitted for VISA messaged based instrument when
+    the channel id is part of the command as in this case things work out the 
+    box. The user simply has to indicate where to format the channel id, as 
+    illustrated in the above example. For instrument that requires first the 
+    channel to be selected, it is simply a matter of overriding the method 
+    to prepend the channel selection command.

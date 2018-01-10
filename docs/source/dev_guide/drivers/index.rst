@@ -28,6 +28,5 @@ of I3py and help you tackle more challenging driver designs.
     features
     actions
     channels_subsystems
-    options
     advanced_customizing
     standards    

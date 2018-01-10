@@ -161,7 +161,9 @@ Channels
     
     When subclassing a driver which has channels, if no channels ids are 
     provided the method used on the parent driver will be inherited, and the 
-    aliases mapping will be updated with any new value provided.
+    aliases mapping will be updated with any new value provided (note that this
+    will use the provided dict to update the inherited one such that duplicate
+    keys will be overridden).
     
     .. note::
     
@@ -171,7 +173,38 @@ Channels
     Usage
     ^^^^^
     
+    As explained in the user guide, channel instances can be accessed using the
+    following syntax:
     
+    .. codeblock::
+    
+        driver.channels[ch_id]
+        
+    where `ch_id` would 1, 2, 3 or any of their aliases in the previous case. 
+
+    To achieve this and allow to check for options too, the channel machinery 
+    uses, like subsystems, a descriptor to protect the access to the object 
+    storing the channel instances, which we will refer to as the channel 
+    container. To make things clear, when writing:
+    
+    .. codeblock::
+    
+        c = driver.channels
+        
+    c is the channel container returned by the descriptor. In addition to 
+    supporting subscription, the container is iterable and has the following 
+    attributes:
+    
+    - available: list of the ids of the channels that can be accessed.
+    - aliases: mapping between the declared aliases and the matching channel 
+      id.    
+    
+    By default, the framework will use |ChannelDescriptor| for the 
+    descriptor and |ChannelContainer| for the channel container. Just like for 
+    subsystems, it is possible to substitute to those classes custom ones using 
+    the `descriptor_type` and the `container_type` keyword arguments. The 
+    substitution classes should inherit from the proper abstract classes:
+    |AbstractChannelDescriptor| and |AbstractChannelContainer| respectively.
     
     Features working in channels
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^

@@ -245,6 +245,6 @@ separated by ; .
 	properly configured fall outside the scope of options and should be
 	inhibited if necessary using the 'checks' mechanism that exists on
 	features, actions, subsystems and channels.
-	
+
 For more details please refer to the API documentation or to the dedicated
 section of the documentation about options :ref:`dev_driv_options`.

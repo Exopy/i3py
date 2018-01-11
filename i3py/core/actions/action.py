@@ -234,8 +234,7 @@ class BaseAction(AbstractAction, SupportMethodCustomization):
         return result
 
     def customize_call(self, func, kwargs):
-        """Store the function in call attributes and customize pre/post based
-        on the kwargs.
+        """Store the function in call attributes.
 
         """
         self.call = func

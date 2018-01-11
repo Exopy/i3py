@@ -306,10 +306,10 @@ class customize(AbstractMethodCustomizer):
     Parameters
     ----------
     desc_name : str
-        Name of the descriptor to customize.
+        Name of the object to customize.
 
     meth_name : str
-        Name of the method of the descriptor to customize.
+        Name of the method of the object to customize.
 
     specifiers : tuple, optional
         Tuple describing the modification. If ommitted the function will simply

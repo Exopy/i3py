@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # -----------------------------------------------------------------------------
-# Copyright 2016-2017 by I3py Authors, see AUTHORS for more details.
+# Copyright 2016-2018 by I3py Authors, see AUTHORS for more details.
 #
 # Distributed under the terms of the BSD license.
 #
@@ -8,8 +8,8 @@
 # -----------------------------------------------------------------------------
 """HasFeatures is the most basic object in I3py.
 
-It handles the use of Features, Subsystem, and Channel and the possibility
-to customize Feature behaviour by defining specially named methods.
+It handles the use of Features, Actions, Subsystem, and Channel and the
+possibility to customize Feature and Action behaviours.
 
 """
 import logging

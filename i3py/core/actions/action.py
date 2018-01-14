@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # -----------------------------------------------------------------------------
-# Copyright 2016-2017 by I3py Authors, see AUTHORS for more details.
+# Copyright 2016-2018 by I3py Authors, see AUTHORS for more details.
 #
 # Distributed under the terms of the BSD license.
 #
@@ -473,11 +473,11 @@ class Action(BaseAction):
                 raise ValueError(msg % name)
             if isinstance(lims, (list, tuple)):
                 if any([isinstance(e, float) for e in lims]):
-                    l = FloatLimitsValidator(*lims)
+                    lim = FloatLimitsValidator(*lims)
                 else:
-                    l = IntLimitsValidator(*lims)
+                    lim = IntLimitsValidator(*lims)
 
-                validators[name] = partial(validate_limits, limits=l,
+                validators[name] = partial(validate_limits, limits=lim,
                                            name=name)
 
             elif isinstance(lims, str):

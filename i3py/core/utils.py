@@ -173,6 +173,28 @@ def raise_limits_error(name, value, limits):
         mess += ' Step {}.'.format(limits.step)
     raise I3pyLimitsError(mess)
 
+    
+def register_names_from_names_and_length(names, length):
+    """
+    """
+    if isinstance(names, dict):
+        aux = list(range(length))
+        for n, i in names.items():
+            aux[i] = n
+        register_names = aux
+
+    else:
+        register_names = list(names)
+        if len(names) != length:
+            raise ValueError('Register necessitates %d names' % length)
+
+        # Makes sure every key is unique by using the bit index if None is
+        # found
+        for i, n in enumerate(names[:]):
+            register_names[i] = n or i
+            
+     return regsiter_names
+    
 
 def byte_to_dict(byte, mapping):
     """Convert a byte to a dictionary.
@@ -188,7 +210,7 @@ def byte_to_dict(byte, mapping):
 
     """
     def bit_conversion(x, i):
-            return bool(x & (1 << i))
+        return bool(x & (1 << i))
 
     return OrderedDict((n or i, bit_conversion(byte, i))
                        for i, n in enumerate(mapping))

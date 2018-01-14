@@ -10,6 +10,6 @@
 
 """
 from .action import AbstractAction, Action
-#from .register_action import RegisterAction
+from .register_action import RegisterAction
 
 __all__ = ['AbstractAction', 'Action', 'RegisterAction']

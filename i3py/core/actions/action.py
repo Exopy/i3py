@@ -238,6 +238,19 @@ class BaseAction(AbstractAction, SupportMethodCustomization):
 
         """
         self.call = func
+       
+        if 'checks' in kwargs:
+            sig = normalize_signature(self.sig, alias='driver')
+            check_sig = ('(action' +
+                         (', ' + ', '.join(sig) if sig else '') + ')')
+            check_args = build_checker(kwargs['checks'], check_sig)
+
+            def checker_wrapper(action, driver, *args, **kwargs):
+                check_args(action, driver, *args, **kwargs)
+                return args, kwargs
+
+            self.modify_behavior('pre_call', checker_wrapper,
+                                 ('append',), 'checks', internal=True)
 
     def analyse_function(self, meth_name, func, specifiers):
         """Analyse the possibility to use a function for a method.

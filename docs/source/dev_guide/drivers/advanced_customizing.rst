@@ -56,7 +56,8 @@ customizing a feature and 'action' for actions, for the sake of clarity.
 .. note::
 
     As the exact signature of the action, may be painful to emulate one can use
-    instead `(action, driver, *args, **kwargs)`.
+    instead `(action, driver, *args, **kwargs)` for pre_call and 
+    `(action, driver, result, *args, **kwargs)` for post_call.
 
 As this mechanism is quite advanced, it is picky and one must be careful when
 using it. First, as already mentioned, the signature must be an exact match

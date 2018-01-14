@@ -171,7 +171,14 @@ utilities. The following list illustrates them:
 
 .. note::
 
-	.. todo:: add special description for Register
+	The |Register| is a specialized feature which can be used to get and set 
+    the value of a binary register such as the ones commonly used by VISA based 
+    instrument. It takes two special arguments:
+    - names: a list of names describing each bit in order (from least 
+      significant to most significant) or a dictionary mapping each name to the
+      bit it describe.
+    - length: the length of the register (8 by default but some instrument use
+      16 bits register).
 
 
 Flexible getter/setter

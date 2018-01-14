@@ -45,20 +45,12 @@ class HasFeatures(object):
     #: retries value)
     retries_exceptions = ()
 
-    # XXX copy docs from abstracts
-    #:
+    #: The following class attributes are documented on the
+    #: AbstractHasFeatures class in i3py.core.abstracts
     __feats__ = {}
-
-    #:
     __actions__ = {}
-
-    #:
     __subsystems__ = {}
-
-    #:
     __channels__ = {}
-
-    #:
     __limits__ = {}
 
     @classmethod
@@ -176,11 +168,11 @@ class HasFeatures(object):
             else:
                 doc = ''
                 for line in lines:
-                    l = line.strip()
-                    if l.startswith('#:'):
-                        doc += ' ' + l[2:].strip()
-                    elif ' = ' in l:
-                        attr_name = l.split(' = ', 1)[0]
+                    line = line.strip()
+                    if line.startswith('#:'):
+                        doc += ' ' + line[2:].strip()
+                    elif ' = ' in line:
+                        attr_name = line.split(' = ', 1)[0]
                         docs[attr_name] = doc.strip()
                         doc = ''
 

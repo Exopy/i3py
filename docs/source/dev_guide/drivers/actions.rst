@@ -15,6 +15,13 @@ an Action and how they can be customized using the different arguments it
 takes. Even more advanced customizations are possible and will be described in
 their own part :ref:`dev_driv_advanced`.
 
+.. note:: 
+
+    If some cases, an action may start an operation that the instrument will 
+    take a long time to process. In such a case it is best to return an 
+    |InstrJob| object that can be used at the appropriate time to wait for 
+    completion than to block for a long time.
+
 Working principle
 -----------------
 
@@ -67,3 +74,14 @@ utilities. The following list illustrates them:
       allowed and optionally the resolution that the feature can take. In the
       case of a str, the string specifies the named limit to use (see
       :ref:`dev_driv_features` about defining limits).
+      
+.. note::
+
+    The |RegisterAction| is a specialized action which can be used to read the 
+    value of a binary register such as the ones commonly used by VISA based 
+    instrument. It takes two arguments:
+    - names: a list of names describing each bit in order (from least 
+      significant to most significant) or a dictionary mapping each name to the
+      bit it describe.
+    - length: the length of the register (8 by default but some instrument use
+      16 bits register).

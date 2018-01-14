@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # -----------------------------------------------------------------------------
-# Copyright 2016-2017 by I3py Authors, see AUTHORS for more details.
+# Copyright 2016-2018 by I3py Authors, see AUTHORS for more details.
 #
 # Distributed under the terms of the BSD license.
 #
@@ -16,20 +16,25 @@ class AbstractHasFeatures(ABC):
     """Sentinel class for the collections of Features.
 
     """
-    # XXX document
-    #:
+    #: Dictionary containing all the features of the class by name. The values
+    #: are instances of AbstractFeature.
     __feats__ = {}
 
-    #:
+    #: Dictionary containing all the actions of the class by name. The values
+    #: are instances of AbstractAction.
     __actions__ = {}
 
-    #:
+    #: Dictionary containing all the subsystems of the class by name. The 
+    #: values are subclasses of AbstractSubSystem.
     __subsystems__ = {}
 
-    #:
+    #: Dictionary containing all the channels of the class by name. The 
+    #: values are subclasses of AbstractChannel.
     __channels__ = {}
 
-    #:
+    #: Dictionary containing all the limits of the class by name. The 
+    #: values are the methods, decorated by limit, and in charge of creating
+    #: the limit object.
     __limits__ = {}
 
 

@@ -85,6 +85,13 @@ methods:
 For more details about what are standards and how to use them please refer to
 :ref:`dev_driv_standards`
 
+.. note::
+
+    To simplify the handling of changes to driver over time I3py recommend to
+    add a class variable `__version__` to all drivers. The format of this
+    variable should be the one of a usual version string:
+    MAJOR.MINOR.MICRO
+
 Adding a Feature
 ----------------
 

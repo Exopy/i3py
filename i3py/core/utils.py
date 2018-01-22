@@ -130,6 +130,7 @@ def check_options(driver_or_options, option_values):
 
 
 # The next three function take all driver as first argument for homogeneity.
+# This allows to use them nearly as is to modify Feature or Action
 
 def validate_in(driver, value, values, name):
     """Assert that a value is in a container.
@@ -173,9 +174,25 @@ def raise_limits_error(name, value, limits):
         mess += ' Step {}.'.format(limits.step)
     raise I3pyLimitsError(mess)
 
-    
+
 def register_names_from_names_and_length(names, length):
-    """
+    """Create a list of names to match a bit field of given length.
+
+    Parameters
+    ----------
+    names : dict | list
+        Mapping between the field names and their index or list of names.
+        In the case of a list its length must match length.
+
+    length : int
+        Number of fields in the bit field.
+
+    Returns
+    -------
+    register_names : list
+        List of names for the bit field fields. Missing are replaced by their
+        index (as an int).
+
     """
     if isinstance(names, dict):
         aux = list(range(length))
@@ -192,9 +209,9 @@ def register_names_from_names_and_length(names, length):
         # found
         for i, n in enumerate(names[:]):
             register_names[i] = n or i
-            
-     return regsiter_names
-    
+
+    return register_names
+
 
 def byte_to_dict(byte, mapping):
     """Convert a byte to a dictionary.

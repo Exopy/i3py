@@ -36,7 +36,7 @@ class ChannelContainer(object):
         Function to call to query the list of available channels.
 
     aliases : dict
-        Dict mapping aliases names to the real channel id to use.
+        Dict mapping channel ids to aliases names.
 
     """
 

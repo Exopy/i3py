@@ -10,7 +10,8 @@
 
 """
 from .feature import Feature
-from ..utils import byte_to_dict, dict_to_byte
+from ..utils import (byte_to_dict, dict_to_byte,
+                     register_names_from_names_and_length)
 
 
 class Register(Feature):
@@ -22,9 +23,9 @@ class Register(Feature):
         Names to associate to each bit fields from 0 to length-1. When using an
         iterable None can be used to mark a useless bit. When using a dict
         the values are used to specify the bits to consider.
-        
+
     length : int, optional
-        Length of the bit field. Should be a multiple of 8. 8 is the default 
+        Length of the bit field. Should be a multiple of 8. 8 is the default
         value.
 
     """

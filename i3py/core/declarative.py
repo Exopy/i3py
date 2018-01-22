@@ -436,8 +436,11 @@ class set_feat(object):
         kwargs.update(self.custom_attrs)
         new = cls(**kwargs)
         new.copy_custom_behaviors(feat)
+        new.name = feat.name
+        new.__doc__ = feat.__doc__
 
         return new
+
 
 AbstractFeatureModifier.register(set_feat)
 
@@ -467,6 +470,8 @@ class set_action(object):
 
         new(action.func)
         new.copy_custom_behaviors(action)
+        new.name = action.name
+        new.__doc__ = action.__doc__
 
         return new
 

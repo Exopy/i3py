@@ -9,7 +9,6 @@
 """Module dedicated to testing the scalars features.
 
 """
-# XXX test respect of settings
 from pytest import raises, mark
 
 from i3py.core.composition import customize
@@ -389,3 +388,24 @@ class TestFloat(object):
         parent.val = 1
         parent.fl = 0.2
         assert parent.val == 1
+
+    @mark.skipif(UNIT_SUPPORT is False, reason="Requires Pint")
+    def test_settings_support(self):
+        """Test that we respect the unit return setting.
+
+        """
+        parent = UnitCacheFloatTester()
+        ureg = get_unit_registry()
+        parent.val = 0.2
+        assert parent.val == 0.2
+        assert parent.fl == ureg.parse_expression('0.2 V')
+
+        with parent.temporary_setting('fl', 'unit_return', False):
+            print(parent, parent._settings)
+            assert parent.fl == 0.2
+
+        parent.clear_cache()
+        with parent.temporary_setting('fl', 'unit_return', False):
+            print(parent, parent._settings)
+            assert parent.fl == 0.2
+        assert parent.fl == ureg.parse_expression('0.2 V')

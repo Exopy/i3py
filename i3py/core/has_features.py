@@ -250,8 +250,8 @@ class HasFeatures(object):
         for base, owned in ((base_feats, feats), (base_actions, actions)):
             for k, v in ((k, v) for k, v in base.items() if k not in owned):
                 clone = v.clone()
-                setattr(cls, k, clone)
                 owned[k] = clone
+                setattr(cls, k, clone)
 
         # Add the special statically defined behaviours for the
         # features/actions.
@@ -460,6 +460,17 @@ class HasFeatures(object):
         Names starting with an underscore are considered privet and cannot be
         set.
 
+        Parameters
+        ----------
+        name : str
+            Name of the attribute whose settings should be altered.
+
+        key : str
+            Setting whose value should be modified.
+
+        value : Any
+            New value to assign to the setting.
+
         """
         settings = self._settings[name]
         if key.startswith('_'):
@@ -471,6 +482,17 @@ class HasFeatures(object):
     @contextmanager
     def temporary_setting(self, name, key, value):
         """Temporary set a setting.
+
+        Parameters
+        ----------
+        name : str
+            Name of the attribute whose settings should be altered.
+
+        key : str
+            Setting whose value should be modified.
+
+        value : Any
+            New value to assign to the setting.
 
         """
         old_val = self._settings[name][key]

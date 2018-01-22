@@ -15,7 +15,6 @@ from .mapping import Mapping
 from ..unit import get_unit_registry, UNIT_SUPPORT, UNIT_RETURN
 from ..utils import raise_limits_error
 from ..limits import IntLimitsValidator, FloatLimitsValidator
-from .feature import set_chain, get_chain
 
 if UNIT_SUPPORT:
     from pint.quantity import _Quantity
@@ -129,7 +128,8 @@ class Float(LimitsValidated, Mapping, Enumerable):
 
         """
         fval = float(value)
-        if self.unit and driver._settings[self.name]['unit_return']:
+        if (self.unit is not None and
+                driver._settings[self.name]['unit_return']):
             return fval*self.unit
 
         else:
@@ -159,44 +159,31 @@ class Float(LimitsValidated, Mapping, Enumerable):
         else:
             return value
 
-    def _set(self, driver, value):
-        """Float setter, adapted to store both raw value and value with unit
-        in the cache.
-
+    def _read_cache(self, driver, cache, name):
+        """Read the cache and return a value in agreement with the settings.
 
         """
-        with driver.lock:
-            cache = driver._cache
-            name = self.name
-            if name in cache and value in cache[name]:
-                return
+        if (UNIT_SUPPORT and self.unit is not None and
+                not driver._settings[name]['unit_return']):
+            return cache[name][0]
+        else:
+            return cache[name][-1]
 
-            set_chain(self, driver, value)
-
-            if driver._use_cache:
-                if UNIT_SUPPORT and self.unit:
-                    if isinstance(value, _Quantity):
-                        value = (value.magnitude, value)
-                    else:
-                        value = (value, value*self.unit)
-                else:
-                    value = (value,)
-                cache[name] = value
-
-    def _get(self, driver):
-        """Float getter adapted to the specific Float caching
+    def _is_value_cached(self, driver, cache, name, value):
+        """Check if the proposed value is among the cached values.
 
         """
-        with driver.lock:
-            cache = driver._cache
-            name = self.name
-            if name in cache:
-                return cache[name][-1]
+        return name in cache and value in cache[name]
 
-            val = get_chain(self, driver)
-            if driver._use_cache:
-                if UNIT_SUPPORT and self.unit:
-                    cache[name] = (val.magnitude, val)
-                else:
-                    cache[name] = (val,)
-            return val
+    def _fill_cache(self, driver, cache, name, value):
+        """Set both magntitude and quantity in cache.
+
+        """
+        if UNIT_SUPPORT and self.unit is not None:
+            if isinstance(value, _Quantity):
+                value = (value.magnitude, value)
+            else:
+                value = (value, value*self.unit)
+        else:
+            value = (value,)
+        cache[name] = value

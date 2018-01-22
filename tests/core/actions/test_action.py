@@ -9,10 +9,9 @@
 """Module dedicated to testing action behavior.
 
 """
-# XXX test respect of settings
 from pytest import mark, raises
 
-from i3py.core import limit, customize
+from i3py.core import limit, customize, subsystem
 from i3py.core.actions import Action
 from i3py.core.limits import IntLimitsValidator
 from i3py.core.unit import UNIT_SUPPORT, get_unit_registry
@@ -37,6 +36,24 @@ def test_naked_action():
 
     dummy = Dummy()
     assert dummy.test() is Dummy
+
+
+def test_erroring_action():
+    """Ensure that an action erroring generate a readable traceback.
+
+    """
+    class Dummy(DummyParent):
+
+        @Action()
+        def test(self):
+            raise RuntimeError()
+
+    dummy = Dummy()
+    with raises(I3pyFailedCall) as e:
+        dummy.test()
+
+    print(e.getrepr())
+    assert str(e.getrepr()).strip().startswith('def __call__')
 
 
 def test_handling_double_decoration():
@@ -67,17 +84,22 @@ def test_options_action():
         def _get(feat, driver):
             return {'test': driver._test_}
 
-        @Action(options='op["test"]')
-        def test(self):
-            return type(self)
+        sub = subsystem()
+
+        with sub as ss:
+
+            @ss
+            @Action(options='op["test"]')
+            def test(self):
+                return type(self)
 
     a = Dummy()
-    assert a.test
+    assert a.sub.test
 
     Dummy._test_ = False
     b = Dummy()
     with raises(AttributeError):
-        b.test
+        b.sub.test
 
 
 def test_values_action():
@@ -195,6 +217,8 @@ def test_action_with_unit():
     assert dummy.test(2, ureg.parse_expression('3000 mA')) ==\
         ureg.parse_expression('6 V')
 
+    # Ensure that we respect the default for the setting as defined by
+    # UNIT_RETURn.
     from i3py.core.actions import action
 
     try:
@@ -212,6 +236,11 @@ def test_action_with_unit():
         action.UNIT_RETURN = True
 
     assert dummy.test(2, 3) == 6
+
+    # Ensure we respect the dynamically set setting.
+    with dummy.temporary_setting('test', 'unit_return', True):
+        assert dummy.test(2, ureg.parse_expression('3000 mA')) ==\
+            ureg.parse_expression('6 V')
 
     with raises(ValueError):
 
@@ -238,11 +267,11 @@ def test_action_with_checks():
     assert dummy.test(3, 2) == 6
     with raises(I3pyFailedCall) as e:
         dummy.test(2, 2)
-        assert isinstance(e.__cause__, AssertionError)
+    assert isinstance(e.value.__cause__, AssertionError)
 
     with raises(I3pyFailedCall) as e:
         dummy.test(3, -1)
-        assert isinstance(e.__cause__, AssertionError)
+    assert isinstance(e.value.__cause__, AssertionError)
 
 
 def test_analyse_function():

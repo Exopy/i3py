@@ -94,6 +94,8 @@ class Feature(SupportMethodCustomization, AbstractFeature):
         self._setter = setter
         self._retries = retries
         self._customs = {}
+        self.__doc__ = ''
+        self.name = ''
 
         self.creation_kwargs = {'getter': getter, 'setter': setter,
                                 'retries': retries, 'checks': checks,
@@ -364,6 +366,7 @@ class Feature(SupportMethodCustomization, AbstractFeature):
         """
         new = type(self)(**self.creation_kwargs)
         new.copy_custom_behaviors(self)
+        new.name = self.name
         new.__doc__ = self.__doc__
 
         return new
@@ -451,11 +454,11 @@ class Feature(SupportMethodCustomization, AbstractFeature):
                 cache = driver._cache
                 name = self.name
                 if name in cache:
-                    return cache[name]
+                    return self._read_cache(driver, cache, name)
 
                 val = get_chain(self, driver)
                 if driver._use_cache:
-                    cache[name] = val
+                    self._fill_cache(driver, cache, name, val)
 
                 return val
         except I3pyFailedGet:
@@ -481,12 +484,12 @@ class Feature(SupportMethodCustomization, AbstractFeature):
             with driver.lock:
                 cache = driver._cache
                 name = self.name
-                if name in cache and value == cache[name]:
+                if self._is_value_cached(driver, cache, name, value):
                     return
 
                 set_chain(self, driver, value)
                 if driver._use_cache:
-                    cache[name] = value
+                    self._fill_cache(driver, cache, name, value)
         except I3pyFailedSet:
             raise  # pragma: no cover
         except Exception as e:
@@ -501,6 +504,27 @@ class Feature(SupportMethodCustomization, AbstractFeature):
 
         """
         driver.clear_cache(features=(self.name,))
+
+    @staticmethod
+    def _read_cache(driver, cache, name):
+        """Return the value stored in the cache.
+
+        """
+        return cache[name]
+
+    @staticmethod
+    def _is_value_cached(driver, cache, name, value):
+        """Check if a value is cached, which means set is supefluous.
+
+        """
+        return name in cache and value == cache[name]
+
+    @staticmethod
+    def _fill_cache(driver, cache, name, value):
+        """Fill the cache value.
+
+        """
+        cache[name] = value
 
 
 def get_chain(feat, driver):

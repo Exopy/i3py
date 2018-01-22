@@ -152,6 +152,8 @@ class BaseAction(AbstractAction, SupportMethodCustomization):
         new = type(self)(**self.creation_kwargs)
         new(self.func)
         new.copy_custom_behaviors(self)
+        new.__doc__ = self.__doc__
+        new.name = self.name
         return new
 
     def create_default_settings(self):
@@ -238,7 +240,7 @@ class BaseAction(AbstractAction, SupportMethodCustomization):
 
         """
         self.call = func
-       
+
         if 'checks' in kwargs:
             sig = normalize_signature(self.sig, alias='driver')
             check_sig = ('(action' +
@@ -399,19 +401,6 @@ class Action(BaseAction):
         if 'limits' in kwargs or 'values' in kwargs:
             self.add_values_limits_validation(kwargs.get('values', {}),
                                               kwargs.get('limits', {}))
-
-        if 'checks' in kwargs:
-            sig = normalize_signature(self.sig, alias='driver')
-            check_sig = ('(action' +
-                         (', ' + ', '.join(sig) if sig else '') + ')')
-            check_args = build_checker(kwargs['checks'], check_sig)
-
-            def checker_wrapper(action, driver, *args, **kwargs):
-                check_args(action, driver, *args, **kwargs)
-                return args, kwargs
-
-            self.modify_behavior('pre_call', checker_wrapper,
-                                 ('append',), 'checks', internal=True)
 
         if UNIT_SUPPORT and 'units' in kwargs:
             self.add_unit_support(kwargs['units'])

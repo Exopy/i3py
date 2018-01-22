@@ -25,9 +25,10 @@ class Bool(Mapping):
 
     """
     def __init__(self, getter=None, setter=None, mapping=None, aliases=None,
-                 extract='', retries=0, checks=None, discard=None, ):
+                 extract='', retries=0, checks=None, discard=None,
+                 options=None):
         Mapping.__init__(self, getter, setter, mapping, extract,
-                         retries, checks, discard)
+                         retries, checks, discard, options)
 
         self._aliases = {True: True, False: False}
         if aliases:

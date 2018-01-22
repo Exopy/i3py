@@ -7,6 +7,16 @@
 .. I3py substitutions
 .. ============================================================================
 
+.. |AbstractSubSystemDescriptor| replace:: :py:class:`i3py.core.abstract.AbstractSubSystemDescriptor`
+
+.. |AbstractSubSystem| replace:: :py:class:`~i3py.core.abstract.AbstractSubSystem`
+
+.. |AbstractChannelDescriptor| replace:: :py:class:`i3py.core.abstract.AbstractChannelDescriptor`
+
+.. |AbstractChannelContainer| replace:: :py:class:`~i3py.core.abstract.AbstractChannelContainer`
+
+.. |AbstractGetSetFactory| replace:: :py:class:`~i3py.core.abstracts.AbstractGetSetFactory`
+
 .. |HasFeatures| replace:: :py:class:`~i3py.core.has_features.HasFeatures`
 
 .. |HasFeatures.default_get_feature| replace:: :py:meth:`~i3py.core.has_features.HasFeatures.default_get_feature`
@@ -23,11 +33,19 @@
 
 .. |set_action| replace:: :py:class:`~i3py.core.declarative.set_action`
 
+.. |limits| replace:: :py:func:`~i3py.core.declarative.limit`
+
+.. |customize| replace:: :py:class:`~i3py.core.composition.customize`
+
+.. MethodComposer replace:: :py:class:`~i3py.core.composition.MethodComposer`
+
 .. |I3pyFailedGet| replace:: :py:class:`~i3py.core.errors.I3pyFailedGet`
 
 .. |I3pyFailedSet| replace:: :py:class:`~i3py.core.errors.I3pyFailedSet`
 
 .. |I3pyFailedCall| replace:: :py:class:`~i3py.core.errors.I3pyFailedCall`
+
+.. |Feature| replace:: :py:class:`~i3py.core.features.feature.Feature`
 
 .. |Feature.pre_get| replace:: :py:method:`~i3py.core.features.feature.Feature.pre_get`
 
@@ -40,3 +58,35 @@
 .. |Feature.set| replace:: :py:method:`~i3py.core.features.feature.Feature.set`
 
 .. |Feature.post_set| replace:: :py:method:`~i3py.core.features.feature.Feature.post_set`
+
+.. |Options| replace:: :py:class:`~i3py.core.features.options.Options`
+
+.. |Str| replace:: :py:class:`~i3py.core.features.scalars.Str`
+
+.. |Int| replace:: :py:class:`~i3py.core.features.scalars.Int`
+
+.. |Float| replace:: :py:class:`~i3py.core.features.scalars.Float`
+
+.. |Bool| replace:: :py:class:`~i3py.core.features.bool.Bool`
+
+.. |Alias| replace:: :py:class:`~i3py.core.features.alias.Alias`
+
+.. |BaseAction| replace:: :py:class:`~i3py.core.actions.action.BaseAction`
+
+.. |BaseAction.pre_call| replace:: :py:method:`~i3py.core.actions.action.BaseAction.pre_call`
+
+.. |BaseAction.call| replace:: :py:method:`~i3py.core.actions.action.BaseAction.call`
+
+.. |BaseAction.post_call| replace:: :py:method:`~i3py.core.actions.action.BaseAction.post_call`
+
+.. |Action| replace:: :py:class:`~i3py.core.actions.action.Action`
+
+.. |RegisterAction| replace:: :py:class:`~i3py.core.actions.register_action.RegisterAction`
+
+.. |SubSystemDescriptor| replace:: :py:class:`i3py.core.subsystem.SubSystemDescriptor`
+
+.. |ChannelDescriptor| replace:: :py:class:`i3py.core.base_channel.ChannelDescriptor`
+
+.. |ChannelContainer| replace:: :py:class:`~i3py.core.base_channel.ChannelContainer`
+
+.. |InstrJob| replace:: :py:class:`~i3py.core.job.InstrJob`

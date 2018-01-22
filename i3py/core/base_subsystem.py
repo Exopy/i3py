@@ -9,25 +9,12 @@
 """Subsystems can be used to give a hierarchical organisation to a driver.
 
 """
-from .abstracts import AbstractSubSystem
-from .has_features import HasFeaturesMeta, HasFeatures
+from .abstracts import AbstractSubSystem, AbstractSubSystemDescriptor
+from .has_features import HasFeatures
+from .utils import check_options
 
 
-class DeclarationMeta(HasFeaturesMeta):
-    """Metaclass used to avoid creating an instance in classes declaration.
-
-    """
-    def __call__(self, *args, **kwargs):
-        """ Create a new instance only if a parent is passed as first argument.
-
-        """
-        if not args:
-            return self
-        else:
-            return super(DeclarationMeta, self).__call__(*args, **kwargs)
-
-
-class SubSystem(HasFeatures, metaclass=DeclarationMeta):
+class SubSystem(HasFeatures):
     """SubSystem allow to split the implementation of a driver into multiple
     parts.
 
@@ -75,3 +62,39 @@ class SubSystem(HasFeatures, metaclass=DeclarationMeta):
                                                    response)
 
 AbstractSubSystem.register(SubSystem)
+
+
+class SubSystemDescriptor(object):
+    """Descriptor giving access to a subsytem.
+
+    The subsystem is returned only if the proper conditions are matched
+    in terms of static options (as specified through the options of the
+    subsystem declarator).
+
+    """
+    __slots__ = ('cls', 'name', 'options')
+
+    def __init__(self, cls, name, options):
+        self.cls = cls
+        self.name = name
+        self.options = options
+
+    def __get__(self, instance, cls):
+        if instance is None:
+            return self.cls
+        else:
+            if self.name not in instance._subsystem_instances:
+                if self.options:
+                    test, msg = check_options(instance, self.options)
+                    if not test:
+                        ex_msg = ('%s is not accessible with instrument '
+                                  'options: %s')
+                        raise AttributeError(ex_msg % (self.name, msg))
+
+                ss = self.cls(parent=instance)
+                instance._subsystem_instances[self.name] = ss
+
+            return instance._subsystem_instances[self.name]
+
+
+AbstractSubSystemDescriptor.register(SubSystemDescriptor)

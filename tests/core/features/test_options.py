@@ -1,15 +1,21 @@
 # -*- coding: utf-8 -*-
 # -----------------------------------------------------------------------------
-# Copyright 2016-2017 by I3py Authors, see AUTHORS for more details.
+# Copyright 2017 by I3py Authors, see AUTHORS for more details.
 #
 # Distributed under the terms of the BSD license.
 #
 # The full license is in the file LICENCE, distributed with this software.
 # -----------------------------------------------------------------------------
-"""Actions are used to wrap method and mark them as acting on the instrument.
+"""Module dedicated to testing the Options feature.
 
 """
-from .action import AbstractAction, Action
-from .register_action import RegisterAction
+from pytest import raises
 
-__all__ = ['AbstractAction', 'Action', 'RegisterAction']
+from i3py.core.features import Options
+
+
+def test_handling_wrong_args():
+    """Check that we do not accept
+    """
+    with raises(ValueError):
+        Options(setter=True)

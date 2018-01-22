@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # -----------------------------------------------------------------------------
-# Copyright 2016-2017 by I3py Authors, see AUTHORS for more details.
+# Copyright 2016-2018 by I3py Authors, see AUTHORS for more details.
 #
 # Distributed under the terms of the BSD license.
 #
@@ -10,20 +10,19 @@
 
 """
 from functools import partial
-
-from funcsigs import signature
+from inspect import signature, currentframe
 
 from ..errors import I3pyFailedCall
 from ..abstracts import AbstractAction
 from ..composition import SupportMethodCustomization, normalize_signature
 from ..limits import IntLimitsValidator, FloatLimitsValidator
 from ..unit import UNIT_SUPPORT, UNIT_RETURN, get_unit_registry
-from ..util import (build_checker, validate_in, validate_limits,
-                    get_limits_and_validate)
+from ..utils import (build_checker, validate_in, validate_limits,
+                     get_limits_and_validate, check_options,
+                     update_function_lineno)
 
 
-# XXX Action does not support kwargs only arguments
-
+LINENO = currentframe().f_lineno
 
 CALL_TEMPLATE = ("""
     def __call__(self{sig}):
@@ -43,14 +42,20 @@ CALL_TEMPLATE = ("""
 """)
 
 
-class MetaActionCall(type):
-    """Metaclass for action call object offering custom instantiation.
+class ActionCall(object):
+    """Object returned when an Action is used as descriptor.
+
+    Actually when an Action is used to decorate a function a custom subclass
+    of this class is created with a __call__ method whose signature match the
+    decorated function signature.
 
     """
+    __slots__ = ('action', 'driver')
+
     #: Dict storing custom class for each signature
     sigs = {}
 
-    def __call__(cls, action, driver):
+    def __new__(cls, action, driver):
         """Create a custom subclass for each signature action.
 
         Parameters
@@ -67,13 +72,13 @@ class MetaActionCall(type):
             cls.sigs[sig] = cls.create_callable(action, sig)
 
         custom_type = cls.sigs[sig]
-        return super(MetaActionCall, custom_type).__call__(action, driver)
+        return object.__new__(custom_type)
 
+    @classmethod
     def create_callable(cls, action, sig):
         """Dynamically create a subclass of ActionCall for a signature.
 
         """
-        print(sig, sig[1:], ', '.join(sig[1:]))
         name = '{}ActionCall'.format(action.name)
         # Should store sig on class attribute
         decl = ('class {name}(ActionCall):\n' +
@@ -82,70 +87,33 @@ class MetaActionCall(type):
                          sig=', ' + ', '.join(sig[1:]))
         glob = dict(ActionCall=ActionCall,
                     I3pyFailedCall=I3pyFailedCall)
-        exec(decl, glob)
-        return glob[name]
 
+        # Consider that this file is the source of the function
+        code = compile(decl, __file__, 'exec')
+        exec(code, glob)
+        cls = glob[name]
 
-class ActionCall(object, metaclass=MetaActionCall):
-    """Object returned when an Action is used as descriptor.
+        # Set the lineno to point to the string source.
+        update_function_lineno(cls.__call__, LINENO + 3)
 
-    Actually when an Action is used to decorate a function a custom subclass
-    of this class is created with a __call__ method whose signature match the
-    decorated function signature.
-
-    """
-    __slots__ = ('action', 'driver')
+        return cls
 
     def __init__(self, action, driver):
         self.action = action
         self.driver = driver
 
 
-class Action(AbstractAction, SupportMethodCustomization):
+class BaseAction(AbstractAction, SupportMethodCustomization):
     """Wraps a method with pre and post processing operations.
-
-    All parameters must be passed as keyword arguments.
-
-    All public driver methods should be decorated as an Action to make them
-    easy to identify and hence make instrospection easier.
-
-    Parameters
-    ----------
-    units : tuple, optional
-        Tuple of length 2 containing the return unit and the unit of each
-        passed argument. None can be used to mark that an argument should not
-        be converted. The first argument (self) should always be marked this
-        way.
-
-    checks : unicode, optional
-        Booelan tests to execute before calling the function. Multiple
-        assertions can be separated with ';'. All the methods argument are
-        available in the assertion execution namespace so one can access to the
-        driver using self and to the arguments using their name (the signature
-        of the wrapper is made to match the signature of the wrapped method).
-
-    values : dict, optional
-        Dictionary mapping the arguments names to their allowed values.
-
-    limits : dict, optional
-        Dictionary mapping the arguments names to their allowed limits. Limits
-        can a be a tuple of length 2, or 3 (min, max, step) or the name of
-        the limits to use to check the input.
-
-    Notes
-    -----
-    A single argument should be value checked or limit checked but not both,
-    unit conversion is performed before anything else. When limit validating
-    against a driver limits the parameter should ALWAYS be converted to the
-    same unit as the one used by the limits.
 
     """
     def __init__(self, **kwargs):
-        super(Action, self).__init__()
+        super().__init__()
         self.name = ''
         self.func = None
         self.creation_kwargs = kwargs
         self._desc = None
+        self._use_options = bool(kwargs.get('options', False))
 
     def __call__(self, func):
         if self.func:
@@ -154,18 +122,48 @@ class Action(AbstractAction, SupportMethodCustomization):
         self.__doc__ = func.__doc__
         self.sig = signature(func)
         self.func = func
-        self.name = func.__name__
+        self.name = self.__name__ = func.__name__
         self.customize_call(func, self.creation_kwargs)
         return self
 
     def __get__(self, obj, objtype=None):
         if obj is None:
             return self
+
+        if self._use_options is True:
+            op, msg = obj._settings[self.name]['_options']
+            if op is None:
+                op, msg = check_options(obj, self.creation_kwargs['options'])
+                obj._settings[self.name]['_options'] = op
+
+            if not op:
+                raise AttributeError('Invalid options: %s' % msg)
+
         if self._desc is None:
             # A specialized class matching the wrapped function signature is
             # created on the fly.
             self._desc = ActionCall(self, obj)
         return self._desc
+
+    def clone(self):
+        """Create a clone of itself.
+
+        """
+        new = type(self)(**self.creation_kwargs)
+        new(self.func)
+        new.copy_custom_behaviors(self)
+        new.__doc__ = self.__doc__
+        new.name = self.name
+        return new
+
+    def create_default_settings(self):
+        """Create the default settings for an action.
+
+        """
+        settings = {}
+        if self._use_options:
+            settings['_options'] = (None, '')
+        return settings
 
     def pre_call(self, driver, *args, **kwargs):
         """Method called before calling the decorated function.
@@ -238,15 +236,10 @@ class Action(AbstractAction, SupportMethodCustomization):
         return result
 
     def customize_call(self, func, kwargs):
-        """Store the function in call attributes and customize pre/post based
-        on the kwargs.
+        """Store the function in call attributes.
 
         """
         self.call = func
-
-        if 'limits' in kwargs or 'values' in kwargs:
-            self.add_values_limits_validation(kwargs.get('values', {}),
-                                              kwargs.get('limits', {}))
 
         if 'checks' in kwargs:
             sig = normalize_signature(self.sig, alias='driver')
@@ -261,15 +254,12 @@ class Action(AbstractAction, SupportMethodCustomization):
             self.modify_behavior('pre_call', checker_wrapper,
                                  ('append',), 'checks', internal=True)
 
-        if UNIT_SUPPORT and 'units' in kwargs:
-            self.add_unit_support(kwargs['units'])
-
     def analyse_function(self, meth_name, func, specifiers):
         """Analyse the possibility to use a function for a method.
 
         Parameters
         ----------
-        meth_name : unicode
+        meth_name : str
             Name of the method that should be customized using the provided
             function.
 
@@ -288,7 +278,7 @@ class Action(AbstractAction, SupportMethodCustomization):
         signatures : list
             List of signatures that should be supported by a composer.
 
-        chain_on : unicode
+        chain_on : str
             Comma separated list of functions arguments that are also values
             returned by the function.
 
@@ -315,9 +305,7 @@ class Action(AbstractAction, SupportMethodCustomization):
             sigs = [('action', 'driver', '*args', '**kwargs'), act_sig]
             chain_on = 'args, kwargs'
             # The base version of pre_call is no-op so we can directly replace
-            # Python 2/3 compatibility hack.
-            original = getattr(Action.pre_call, '__func__', Action.pre_call)
-            if self.pre_call.__func__ is original:
+            if self.pre_call.__func__ is Action.pre_call:
                 specifiers = ()
 
         elif meth_name == 'post_call':
@@ -325,8 +313,7 @@ class Action(AbstractAction, SupportMethodCustomization):
                     ('action', 'driver', 'result') + act_sig[2:]]
             chain_on = 'result'
             # The base version of post_call is no-op so we can directly replace
-            original = getattr(Action.post_call, '__func__', Action.post_call)
-            if self.post_call.__func__ is original:
+            if self.post_call.__func__ is Action.post_call:
                 specifiers = ()
 
         else:
@@ -351,6 +338,72 @@ class Action(AbstractAction, SupportMethodCustomization):
 
         """
         return 'driver'
+
+
+class Action(BaseAction):
+    """Wraps a method with pre and post processing operations.
+
+    All parameters must be passed as keyword arguments.
+
+    All public driver methods should be decorated as an Action to make them
+    easy to identify and hence make instrospection easier.
+
+    Parameters
+    ----------
+    options : str, optional
+        Assertions in the form option_name['option_field'] == possible_values
+        or any other valid boolean test. Multiple assertions can be separated
+        by ;
+
+    checks : str, optional
+        Booelan tests to execute before calling the function. Multiple
+        assertions can be separated with ';'. All the method arguments are
+        available in the assertion execution namespace so one can access to the
+        driver using self and to the arguments using their name (the signature
+        of the wrapper is made to match the signature of the wrapped method).
+
+    values : dict, optional
+        Dictionary mapping the arguments names to their allowed values.
+
+    limits : dict, optional
+        Dictionary mapping the arguments names to their allowed limits. Limits
+        can a be a tuple of length 2, or 3 (min, max, step) or the name of
+        the limits to use to check the input.
+
+    units : tuple, optional
+        Tuple of length 2 containing the return unit and the unit of each
+        passed argument. None can be used to mark that an argument should not
+        be converted. The first argument (self) should always be marked this
+        way.
+
+    Notes
+    -----
+    A single argument should be value checked or limit checked but not both,
+    unit conversion is performed before anything else. When limit validating
+    against a driver limits the parameter should ALWAYS be converted to the
+    same unit as the one used by the limits.
+
+    """
+    def create_default_settings(self):
+        """Create the default settings for an action.
+
+        """
+        settings = super().create_default_settings()
+        settings['unit_return'] = UNIT_RETURN
+        return settings
+
+    def customize_call(self, func, kwargs):
+        """Store the function in call attributes and customize pre/post based
+        on the kwargs.
+
+        """
+        super().customize_call(func, kwargs)
+        if 'limits' in kwargs or 'values' in kwargs:
+            self.add_values_limits_validation(kwargs.get('values', {}),
+                                              kwargs.get('limits', {}))
+
+        if UNIT_SUPPORT and 'units' in kwargs:
+            self.add_unit_support(kwargs['units'])
 
     def add_unit_support(self, units):
         """Wrap a func using Pint to automatically convert Quantity to float.
@@ -377,13 +430,12 @@ class Action(AbstractAction, SupportMethodCustomization):
         self.modify_behavior('pre_call', convert_input, ('prepend',), 'units',
                              internal=True)
 
-        if not UNIT_RETURN:
-            return
-
         def convert_output(action, driver, result, *args, **kwargs):
             """Convert the output to the proper units.
 
             """
+            if not driver._settings[self.name]['unit_return']:
+                return result
             re_units = units[0]
             is_container = isinstance(re_units, (tuple, list))
             if not is_container:
@@ -423,11 +475,11 @@ class Action(AbstractAction, SupportMethodCustomization):
                 raise ValueError(msg % name)
             if isinstance(lims, (list, tuple)):
                 if any([isinstance(e, float) for e in lims]):
-                    l = FloatLimitsValidator(*lims)
+                    lim = FloatLimitsValidator(*lims)
                 else:
-                    l = IntLimitsValidator(*lims)
+                    lim = IntLimitsValidator(*lims)
 
-                validators[name] = partial(validate_limits, limits=l,
+                validators[name] = partial(validate_limits, limits=lim,
                                            name=name)
 
             elif isinstance(lims, str):

@@ -26,11 +26,10 @@ setup(
         'Natural Language :: English',
         'Operating System :: OS Independent',
         'Topic :: Scientific/Engineering :: Physics',
-        'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
         ],
     zip_safe=False,
     packages=find_packages(exclude=['tests', 'tests.*']),
-    requires=['pyvisa', 'funcsigs', 'stringparser'],
-    install_requires=['funcsigs', 'stringparser'],
+    requires=['stringparser'],
+    install_requires=['stringparser'],
 )

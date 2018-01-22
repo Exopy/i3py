@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # -----------------------------------------------------------------------------
-# Copyright 2016-2017 by I3py Authors, see AUTHORS for more details.
+# Copyright 2016-2018 by I3py Authors, see AUTHORS for more details.
 #
 # Distributed under the terms of the BSD license.
 #
@@ -8,28 +8,57 @@
 # -----------------------------------------------------------------------------
 """HasFeatures is the most basic object in I3py.
 
-It handles the use of Features, Subsystem, and Channel and the possibility
-to customize Feature behaviour by defining specially named methods.
+It handles the use of Features, Actions, Subsystem, and Channel and the
+possibility to customize Feature and Action behaviours.
 
 """
 import logging
 from inspect import getsourcelines
 from itertools import chain
-from abc import ABCMeta
 from collections import defaultdict
+from contextlib import contextmanager
 
 from .abstracts import (AbstractHasFeatures, AbstractFeature, AbstractAction,
-                        AbstractMethodCustomizer)
-from .declarative import (set_feat, set_action, SubpartDecl, subsystem,
-                          channel, limit)
+                        AbstractMethodCustomizer, AbstractActionModifier,
+                        AbstractFeatureModifier, AbstractSubpartDeclarator,
+                        AbstractSubSystemDeclarator, AbstractChannelDeclarator,
+                        AbstractLimitDeclarator)
+from .errors import I3pyFailedGet, I3pyFailedSet, I3pyFailedCall
 
 
-class HasFeaturesMeta(ABCMeta):
-    """ Metaclass handling Feature customisation, subsystems registration...
+def check_enabling(name, driver, exc_type):
+    """Check if the driver is enabled.
 
     """
-    def __new__(meta, name, bases, namespace, **kwds):
-        # Pass over the class dict once and collect the information
+    if not driver._enabled_:
+        msg = '{} cannot be accessed for {}'
+        raise exc_type(msg.format(name,
+                                  driver)) from driver._enabled_error_
+
+
+class HasFeatures(object):
+    """Base class for objects using the Features mechanisms.
+
+    """
+    #: Tuple of exception to consider when securing a communication (either via
+    #: secure_communication decorator or for features with a non zero
+    #: retries value)
+    retries_exceptions = ()
+
+    #: The following class attributes are documented on the
+    #: AbstractHasFeatures class in i3py.core.abstracts
+    __feats__ = {}
+    __actions__ = {}
+    __subsystems__ = {}
+    __channels__ = {}
+    __limits__ = {}
+
+    @classmethod
+    def __init_subclass__(cls, **kwargs):
+
+        super().__init_subclass__(**kwargs)
+
+        # Pass over the class dict and collect the information
         # necessary to implement the various behaviours.
         feats = {}                       # Feature declarations
         actions = {}                     # Action declarations
@@ -41,17 +70,28 @@ class HasFeaturesMeta(ABCMeta):
         m_customizers = {}               # Sentinels customizing methods.
         limits = {}                      # Defined limits.
 
-        docs = namespace.pop('_docs_') if '_docs_' in namespace else None
+        # Get the class dictionary
+        namespace = cls.__dict__
+
+        # Identify whether the class can be disbaled at runtime
+        rt_enabling = '_enabled_' in namespace
+
+        if '_docs_' in namespace:
+            docs = namespace['_docs_']
+            del cls._docs_
+        else:
+            docs = None
 
         # First we identify all subparts and keep only keys which are not
         # knwown aliases.
         subparts = {k: v for k, v in namespace.items()
-                    if isinstance(v, SubpartDecl) and k not in v._aliases_}
+                    if (isinstance(v, AbstractSubpartDeclarator) and
+                        k not in v._aliases_)}
         # Then we clean the namespace
         for s_name, subpart in subparts.items():
             subpart._name_ = s_name
             subparts[s_name] = subpart
-            subpart.clean_namespace(namespace)
+            subpart.clean_namespace(cls)
 
         # Names that should be removed from the class body
         to_remove = set()
@@ -63,36 +103,57 @@ class HasFeaturesMeta(ABCMeta):
             if isinstance(value, AbstractFeature):
                 feats[key] = value
                 value.name = key
+                # If the subpart can be disabled at runtime add the proper
+                # checks
+                if rt_enabling:
+                    value.modify_behavior('pre_get',
+                                          lambda feat, driver:
+                                              check_enabling(key, driver,
+                                                             I3pyFailedGet),
+                                          ('prepend',), 'enabling')
+                    value.modify_behavior('pre_set',
+                                          lambda feat, driver, value:
+                                              check_enabling(key, driver,
+                                                             I3pyFailedSet),
+                                          ('prepend',), 'enabling')
 
             elif isinstance(value, AbstractAction):
                 actions[key] = value
-                value.name = name
+                value.name = key
+                # If the subpart can be disabled at runtime add the proper
+                # checks
+                if rt_enabling:
+                    def _check(action, driver, *args, **kwargs):
+                        check_enabling(key, driver, I3pyFailedCall)
+                        return args, kwargs
+                    value.modify_behavior('pre_call', _check,
+                                          ('prepend',), 'enabling')
 
-            elif isinstance(value, set_feat):
+            elif isinstance(value, AbstractFeatureModifier):
                 feat_paras[key] = value
 
-            elif isinstance(value, set_action):
+            elif isinstance(value, AbstractActionModifier):
                 action_paras[key] = value
 
             elif isinstance(value, AbstractMethodCustomizer):
                 m_customizers[key] = value
 
-            elif isinstance(value, limit):
+            elif isinstance(value, AbstractLimitDeclarator):
                 to_remove.add(key)
                 limit_id = value.name
                 limits[limit_id] = value.func
 
         # Clean up class dictionary.
         for k in chain(feat_paras, action_paras, m_customizers, to_remove):
-            del namespace[k]
+            delattr(cls, k)
 
-        # Create the class object.
-        cls = super(HasFeaturesMeta, meta).__new__(meta, name, bases,
-                                                   namespace, **kwds)
-
-        # Purge the list of base classes (for the most base class object is
-        # present)
-        bases = [b for b in bases if issubclass(b, AbstractHasFeatures)]
+        # Get the base classes for this class from the mro, excluding
+        # classes more basic than AbstractHasFeatures
+        bases = ()
+        for base_cls in cls.__mro__[1:]:
+            if (issubclass(base_cls, AbstractHasFeatures) and
+                    not (issubclass(base_cls, bases))):
+                bases += (base_cls,)
 
         # Analyse the source code to find the doc for the defined Features.
         # This will work as long as two subpart are not aliased in the same
@@ -107,23 +168,23 @@ class HasFeaturesMeta(ABCMeta):
             else:
                 doc = ''
                 for line in lines:
-                    l = line.strip()
-                    if l.startswith('#:'):
-                        doc += ' ' + l[2:].strip()
-                    elif ' = ' in l:
-                        attr_name = l.split(' = ', 1)[0]
+                    line = line.strip()
+                    if line.startswith('#:'):
+                        doc += ' ' + line[2:].strip()
+                    elif ' = ' in line:
+                        attr_name = line.split(' = ', 1)[0]
                         docs[attr_name] = doc.strip()
                         doc = ''
 
         # Make the feature build their docs from the provided docstrings.
-        for f in feats:
-            if f in docs:
-                feats[f].make_doc(docs[f])
+        for f in [f for f in feats if f in docs]:
+            feats[f].make_doc(docs[f])
 
-        # Handle the subparts by creating dynamic subclasses.
-        inherited_ss = dict([(k, v) for b in bases
+        # Collect the subsystems and channels in reversed order to preseve
+        # the mro overriding
+        inherited_ss = dict([(k, v) for b in reversed(bases)
                              for k, v in b.__subsystems__.items()])
-        inherited_ch = dict([(k, v) for b in bases
+        inherited_ch = dict([(k, v) for b in reversed(bases)
                              for k, v in b.__channels__.items()])
 
         # Create subsystem and channels classes
@@ -131,30 +192,25 @@ class HasFeaturesMeta(ABCMeta):
             if not hasattr(part, 'retries_exceptions'):
                 part.retries_exceptions = cls.retries_exceptions
             # If a subpart with the same name has already been declared on a
-            # parent class we use its class as a base class for the one we are
-            # about to create.
+            # parent class we update the declaration with the old one and
+            # use its class as a base class for the one we are about to create.
             if part_name in inherited_ss:
-                subsystems[part_name] = part.build_cls(name,
-                                                       inherited_ss[part_name],
-                                                       docs)
-            elif part_name in inherited_ch:
-                ch_cls = part.build_cls(name, inherited_ch[part_name],
-                                        docs)
+                old_cls = inherited_ss[part_name]
+                part.update_from_ancestor(old_cls._declaration_)
+                subsystems[part_name] = part.build_cls(cls, old_cls, docs)
 
-                # Must be valid otherwise parent declaration would be messed up
-                inherited_part = inherited_ch[part_name]._part_
-                part._available_ = (part._available_ or
-                                    inherited_part._available_)
-                part._ch_aliases_ = (part._ch_aliases_ or
-                                     inherited_part._ch_aliases_)
+            elif part_name in inherited_ch:
+                old_cls = inherited_ch[part_name]
+                part.update_from_ancestor(old_cls._declaration_)
+                ch_cls = part.build_cls(cls, old_cls, docs)
                 channels[part_name] = ch_cls
 
             else:
-                if isinstance(part, subsystem):
-                    subsystems[part_name] = part.build_cls(name, None,
+                if isinstance(part, AbstractSubSystemDeclarator):
+                    subsystems[part_name] = part.build_cls(cls, None,
                                                            docs)
-                elif isinstance(part, channel):
-                    ch_cls = part.build_cls(name, None, docs)
+                elif isinstance(part, AbstractChannelDeclarator):
+                    ch_cls = part.build_cls(cls, None, docs)
                     if not part._available_:
                         msg = 'No way to identify available channels for {}'
                         raise ValueError(msg.format(part_name))
@@ -162,9 +218,9 @@ class HasFeaturesMeta(ABCMeta):
 
         # Put references to the subsystem and channel classes on the class.
         for k, v in subsystems.items():
-            setattr(cls, k, v)
+            setattr(cls, k, subparts[k].build_descriptor(k, v))
         for k, v in channels.items():
-            setattr(cls, k, v)
+            setattr(cls, k, subparts[k].build_descriptor(k, v))
 
         inherited_ss.update(subsystems)
         subsystems = inherited_ss
@@ -185,19 +241,17 @@ class HasFeaturesMeta(ABCMeta):
         # reverse update preserves the mro of overridden features and actions.
         base_feats = {}
         base_actions = {}
-        for base in reversed(cls.__mro__[1:]):
-            if base is not AbstractHasFeatures \
-                    and issubclass(base, AbstractHasFeatures):
-                base_feats.update(base.__feats__)
-                base_actions.update(base.__actions__)
+        for base in reversed(bases):
+            base_feats.update(base.__feats__)
+            base_actions.update(base.__actions__)
 
         # Clone all features/actions not owned at this stage and keep a
         # reference to it in the proper dict.
         for base, owned in ((base_feats, feats), (base_actions, actions)):
             for k, v in ((k, v) for k, v in base.items() if k not in owned):
                 clone = v.clone()
-                setattr(cls, k, clone)
                 owned[k] = clone
+                setattr(cls, k, clone)
 
         # Add the special statically defined behaviours for the
         # features/actions.
@@ -220,46 +274,43 @@ class HasFeaturesMeta(ABCMeta):
         # Put a reference to the limits in the class.
         cls.__limits__ = limits
 
-        return cls
-
-
-class HasFeatures(object, metaclass=HasFeaturesMeta):
-    """Base class for objects using the Features mechanisms.
-
-    """
-    #: Tuple of exception to consider when securing a communication (either via
-    #: secure_communication decorator or for features with a non zero
-    #: retries value)
-    retries_exceptions = ()
+    __slots__ = ('_cache', '_settings', '_limits_cache',
+                 '_subsystem_instances', '_channel_container_instances',
+                 '_use_cache', '__dict__', '__weakref__',
+                 '_enabled_error_')
 
     def __init__(self, caching_allowed=True):
 
+        # Cache for features values.
         self._cache = {}
+
+        # Parameters for features and actions.
+        self._settings = {f_a.name: f_a.create_default_settings()
+                          for f_a in chain(self.__feats__.values(),
+                                           self.__actions__.values())}
+
+        # Cache for the computed limits
         self._limits_cache = {}
 
-        subsystems = self.__subsystems__
-        channels = self.__channels__
+        if self.__subsystems__:
+            self._subsystem_instances = {}
+        if self.__channels__:
+            self._channel_container_instances = {}
 
-        self.use_cache = caching_allowed
+        # Set enabled to true if the framework has not already set it to a
+        # descriptor. In this case the framework optimize out the checking
+        # of the values in Action and properties.
+        if '_enabled_' not in dir(self):
+            self._enabled_ = True
 
-        # Initializing subsystems.
-        for ss, cls in subsystems.items():
-            subsystem = cls(self, caching_allowed=caching_allowed)
-            setattr(self, ss, subsystem)
-
-        # Creating a channel container for each kind of declared channels.
-        for ch, cls in channels.items():
-            listing_function = cls._part_.build_list_channel_function()
-            ch_holder = cls._container_type_(cls, self, ch, listing_function,
-                                             cls._part_._ch_aliases_)
-            setattr(self, ch, ch_holder)
+        self._use_cache = caching_allowed
 
     def get_feat(self, name):
         """ Acces the feature matching the given name.
 
         Parameters
         ----------
-        name : unicode
+        name : str
             Name of the Feature to be retrieved
 
         Returns
@@ -320,11 +371,11 @@ class HasFeatures(object, metaclass=HasFeaturesMeta):
             self._cache = {}
             if subsystems:
                 for ss in self.__subsystems__:
-                    getattr(self, ss).clear_cache(channels=channels)
+                    getattr(self, ss).clear_cache(subsystems, channels)
             if channels and self.__channels__:
                 for chs in self.__channels__:
                     for ch in getattr(self, chs):
-                        ch.clear_cache(subsystems)
+                        ch.clear_cache(subsystems, channels)
 
     def check_cache(self, subsystems=True, channels=True, features=None):
         """Return the value of the cache of the object.
@@ -390,6 +441,66 @@ class HasFeatures(object, metaclass=HasFeaturesMeta):
                         ch_cache[ch] = channel_cont[ch]._cache.copy()
 
         return cache
+
+    def read_settings(self, name):
+        """Read the values of the publicly available settings.
+
+        Parameters
+        ----------
+        name : str
+            Name of the Feature/Action whose settings to recover
+
+        """
+        return {k: v for k, v in self._settings[name].items()
+                if not k[0] == '_'}
+
+    def set_setting(self, name, key, value):
+        """Set the value of a settings.
+
+        Names starting with an underscore are considered privet and cannot be
+        set.
+
+        Parameters
+        ----------
+        name : str
+            Name of the attribute whose settings should be altered.
+
+        key : str
+            Setting whose value should be modified.
+
+        value : Any
+            New value to assign to the setting.
+
+        """
+        settings = self._settings[name]
+        if key.startswith('_'):
+            raise KeyError('Cannot set private setting.')
+        elif key not in settings:
+            raise KeyError('Setting does not exist.')
+        settings[key] = value
+
+    @contextmanager
+    def temporary_setting(self, name, key, value):
+        """Temporary set a setting.
+
+        Parameters
+        ----------
+        name : str
+            Name of the attribute whose settings should be altered.
+
+        key : str
+            Setting whose value should be modified.
+
+        value : Any
+            New value to assign to the setting.
+
+        """
+        old_val = self._settings[name][key]
+        self.set_setting(name, key, value)
+        try:
+            yield
+        finally:
+            self.set_setting(name, key, old_val)
 
     @property
     def declared_limits(self):

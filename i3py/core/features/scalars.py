@@ -13,21 +13,20 @@ from .enumerable import Enumerable
 from .limits_validated import LimitsValidated
 from .mapping import Mapping
 from ..unit import get_unit_registry, UNIT_SUPPORT, UNIT_RETURN
-from ..util import raise_limits_error
+from ..utils import raise_limits_error
 from ..limits import IntLimitsValidator, FloatLimitsValidator
-from .feature import set_chain, get_chain
 
 if UNIT_SUPPORT:
     from pint.quantity import _Quantity
 
 
-class Unicode(Mapping, Enumerable):
-    """ Feature casting the instrument answer to a unicode, support
-    enumeration.
+class Str(Mapping, Enumerable):
+    """ Feature casting the instrument answer to a str, support enumeration.
 
     """
     def __init__(self, getter=None, setter=None, values=(), mapping=None,
-                 extract='', retries=0, checks=None, discard=None):
+                 extract='', retries=0, checks=None, discard=None,
+                 options=None):
 
         if mapping:
             Mapping.__init__(self, getter, setter, mapping, extract,
@@ -36,10 +35,10 @@ class Unicode(Mapping, Enumerable):
             Enumerable.__init__(self, getter, setter, values, extract,
                                 retries, checks, discard)
 
-        self.modify_behavior('post_get', self.cast_to_unicode.__func__,
-                             ('append',), 'cast_to_unicode', True)
+        self.modify_behavior('post_get', self.cast_to_str.__func__,
+                             ('append',), 'cast_to_str', True)
 
-    def cast_to_unicode(self, driver, value):
+    def cast_to_str(self, driver, value):
         return str(value)
 
 
@@ -51,7 +50,7 @@ class Int(LimitsValidated, Mapping, Enumerable):
     """
     def __init__(self, getter=None, setter=None, values=(), mapping=None,
                  limits=None, extract='', retries=0, checks=None,
-                 discard=None):
+                 discard=None, options=None):
         if mapping:
             Mapping.__init__(self, getter, setter, mapping, extract,
                              retries, checks, discard)
@@ -85,18 +84,18 @@ class Float(LimitsValidated, Mapping, Enumerable):
     """
     def __init__(self, getter=None, setter=None, values=(), mapping=None,
                  limits=None, unit=None, extract='', retries=0, checks=None,
-                 discard=None):
+                 discard=None, options=None):
         if mapping:
             Mapping.__init__(self, getter, setter, mapping, extract,
-                             retries, checks, discard)
+                             retries, checks, discard, options)
         elif values and not limits:
             Enumerable.__init__(self, getter, setter, values, extract,
-                                retries, checks, discard)
+                                retries, checks, discard, options)
         else:
             if isinstance(limits, (tuple, list)):
                 limits = FloatLimitsValidator(*limits, unit=unit)
             LimitsValidated.__init__(self, getter, setter, limits, extract,
-                                     retries, checks, discard)
+                                     retries, checks, discard, options)
 
         if UNIT_SUPPORT and unit:
             ureg = get_unit_registry()
@@ -116,12 +115,21 @@ class Float(LimitsValidated, Mapping, Enumerable):
         self.modify_behavior('post_get', self.cast_to_float.__func__,
                              ('append',), 'cast', True)
 
+    def create_default_settings(self):
+        """Create the default settings for a feature.
+
+        """
+        settings = super().create_default_settings()
+        settings['unit_return'] = UNIT_RETURN
+        return settings
+
     def cast_to_float(self, driver, value):
         """Cast the value returned by the instrument to float or Quantity.
 
         """
         fval = float(value)
-        if self.unit and UNIT_RETURN:
+        if (self.unit is not None and
+                driver._settings[self.name]['unit_return']):
             return fval*self.unit
 
         else:
@@ -151,44 +159,31 @@ class Float(LimitsValidated, Mapping, Enumerable):
         else:
             return value
 
-    def _set(self, driver, value):
-        """Float setter, adapted to store both raw value and value with unit
-        in the cache.
-
+    def _read_cache(self, driver, cache, name):
+        """Read the cache and return a value in agreement with the settings.
 
         """
-        with driver.lock:
-            cache = driver._cache
-            name = self.name
-            if name in cache and value in cache[name]:
-                return
+        if (UNIT_SUPPORT and self.unit is not None and
+                not driver._settings[name]['unit_return']):
+            return cache[name][0]
+        else:
+            return cache[name][-1]
 
-            set_chain(self, driver, value)
-
-            if driver.use_cache:
-                if UNIT_SUPPORT and self.unit:
-                    if isinstance(value, _Quantity):
-                        value = (value.magnitude, value)
-                    else:
-                        value = (value, value*self.unit)
-                else:
-                    value = (value,)
-                cache[name] = value
-
-    def _get(self, driver):
-        """Float getter adapted to the specific Float caching
+    def _is_value_cached(self, driver, cache, name, value):
+        """Check if the proposed value is among the cached values.
 
         """
-        with driver.lock:
-            cache = driver._cache
-            name = self.name
-            if name in cache:
-                return cache[name][-1]
+        return name in cache and value in cache[name]
 
-            val = get_chain(self, driver)
-            if driver.use_cache:
-                if UNIT_SUPPORT and self.unit:
-                    cache[name] = (val.magnitude, val)
-                else:
-                    cache[name] = (val,)
-            return val
+    def _fill_cache(self, driver, cache, name, value):
+        """Set both magntitude and quantity in cache.
+
+        """
+        if UNIT_SUPPORT and self.unit is not None:
+            if isinstance(value, _Quantity):
+                value = (value.magnitude, value)
+            else:
+                value = (value, value*self.unit)
+        else:
+            value = (value,)
+        cache[name] = value

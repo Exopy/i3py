@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # -----------------------------------------------------------------------------
-# Copyright 2016-2017 by I3py Authors, see AUTHORS for more details.
+# Copyright 2016-2018 by I3py Authors, see AUTHORS for more details.
 #
 # Distributed under the terms of the BSD license.
 #
@@ -9,13 +9,37 @@
 """Abstract classes used in I3py.
 
 """
-from abc import ABCMeta, abstractmethod, abstractproperty
-
-from abc import ABC
+from abc import ABC, abstractmethod, abstractproperty
 
 
 class AbstractHasFeatures(ABC):
     """Sentinel class for the collections of Features.
+
+    """
+    #: Dictionary containing all the features of the class by name. The values
+    #: are instances of AbstractFeature.
+    __feats__ = {}
+
+    #: Dictionary containing all the actions of the class by name. The values
+    #: are instances of AbstractAction.
+    __actions__ = {}
+
+    #: Dictionary containing all the subsystems of the class by name. The 
+    #: values are subclasses of AbstractSubSystem.
+    __subsystems__ = {}
+
+    #: Dictionary containing all the channels of the class by name. The 
+    #: values are subclasses of AbstractChannel.
+    __channels__ = {}
+
+    #: Dictionary containing all the limits of the class by name. The 
+    #: values are the methods, decorated by limit, and in charge of creating
+    #: the limit object.
+    __limits__ = {}
+
+
+class AbstractBaseDriver(ABC):
+    """Sentinel class for the identification of a driver.
 
     """
     pass
@@ -27,7 +51,15 @@ class AbstractSubSystem(ABC):
     """
     pass
 
+
 AbstractHasFeatures.register(AbstractSubSystem)
+
+
+class AbstractSubSystemDescriptor(property, ABC):
+    """Abstract subsystem descriptor.
+
+    """
+    pass
 
 
 class AbstractChannel(ABC):
@@ -46,35 +78,130 @@ class AbstractChannelContainer(ABC):
 
     """
     @abstractproperty
-    def available(self):
+    def available(self) -> list:
         """List the available channels (the aliases are not listed).
 
         """
         pass
 
     @abstractproperty
-    def aliases(self):
+    def aliases(self) -> list:
         """List the aliases.
 
         """
         pass
 
-    @abstractproperty
+    @abstractmethod
     def __getitem__(self, ch_id):
         pass
 
+    @abstractmethod
     def __iter__(self):
-        for id in self.available:
-            yield self[id]
+        pass
+
+
+class AbstractChannelDescriptor(property, ABC):
+    """Abstract subsystem descriptor.
+
+    """
+    pass
+
+
+class AbstractSubpartDeclarator(ABC):
+    """Sentinel for subpart declaration in a class body.
+
+    See declarative.SubpartDecl for the interface definition.
+
+    """
+    pass
+
+
+class AbstractSubSystemDeclarator(AbstractSubpartDeclarator):
+    """Sentinel for subsystem declaration in a class body.
+
+    See declarative.subsystem for the interface definition.
+
+    """
+
+    @abstractmethod
+    def clean_namespace(self, cls_dict: dict):
+        """Remove all inner names if the value is the one seen.
+
+        Parameters
+        ----------
+        cls_dict : dict
+            Dictionary from which to remove names belonging only to the
+            subpart.
+
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def build_cls(self, parent_name: str, base: type,
+                  docs: dict) -> AbstractSubSystem:
+        """Build a class based declared base classes and attributes.
+
+        Parameters
+        ----------
+        parent_name : str
+            Name of the parent class system. Used to build the name of the new
+            class.
+
+        base : type or None
+            Base type for the new class. This class is expected to be a valid
+            subclass of for the builder (hence compute_base_classes can be
+            skipped). Should  be prepended to any class specified in the
+            subpart declaration.
+
+        docs : dict
+            Dictionary containing the docstring collected on the parent.
+
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def compute_base_classes(self) -> tuple:
+        """Determine the base classes to use when creating a class.
+
+        This should look into the classes stored in the _bases_ attribute and
+        return a new tuple of base classes if some necessary classes are not
+        present in the specified ones.
+
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def build_descriptor(self, name: str,
+                         cls: type) -> AbstractSubSystemDescriptor:
+        """Build a descriptor which will be assigned to name.
+
+        """
+        pass
+
+
+class AbstractChannelDeclarator(AbstractSubpartDeclarator):
+    """Sentinel for channel declaration in a class body.
+
+    See declarative.channel for the interface definition.
+
+    """
+
+    @abstractmethod
+    def build_list_channel_function(self):
+        """Build the function responsible for collecting the available channels
+
+        """
+        pass
 
 
 class AbstractSupportMethodCustomization(ABC):
     """Abstract class for objects supporting to have their method customized.
 
     """
+
     @abstractmethod
-    def modify_behavior(self, method_name, func, specifiers=(),
-                        internal=False):
+    def modify_behavior(self, method_name: str, func, specifiers: tuple=(),
+                        internal: bool=False):
         """Alter the behavior of the Feature using the provided method.
 
         Those operations are logged into the _customs dictionary in OrderedDict
@@ -84,7 +211,7 @@ class AbstractSupportMethodCustomization(ABC):
 
         Parameters
         ----------
-        method_name : unicode
+        method_name : str
             Name of the method which should be modified.
 
         func : callable|None
@@ -103,7 +230,7 @@ class AbstractSupportMethodCustomization(ABC):
               It should refer to the id of a previous modification.
             ex : ('custom', 'add_after', 'old')
 
-        modif_id : unicode
+        modif_id : str
             Id of the modification, used to refer to it in later modification.
             It is this id that can be specified as target for 'add_before',
             'add_after', 'replace', remove'.
@@ -140,7 +267,7 @@ class AbstractFeature(property, AbstractSupportMethodCustomization):
 
     Attributes
     ----------
-    name : unicode
+    name : str
         Name under which this feature is known in the class to which it
         belongs. This is set by the framework.
 
@@ -152,28 +279,58 @@ class AbstractFeature(property, AbstractSupportMethodCustomization):
     __slots__ = ('creation_kwargs', 'name')
 
     @abstractmethod
-    def make_doc(self, doc):
+    def make_doc(self, doc: str):
         """Build a comprehensive docstring from the provided user doc and using
         the configuration of the feature.
 
         """
         pass
 
+    @abstractmethod
+    def create_default_settings(self):
+        """Create the default settings for a feature.
+
+        """
+        pass
+
+    @abstractmethod
     def clone(self):
         """Create a clone of itself.
 
         """
-        new = type(self)(**self.creation_kwargs)
-        new.copy_custom_behaviors(self)
-        return new
+        pass
+
+
+class AbstractOptions(AbstractFeature):
+    """Abstract class for Options features.
+
+    Options features are used to represent "hardware" options that cannot
+    change while the system is connected to the instrument. Options name should
+    only be used once inside a driver.
+
+    """
+    pass
+
+
+class AbstractFeatureModifier(ABC):
+    """Abstract class for feature modifiers.
+
+    """
+
+    @abstractmethod
+    def customize(self, feature: AbstractFeature) -> AbstractFeature:
+        """Customize a feature and return a new instance.
+
+        """
+        pass
 
 
 class AbstractAction(AbstractSupportMethodCustomization):
-    """Abstract base class for actions.
+    """Abstract class for actions.
 
     Attributes
     ----------
-    name : unicode
+    name : str
         Name under which this action is known in the class to which it
         belongs. This is set by the framework.
 
@@ -203,14 +360,32 @@ class AbstractAction(AbstractSupportMethodCustomization):
         """
         pass
 
+    @abstractmethod
+    def create_default_settings(self) -> dict:
+        """Create the default settings for an action.
+
+        """
+        raise NotImplementedError
+
+    @abstractmethod
     def clone(self):
         """Create a clone of itself.
 
         """
-        new = type(self)(**self.creation_kwargs)
-        new(self.func)
-        new.copy_custom_behaviors(self)
-        return new
+        pass
+
+
+class AbstractActionModifier(ABC):
+    """Abstract class for action modifiers.
+
+    """
+
+    @abstractmethod
+    def customize(self, action) -> AbstractAction:
+        """Customize an action and return a new instance.
+
+        """
+        pass
 
 
 class AbstractLimitsValidator(ABC):
@@ -232,6 +407,21 @@ class AbstractLimitsValidator(ABC):
 
     """
     __slots__ = ('minimum', 'maximum', 'step', 'validate')
+
+
+class AbstractLimitDeclarator(ABC):
+    """Abstract class for limits declaration.
+
+    """
+
+    @abstractmethod
+    def __call__(self, func):
+        """Decorate a function to use to compute limits.
+
+        Should return itself.
+
+        """
+        pass
 
 
 class AbstractGetSetFactory(ABC):
@@ -283,7 +473,7 @@ class AbstractMethodCustomizer(ABC):
         owner : SupportMethodCustomization
             Class owning the descriptor to customize.
 
-        decorate_name : unicode
+        decorate_name : str
             Name uder which the customization function appear in the class
             declaration.
 

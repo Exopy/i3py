@@ -13,12 +13,13 @@ from abc import abstractmethod, abstractproperty
 from types import MethodType
 from collections import OrderedDict, Mapping
 
-from funcsigs import signature
+from inspect import signature
 
 from .abstracts import (AbstractMethodCustomizer,
                         AbstractSupportMethodCustomization)
 
 
+# XXX rework for keyword only args
 def normalize_signature(sig, alias=None):
     """Normalize a function signature for quick matching.
 
@@ -27,7 +28,7 @@ def normalize_signature(sig, alias=None):
     sig : Signature
         Function signature
 
-    alias: unicode, optional
+    alias: str, optional
         Alias for self to use in signature.
 
     Returns
@@ -50,14 +51,45 @@ def normalize_signature(sig, alias=None):
     return tuple(norm_arg(p, alias) for p in sig.parameters.values())
 
 
-class MetaMethodComposer(type):
-    """Metaclass for method composer object offering custom instantiation.
+class MethodComposer(object):
+    """Function like object used to compose feature methods calls.
+
+    All methods to call are kept in an ordered fashion ensuring that they will
+    be called in the right order while allowing fancy insertion based on method
+    id.
+
+    Parameters
+    ----------
+    obj : SupportMethodCustomization
+        Object whose method is customized through the use of a MethodComposer.
+
+    func : callable
+        Original function this composer is replacing. This should be a function
+        and not a bound method.
+
+    alias : str
+        Name to use to replace 'self' in method signature.
+
+    chain_on : str
+        Comma separated list of functions arguments that are also values
+        returned by the function.
+
+    func_id : str, optional
+        Id of the original function to use in the composer.
+
+    Notes
+    -----
+    Method ids must be unique and duplicate names are removed without warning.
 
     """
-    sigs = {}
+    #: Dict storing custom class for each signature
+    signatures = {}
 
-    def __call__(cls, obj, func, alias, chain_on=None, func_id='old',
-                 signatures=None):
+    __slots__ = ('__self__', '__name__', '_alias', '_chain_on', '_names',
+                 '_methods', '_signatures')
+
+    def __new__(cls, obj, func, alias, chain_on, func_id='old',
+                signatures=None):
         """Create a custom subclass for each signature function.
 
         Parameters
@@ -70,14 +102,14 @@ class MetaMethodComposer(type):
             Original function this composer is replacing. This should be a
             function and not a bound method.
 
-        alias : unicode
+        alias : str
             Name to use to replace 'self' in method signature.
 
-        chain_on : unicode
+        chain_on : str
             Comma separated list of functions arguments that are also values
             returned by the function.
 
-        func_id : unicode, optional
+        func_id : str, optional
             Id of the original function to use in the composer.
 
         signatures : list, optional
@@ -87,21 +119,25 @@ class MetaMethodComposer(type):
 
         """
         if not signatures:
-            sigs = [normalize_signature(signature(func), alias)]
-        else:
-            sigs = signatures
+            signatures = [normalize_signature(signature(func), alias)]
 
-        id_ = (tuple(sigs), chain_on)
-        if id_ not in MetaMethodComposer.sigs:
-            subclass = cls.create_composer(func.__name__, sigs, chain_on)
-            MetaMethodComposer.sigs[id_] = subclass
+        id_ = (tuple(signatures), chain_on)
+        if id_ not in MethodComposer.signatures:
+            subclass = cls.create_composer(func.__name__, signatures, chain_on)
+            MethodComposer.signatures[id_] = subclass
 
-        custom_type = MetaMethodComposer.sigs[id_]
-        return super(MetaMethodComposer, custom_type).__call__(obj, func,
-                                                               alias, chain_on,
-                                                               func_id,
-                                                               sigs)
+        custom_type = MethodComposer.signatures[id_]
+        composer = object.__new__(custom_type)
+        composer.__self__ = obj
+        composer.__name__ = func.__name__
+        composer._alias = alias
+        composer._chain_on = chain_on
+        composer._methods = [func]
+        composer._names = [func_id]
+        composer._signatures = signatures
+        return composer
 
+    @classmethod
     def create_composer(cls, name, sigs, chain_on):
         """Dynamically create a subclass of base composer for a signature.
 
@@ -122,51 +158,6 @@ class MetaMethodComposer(type):
         exec(decl, glob)
         return glob[name]
 
-
-class MethodComposer(object, metaclass=MetaMethodComposer):
-    """Function like object used to compose feature methods calls.
-
-    All methods to call are kept in an ordered fshion ensuring that they will
-    be called in the right order while allowing fancy insertion based on method
-    id.
-
-    Parameters
-    ----------
-    obj : SupportMethodCustomization
-        Object whose method is customized through the use of a MethodComposer.
-
-    func : callable
-        Original function this composer is replacing. This should be a function
-        and not a bound method.
-
-    alias : unicode
-        Name to use to replace 'self' in method signature.
-
-    chain_on : unicode
-        Comma separated list of functions arguments that are also values
-        returned by the function.
-
-    func_id : unicode, optional
-        Id of the original function to use in the composer.
-
-    Notes
-    -----
-    Method ids must be unique and duplicate names are removed without warning.
-
-    """
-    __slots__ = ('__self__', '__name__', '_alias', '_chain_on', '_names',
-                 '_methods', '_signatures')
-
-    def __init__(self, obj, func, alias, chain_on, func_id='old',
-                 signatures=None):
-        self.__self__ = obj
-        self.__name__ = func.__name__
-        self._alias = alias
-        self._chain_on = chain_on
-        self._methods = [func]
-        self._names = [func_id]
-        self._signatures = signatures
-
     def clone(self, new_obj=None):
         """Create a full copy of the composer.
 
@@ -182,7 +173,7 @@ class MethodComposer(object, metaclass=MetaMethodComposer):
 
         Parameters
         ----------
-        name : unicode
+        name : str
             Id of the method. Used to find it when performing more complex
             operations on the list of methods.
         method : MethodType
@@ -199,7 +190,7 @@ class MethodComposer(object, metaclass=MetaMethodComposer):
 
         Parameters
         ----------
-        name : unicode
+        name : str
             Id of the method. Used to find it when performing more complex
             operations on the list of methods.
         method : MethodType
@@ -216,9 +207,9 @@ class MethodComposer(object, metaclass=MetaMethodComposer):
 
         Parameters
         ----------
-        anchor : unicode
+        anchor : str
             Id of the method after which to insert the given one.
-        name : unicode
+        name : str
             Id of the method. Used to find it when performing more complex
             operations on the list of methods.
         method : MethodType
@@ -236,9 +227,9 @@ class MethodComposer(object, metaclass=MetaMethodComposer):
 
         Parameters
         ----------
-        anchor : unicode
+        anchor : str
             Id of the method before which to insert the given one.
-        name : unicode
+        name : str
             Id of the method. Used to find it when performing more complex
             operations on the list of methods.
         method : MethodType
@@ -259,7 +250,7 @@ class MethodComposer(object, metaclass=MetaMethodComposer):
 
         Parameters
         ----------
-        name : unicode
+        name : str
             Id of the method of the method to replace.
         method : MethodType
             Method bound to a feature which will be called when this object
@@ -274,7 +265,7 @@ class MethodComposer(object, metaclass=MetaMethodComposer):
 
         Parameters
         ----------
-        name : unicode
+        name : str
             Id of the method to remove.
 
         """
@@ -300,7 +291,7 @@ class MethodComposer(object, metaclass=MetaMethodComposer):
         return self
 
     def _check_duplicates(self, name):
-        """Remove the name from the list to avoid having duplicate ids.
+        """Avoid duplicate ids.
 
         """
         if name in self._names:
@@ -314,11 +305,11 @@ class customize(AbstractMethodCustomizer):
 
     Parameters
     ----------
-    desc_name : unicode
-        Name of the descriptor to customize.
+    desc_name : str
+        Name of the object to customize.
 
-    meth_name : unicode
-        Name of the method of the descriptor to customize.
+    meth_name : str
+        Name of the method of the object to customize.
 
     specifiers : tuple, optional
         Tuple describing the modification. If ommitted the function will simply
@@ -331,7 +322,7 @@ class customize(AbstractMethodCustomizer):
           It should refer to the id of a previous modification.
         ex : ('add_after', 'old')
 
-    modif_id : unicode, optional
+    modif_id : str, optional
         Id of the modification used to identify it.
 
     """
@@ -358,7 +349,7 @@ class customize(AbstractMethodCustomizer):
         owner : SupportMethodCustomization
             Class owning the descriptor to customize.
 
-        decorated_name : unicode
+        decorated_name : str
             Name under which the customization function appear in the class
             declaration.
 
@@ -380,7 +371,7 @@ class SupportMethodCustomization(AbstractSupportMethodCustomization):
 
     Attributes
     ----------
-    name : unicode
+    name : str
         Name of the object. Used in error reporting.
 
     """
@@ -398,7 +389,7 @@ class SupportMethodCustomization(AbstractSupportMethodCustomization):
 
         Parameters
         ----------
-        meth_name : unicode
+        meth_name : str
             Name of the method that should be customized using the provided
             function.
 
@@ -418,7 +409,7 @@ class SupportMethodCustomization(AbstractSupportMethodCustomization):
         signatures : list
             List of signatures that should be supported by a composer.
 
-        chain_on : unicode
+        chain_on : str
             Comma separated list of functions arguments that are also values
             returned by the function.
 
@@ -449,7 +440,7 @@ class SupportMethodCustomization(AbstractSupportMethodCustomization):
 
         Parameters
         ----------
-        method_name : unicode
+        method_name : str
             Name of the method which should be modified.
 
         func : callable|None
@@ -468,7 +459,7 @@ class SupportMethodCustomization(AbstractSupportMethodCustomization):
               It should refer to the id of a previous modification.
             ex : ('add_after', 'old')
 
-        modif_id : unicode, optional
+        modif_id : str, optional
             Id of the modification, used to refer to it in later modification.
             It is this id that can be specified as target for 'add_before',
             'add_after', 'replace', remove'.
@@ -489,6 +480,7 @@ class SupportMethodCustomization(AbstractSupportMethodCustomization):
         # This is done before analysing the function to preserve the real
         # intented modification even if the analysis simplify it.
         if not internal:
+            original_specifiers = specifiers
             if not specifiers:
                 self._customs[method_name] = func
             elif method_name not in self._customs:
@@ -515,37 +507,43 @@ class SupportMethodCustomization(AbstractSupportMethodCustomization):
             # Preserve the id in case of future mofication
             self._old_ids[method_name] = modif_id
             setattr(self, method_name, MethodType(func, self))
-            return
+            # For an intended full replacement we already logged the operation
+            if not internal and not original_specifiers:
+                return
 
-        # Otherwise we make sure we have a MethodsComposer.
-        composer = getattr(self, method_name)
-        if not isinstance(composer, MethodComposer):
-            # Try to get a smart id from the object in case it was set by a
-            # a previous modification.
-            composer = MethodComposer(self, composer.__func__, self.self_alias,
-                                      chain_on,
-                                      self._old_ids.get(method_name, 'old'),
-                                      signatures=sigs)
-
-        # We now update the composer.
-        composer_method_name = specifiers[0]
-        composer_method = getattr(composer, composer_method_name)
-        if composer_method_name in ('add_before', 'add_after'):
-            composer_method(specifiers[1], modif_id, func)
-        elif composer_method_name == 'replace':
-            composer_method(specifiers[1], func)
-        elif composer_method_name == 'remove':
-            composer_method(specifiers[1])
         else:
-            composer_method(modif_id, func)
+            # Otherwise we make sure we have a MethodsComposer.
+            composer = getattr(self, method_name)
+            if not isinstance(composer, MethodComposer):
+                # Try to get a smart id from the object in case it was set by a
+                # a previous modification.
+                composer = MethodComposer(self, composer.__func__,
+                                          self.self_alias, chain_on,
+                                          self._old_ids.get(method_name,
+                                                            'old'),
+                                          signatures=sigs)
 
-        # Finally we update the _customs dict and reassign the composer.
-        setattr(self, method_name, composer)
+            # We now update the composer.
+            composer_method_name = specifiers[0]
+            composer_method = getattr(composer, composer_method_name)
+            if composer_method_name in ('add_before', 'add_after'):
+                composer_method(specifiers[1], modif_id, func)
+            elif composer_method_name == 'replace':
+                composer_method(specifiers[1], func)
+            elif composer_method_name == 'remove':
+                composer_method(specifiers[1])
+            else:
+                composer_method(modif_id, func)
+
+            # Finally we reassign the composer.
+            setattr(self, method_name, composer)
+
+        # Finally we update the _customs dict
         if not internal:
             customs = self._customs[method_name]
-            if composer_method_name == 'remove':
+            if original_specifiers[0] == 'remove':
                 del customs[modif_id]
-            elif composer_method_name == 'replace':
+            elif original_specifiers[0] == 'replace':
                 replaced = specifiers[1]
                 if replaced in customs:
                     old = list(customs[replaced])
@@ -559,7 +557,7 @@ class SupportMethodCustomization(AbstractSupportMethodCustomization):
                         n = composer._names[ind-1]
                         customs[replaced] = (func, ('add_after', n))
             else:
-                op = (func, specifiers)
+                op = (func, original_specifiers)
                 customs[modif_id] = op
 
     def copy_custom_behaviors(self, obj):

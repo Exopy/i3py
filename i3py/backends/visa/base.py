@@ -61,7 +61,7 @@ def set_visa_resource_manager(rm, backend='default'):
     rm : ResourceManager
         Instance to use as Lantz resource manager.
 
-    backend : unicode
+    backend : str
         Id of the backend.
 
     """
@@ -122,10 +122,10 @@ class BaseVisaDriver(BaseDriver):
 
     Parameters
     ----------
-    resource_name : unicode, optional
+    resource_name : str, optional
         Name of the visa resource. can be specified as positional argument.
 
-    backend : unicode, optional
+    backend : str, optional
         The pyvisa backend to use. This can either be a backend alias declared
         using set_visa_resource_manager or a valid string to create a pyvisa
         resource maanger.

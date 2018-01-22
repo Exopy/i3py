@@ -10,7 +10,7 @@
 
 """
 from .feature import Feature
-from ..util import validate_in
+from ..utils import validate_in
 
 
 class Enumerable(Feature):
@@ -23,9 +23,9 @@ class Enumerable(Feature):
 
     """
     def __init__(self, getter=None, setter=None, values=(), extract='',
-                 retries=0, checks=None, discard=None):
+                 retries=0, checks=None, discard=None, options=None):
         super(Enumerable, self).__init__(getter, setter, extract, retries,
-                                         checks, discard)
+                                         checks, discard, options)
         self.values = set(values)
         self.creation_kwargs['values'] = values
 

@@ -13,7 +13,7 @@ from pytest import raises, mark
 
 from i3py.core.composition import customize
 from i3py.core.features.enumerable import Enumerable
-from i3py.core.features.scalars import Unicode, Int, Float
+from i3py.core.features.scalars import Str, Int, Float
 from i3py.core.limits import IntLimitsValidator, FloatLimitsValidator
 from i3py.core.unit import get_unit_registry, UNIT_SUPPORT
 from i3py.core.declarative import set_feat, limit
@@ -32,21 +32,21 @@ class TestEnumerableInit(TestFeatureInit):
     parameters = dict(values=(11, 2))
 
 
-class TestUnicodeInit(TestEnumerableInit, TestMappingInit):
+class TestStrInit(TestEnumerableInit, TestMappingInit):
 
-    cls = Unicode
+    cls = Str
 
 
-def test_unicode():
-    u = Unicode(setter=True, values=['On', 'Off'])
+def test_str():
+    u = Str(setter=True, values=['On', 'Off'])
     assert u.pre_set(None, 'On') == 'On'
     with raises(I3pyValueError):
         u.pre_set(None, 'TEST')
     assert isinstance(u.post_get(None, 1), type(''))
 
 
-def test_unicode_mapping():
-    m = Unicode(mapping={'On': 1, 'Off': 2})
+def test_str_mapping():
+    m = Str(mapping={'On': 1, 'Off': 2})
     assert m.post_get(None, 1) == 'On'
     assert m.post_get(None, 2) == 'Off'
 
@@ -161,14 +161,22 @@ class TestFloat(object):
 
     @mark.skipif(UNIT_SUPPORT is False, reason="Requires Pint")
     def test_post_get_with_unit(self):
-        f = Float(unit='V')
-        assert hasattr(f.post_get(None, 0.1), 'magnitude')
-        assert f.post_get(None, 0.1).to('mV').magnitude == 100.
+
+        class FloatHolder(DummyParent):
+            f = Float(unit='V')
+
+        f = FloatHolder.f
+        assert hasattr(f.post_get(FloatHolder(), 0.1), 'magnitude')
+        assert f.post_get(FloatHolder(), 0.1).to('mV').magnitude == 100.
 
     @mark.skipif(UNIT_SUPPORT is False, reason="Requires Pint")
     def test_post_get_with_extract_and_unit(self):
-        f = Float(unit='V', extract='This is the value {}')
-        val = f.post_get(None, 'This is the value 0.1')
+
+        class FloatHolder(DummyParent):
+            f = Float(unit='V', extract='This is the value {}')
+
+        f = FloatHolder.f
+        val = f.post_get(FloatHolder(), 'This is the value 0.1')
         assert hasattr(val, 'magnitude')
         assert val.to('mV').magnitude == 100.
 
@@ -176,19 +184,36 @@ class TestFloat(object):
     def test_post_get_with_unit_return_float(self):
         from i3py.core.features import scalars
         scalars.UNIT_RETURN = False
-        try:
+
+        class FloatHolder(DummyParent):
             f = Float(unit='V')
-            assert f.post_get(None, 0.1) == 0.1
+
+        try:
+            assert FloatHolder.f.post_get(FloatHolder(), 0.1) == 0.1
         finally:
             scalars.UNIT_RETURN = True
+
+    @mark.skipif(UNIT_SUPPORT is False, reason="Requires Pint")
+    def test_post_get_settings_unit_return_float(self):
+
+        class FloatHolder(DummyParent):
+            f = Float(unit='V')
+
+        p = FloatHolder()
+        with p.temporary_setting('f', 'unit_return', False):
+            assert FloatHolder.f.post_get(p, 0.1) == 0.1
 
     @mark.skipif(UNIT_SUPPORT is False, reason="Requires Pint")
     def test_post_get_with_extract_and_unit_return_float(self):
         from i3py.core.features import scalars
         scalars.UNIT_RETURN = False
-        try:
+
+        class FloatHolder(DummyParent):
             f = Float(unit='V', extract='This is the value {}')
-            val = f.post_get(None, 'This is the value 0.1')
+
+        try:
+            val = FloatHolder.f.post_get(FloatHolder(),
+                                         'This is the value 0.1')
             assert val == 0.1
         finally:
             scalars.UNIT_RETURN = True
@@ -218,10 +243,14 @@ class TestFloat(object):
 
     @mark.skipif(UNIT_SUPPORT is False, reason="Requires Pint")
     def test_with_mapping_units(self):
-        m = Float(mapping={1.0: 'On', 2.0: 'Off'}, unit='mV')
+
+        class FloatHolder(DummyParent):
+            m = Float(mapping={1.0: 'On', 2.0: 'Off'}, unit='mV')
+
+        m = FloatHolder.m
         u = get_unit_registry()
-        assert m.post_get(None, 'On') == u.parse_expression('1.0 mV')
-        assert m.post_get(None, 'Off') == u.parse_expression('2.0 mV')
+        assert m.post_get(FloatHolder(), 'On') == u.parse_expression('1.0 mV')
+        assert m.post_get(FloatHolder(), 'Off') == u.parse_expression('2.0 mV')
 
         assert m.pre_set(None, u.parse_expression('0.001 V')) == 'On'
         assert m.pre_set(None, u.parse_expression('0.002 V')) == 'Off'
@@ -359,3 +388,24 @@ class TestFloat(object):
         parent.val = 1
         parent.fl = 0.2
         assert parent.val == 1
+
+    @mark.skipif(UNIT_SUPPORT is False, reason="Requires Pint")
+    def test_settings_support(self):
+        """Test that we respect the unit return setting.
+
+        """
+        parent = UnitCacheFloatTester()
+        ureg = get_unit_registry()
+        parent.val = 0.2
+        assert parent.val == 0.2
+        assert parent.fl == ureg.parse_expression('0.2 V')
+
+        with parent.temporary_setting('fl', 'unit_return', False):
+            print(parent, parent._settings)
+            assert parent.fl == 0.2
+
+        parent.clear_cache()
+        with parent.temporary_setting('fl', 'unit_return', False):
+            print(parent, parent._settings)
+            assert parent.fl == 0.2
+        assert parent.fl == ureg.parse_expression('0.2 V')

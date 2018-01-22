@@ -11,10 +11,11 @@
 """
 from .feature import AbstractFeature, Feature
 from .bool import Bool
-from .scalars import Unicode, Int, Float
+from .scalars import Str, Int, Float
 from .register import Register
 from .alias import Alias
 from .factories import constant, conditional
+from .options import Options
 
-__all__ = ['AbstractFeature', 'Feature', 'Bool', 'Unicode', 'Int', 'Float',
+__all__ = ['AbstractFeature', 'Feature', 'Bool', 'Str', 'Int', 'Float',
            'Register', 'Alias', 'constant', 'conditional']

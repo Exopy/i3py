@@ -11,6 +11,7 @@
 """
 from threading import RLock
 
+from i3py.core.abstracts import AbstractBaseDriver
 from i3py.core.has_features import HasFeatures
 
 
@@ -61,3 +62,13 @@ class DummyParent(HasFeatures):
 
     def reopen_connection(self):
         self.ropen_called += 1
+
+
+class DummyDriver(DummyParent):
+    """Dummy driver.
+
+    """
+    pass
+
+
+AbstractBaseDriver.register(DummyDriver)

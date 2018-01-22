@@ -12,7 +12,7 @@
 import pytest
 
 from i3py.core.composition import customize
-from i3py.core.has_features import subsystem
+from i3py.core.declarative import subsystem
 from i3py.core.features import Bool
 from i3py.core.features.alias import Alias
 

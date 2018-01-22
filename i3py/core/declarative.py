@@ -9,16 +9,20 @@
 """Helpers used to write driver classes in a declarative way.
 
 """
-from abc import abstractmethod
 from inspect import currentframe
 
-from .abstracts import ABC, AbstractSubSystem, AbstractChannel
+from .abstracts import (AbstractSubpartDeclarator,
+                        AbstractSubSystem, AbstractSubSystemDeclarator,
+                        AbstractChannel, AbstractChannelDeclarator,
+                        AbstractFeatureModifier, AbstractActionModifier,
+                        AbstractLimitDeclarator)
+from .utils import build_checker
 
 # Sentinel returned when decorating a method with a subpart.
 SUBPART_FUNC = object()
 
 
-class SubpartDecl(ABC):
+class SubpartDecl(object):
     """Sentinel used to collect declarations or modifications for a subpart.
 
     Parameters
@@ -27,12 +31,34 @@ class SubpartDecl(ABC):
         Class or classes to use as base class when no matching subpart exists
         on the driver.
 
+    checks : str, optional
+        Booelan tests to execute before anything else when attempting use a
+        Feature or an Action of the subpart. Multiple assertion can be
+        separated with ';'. The subpart can be accessed through the name
+        driver just like in features.
+
+    options : str, optional
+        Assertions in the form option_name['option_field'] == possible_values
+        or any other valid boolean test. Multiple assertions can be separated
+        by ;
+
+    descriptor_type : type
+        Class to use as descriptor for this subpart.
+
     """
-    def __init__(self, bases=(), attributes=None):
+    __slots__ = ('_name_', '_bases_', '_checks_', '_options_',
+                 '_descriptor_type_', '_parent_', '_aliases_', '_inners_',
+                 '_enter_locals_')
+
+    def __init__(self, bases=(), checks='', options=None,
+                 descriptor_type=None):
         self._name_ = ''
         if not isinstance(bases, tuple):
             bases = (bases,)
         self._bases_ = bases
+        self._checks_ = checks
+        self._options_ = options
+        self._descriptor_type_ = descriptor_type
         self._parent_ = None
         self._aliases_ = []
         self._inners_ = {}
@@ -84,28 +110,28 @@ class SubpartDecl(ABC):
         self._enter_locals_ = None
         self._inners_ = {k: v for k, v in frame_locals.items() if k in diff}
 
-    def clean_namespace(self, cls_dict):
+    def clean_namespace(self, cls):
         """Remove all inner names if the value is the one seen.
 
         Parameters
         ----------
-        cls_dict : dict
-            Dictionary from which to remove names belonging only to the
+        cls : type
+            Class from which to remove names belonging only to the
             subpart.
 
         """
         for k, v in self._inners_.items():
-            if k in cls_dict and cls_dict[k] is v:
-                del cls_dict[k]
+            if k in cls.__dict__ and getattr(cls, k) is v:
+                delattr(cls, k)
 
-    def build_cls(self, parent_name, base, docs):
+    def build_cls(self, parent_cls, base, docs):
         """Build a class based declared base classes and attributes.
 
         Parameters
         ----------
-        parent_name : unicode
-            Name of the parent class system. Used to build the name of the new
-            class.
+        parent_cls : Type
+            Parent class system. Used to build the name of the new class and
+            identify if the parent class can be disabled at runtime.
 
         base : type or None
             Base type for the new class. This class is expected to be a valid
@@ -132,20 +158,65 @@ class SubpartDecl(ABC):
         docs = {k[-1]: v for k, v in s_docs.items()
                 if k[0] in self._aliases_ and len(k) == 2}
         meta = type(bases[0])
-        name = parent_name + self._name_.capitalize()
+        name = parent_cls.__name__ + self._name_.capitalize()
+
+        # Add docs to the class dictionary before creation (the slots are not
+        # listed in __dict__)
         dct = dict(self.__dict__)
-        del dct['_name_']
-        del dct['_parent_']
-        del dct['_bases_']
-        del dct['_aliases_']
-        del dct['_enter_locals_']
-        del dct['_inners_']
         dct['_docs_'] = docs
+
+        # Add a custom descriptor for enabling if the subsystem declares checks
+        if self._checks_:
+            func = build_checker(self._checks_, '(driver)', 'True')
+
+            def enabled_getter(driver):
+                """Check this subpart and all its parents are enabled.
+
+                """
+                if not driver.parent._enabled_:
+                    driver._enabled_error_ = driver.parent._enabled_error_
+                    return False
+                try:
+                    return func(driver), ''
+                except AssertionError as e:
+                    driver._enabled_error_ = e
+                    return False
+
+            dct['_enabled_'] = property(enabled_getter)
+
+        # Add a custom descriptor for enabling if the subpart parent has one
+        elif hasattr(parent_cls, '_enabled_'):
+
+            def enabled_getter(driver):
+                """Check all of this subpart parents are enabled.
+
+                """
+                if not driver.parent._enabled_:
+                    driver._enabled_error_ = driver.parent._enabled_error_
+                    return False
+                return True
+
+            dct['_enabled_'] = property(enabled_getter)
+
         new_class = meta(name, bases, dct)
         new_class.__doc__ = part_doc
+        new_class._declaration_ = self
+
         return new_class
 
-    @abstractmethod
+    def update_from_ancestor(self, ancestor_decl):
+        """Update the declaration with parameters from inherited subpart.
+
+        """
+        self._descriptor_type_ = (self._descriptor_type_ or
+                                  ancestor_decl._descriptor_type_)
+        if ancestor_decl._checks_:
+            self._checks_ = (';'.join(self._checks_, ancestor_decl._checks_)
+                             if self._checks_ else ancestor_decl._checks_)
+        if ancestor_decl._options_:
+            self._options_ = (';'.join(self._options_, ancestor_decl._options_)
+                              if self._options_ else ancestor_decl._options_)
+
     def compute_base_classes(self):
         """Determine the base classes to use when creating a class.
 
@@ -154,7 +225,16 @@ class SubpartDecl(ABC):
         present in the specified ones.
 
         """
-        pass
+        raise NotImplementedError
+
+    def build_descriptor(self):
+        """Build the descriptor used access the subpart from the driver.
+
+        """
+        raise NotImplementedError
+
+
+AbstractSubpartDeclarator.register(SubpartDecl)
 
 
 class subsystem(SubpartDecl):
@@ -165,6 +245,21 @@ class subsystem(SubpartDecl):
     bases : class or tuple of classes, optional
         Class or classes to use as base class when no matching subpart exists
         on the driver.
+
+    checks : str, optional
+        Booelan tests to execute before anything else when attempting use a
+        Feature or an Action of the subsytem. Multiple assertion can be
+        separated with ';'. The subsystem can be accessed through the name
+        driver just like in features.
+
+    options : str, optional
+        Assertions in the form option_name['option_field'] == possible_values
+        or any other valid boolean test. Multiple assertions can be separated
+        by ;
+
+    descriptor_type : type
+        Class to use as descriptor for this subsystem. Should be a sunclass of
+        AbstractSubSystemDescriptor.
 
     """
     def compute_base_classes(self):
@@ -181,6 +276,29 @@ class subsystem(SubpartDecl):
 
         return bases
 
+    def build_descriptor(self, name, cls):
+        """Build the descriptor that will be used to access the subsystem.
+
+        Parameters
+        ----------
+        name : str
+            Name under which the descriptor will be stored on the instance.
+
+        cls : type
+            Class built by a previous call to build_cls.
+
+        """
+        if self._descriptor_type_ is None:
+            from .base_subsystem import SubSystemDescriptor
+            dsc_type = SubSystemDescriptor
+        else:
+            dsc_type = self._descriptor_type_
+
+        return dsc_type(cls, name, self._options_)
+
+
+AbstractSubSystemDeclarator.register(subsystem)
+
 
 class channel(SubpartDecl):
     """Sentinel used to collect declarations or modifications for a channel.
@@ -188,7 +306,7 @@ class channel(SubpartDecl):
 
     Parameters
     ----------
-    available : unicode, tuple or list, optional
+    available : str, tuple or list, optional
         Name of the parent method to call to know which channels exist or list
         of channel ids. If absent the channel declaration on the base class is
         used instead.
@@ -198,31 +316,45 @@ class channel(SubpartDecl):
         on the driver.
 
     aliases : dict, optional
-        Dictionary providing aliases for channels ids. Aliases can be simple
-        values, list or tuple.
+        Dictionary mapping channel ids to their allowed aliases. Aliases can be
+        simple values, list or tuple.
 
     container_type : type, optional
         Container type to use to store channels.
 
+    checks : str, optional
+        Booelan tests to execute before anything else when attempting use a
+        Feature or an Action of the chnnel. Multiple assertion can be separated
+        with ';'. The channel can be accessed through the name driver just like
+        in features.
+
+    options : str, optional
+        Booelan tests on options to execute before creating the subpart.
+        Multiple assertion can be separated with ';'. The options can be
+        accessed under their name directly:
+
+    descriptor_type : type
+        Class to use as descriptor for this subpart. Should be a sunclass of
+        AbstractSubSystemDescriptor.
+
     """
     def __init__(self, available=None, bases=(), aliases=None,
-                 container_type=None):
-        super(channel, self).__init__(bases)
+                 container_type=None, options=None, checks=None,
+                 descriptor_type=None):
+        super().__init__(bases, checks, options, descriptor_type)
         self._available_ = available
         self._ch_aliases_ = aliases if aliases else {}
         self._container_type_ = container_type
-        if container_type is None:
-            from .base_channel import ChannelContainer
-            self._container_type_ = ChannelContainer
 
-    def build_cls(self, parent_name, base, docs):
-        """Reimplemented to set the _container_type_ attribute.
+    def update_from_ancestor(self, ancestor_decl):
+        """Update the declaration with parameters from inherited subpart.
 
         """
-        cls = super(channel, self).build_cls(parent_name, base, docs)
-        cls._container_type_ = self._container_type_
-        cls._part_ = self
-        return cls
+        super().update_from_ancestor(ancestor_decl)
+        self._available_ = self._available_ or ancestor_decl._available_
+        self._ch_aliases_.update(ancestor_decl._ch_aliases_)
+        self._container_type_ = (self._container_type_ or
+                                 ancestor_decl._container_type_)
 
     def compute_base_classes(self):
         """Add Channel in the base classes if necessary.
@@ -247,8 +379,39 @@ class channel(SubpartDecl):
         else:
             return lambda driver: getattr(driver, self._available_)()
 
+    def build_descriptor(self, name, cls):
+        """Build the descriptor that will be used to access the channel.
 
-class set_feat(ABC):
+        Parameters
+        ----------
+        name : str
+            Name under which the descriptor will be stored on the instance.
+
+        cls : type
+            Class built by a previous call to build_cls.
+
+        """
+        if self._descriptor_type_ is None:
+            from .base_channel import ChannelDescriptor
+            dsc_type = ChannelDescriptor
+        else:
+            dsc_type = self._descriptor_type_
+
+        if self._container_type_ is None:
+            from .base_channel import ChannelContainer
+            ctn_type = ChannelContainer
+        else:
+            ctn_type = self._container_type_
+
+        list_func = self.build_list_channel_function()
+        return dsc_type(cls, name, self._options_, ctn_type, list_func,
+                        self._ch_aliases_)
+
+
+AbstractChannelDeclarator.register(channel)
+
+
+class set_feat(object):
     """Placeholder used to alter a feature in a subclass.
 
     This can be used to lightly alter a Feature defined on a parent class
@@ -273,11 +436,16 @@ class set_feat(ABC):
         kwargs.update(self.custom_attrs)
         new = cls(**kwargs)
         new.copy_custom_behaviors(feat)
+        new.name = feat.name
+        new.__doc__ = feat.__doc__
 
         return new
 
 
-class set_action(ABC):
+AbstractFeatureModifier.register(set_feat)
+
+
+class set_action(object):
     """Placeholder used to alter an action in a subclass.
 
     This can be used to lightly alter an Action defined on a parent class.
@@ -302,11 +470,16 @@ class set_action(ABC):
 
         new(action.func)
         new.copy_custom_behaviors(action)
+        new.name = action.name
+        new.__doc__ = action.__doc__
 
         return new
 
 
-class limit(ABC):
+AbstractActionModifier.register(set_action)
+
+
+class limit(object):
     """Class to use as a decorator to mark a function as defining a limit.
 
     The decorated function should take as argument the driver part matching
@@ -322,3 +495,6 @@ class limit(ABC):
     def __call__(self, func):
         self.func = func
         return self
+
+
+AbstractLimitDeclarator.register(limit)

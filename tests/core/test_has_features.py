@@ -9,6 +9,8 @@
 """Test basic metaclasses functionalities.
 
 """
+from contextlib import ExitStack
+
 from pytest import raises
 
 from i3py.core.declarative import (subsystem, set_feat, channel, set_action,
@@ -60,6 +62,34 @@ def test_unreachable_sources(caplog, monkeypatch):
     # If this execute we are good
 
 
+def test_subclassing():
+    """Ensure that when subclassing we clone all features/actions and name them
+
+    """
+    class ParentClass(DummyParent):
+
+        f = Feature()
+
+        @Action()
+        def a():
+            pass
+
+    class Subclass(ParentClass):
+        pass
+
+    for f in ParentClass.__feats__:
+        pf = getattr(ParentClass, f)
+        sf = getattr(Subclass, f)
+        assert pf is not sf
+        assert pf.name == sf.name == f
+
+    for a in ParentClass.__actions__:
+        pa = getattr(ParentClass, a)
+        sa = getattr(Subclass, a)
+        assert pa is not sa
+        assert pa.name == sa.name == a
+
+
 # --- Test changing features defaults -----------------------------------------
 
 def test_set_feat():
@@ -70,7 +100,8 @@ def test_set_feat():
     class DecorateIP(Feature):
 
         def __init__(self, getter=True, setter=True, retries=0,
-                     extract=None, checks=None, discard=None, dec='<br>'):
+                     extract=None, checks=None, discard=None, options=None,
+                     dec='<br>'):
             super(DecorateIP, self).__init__(getter, setter)
             self.dec = dec
 
@@ -93,6 +124,8 @@ def test_set_feat():
     aux2 = CustomizationTester()
     assert aux1.test != aux2.test
     assert aux2.test.startswith('<it>')
+    assert ParentTester.test.name == 'test'
+    assert CustomizationTester.test.name == 'test'
 
 
 # --- Test overriding features behaviors --------------------------------------
@@ -393,6 +426,41 @@ class CopyTest2(_CopyTest):
         pass
 
 
+class CopyModfifcationTurnedToReplacement(ToCustom):
+    """Class used to check that modification that were turned to replcament
+    are properly copied
+
+    """
+    def __init__(self):
+        super().__init__()
+        self.counter = 0
+
+    @customize('feat', 'post_get', ('append',), '_anch2_')
+    def _test2(feat, driver, value):
+        driver.counter += 1
+        return value
+
+
+def test_copying_custom_behvior():
+    """Test copying a modification that was turned into a replacment.
+
+    """
+    class Subclass(CopyModfifcationTurnedToReplacement):
+        pass
+
+    # Chech the test class work
+    c = CopyModfifcationTurnedToReplacement()
+    assert c.counter == 0
+    c.feat
+    assert c.counter == 1
+
+    # Check the subclass works
+    s = Subclass()
+    assert s.counter == 0
+    s.feat
+    assert s.counter == 1
+
+
 def test_copying_custom_behavior1():
     """Test copying an appending.
 
@@ -554,6 +622,8 @@ def test_set_action():
     with raises(I3pyFailedCall) as einfo:
         C2().test(0)
     assert isinstance(einfo.value.__cause__, ValueError)
+    assert C1.test.name == 'test'
+    assert C2.test.name == 'test'
 
 
 class WithAction(DummyParent):
@@ -666,7 +736,7 @@ def test_subsystem_declaration3():
 
     """
 
-    class DeclareSubsystem(DummyParent):
+    class DeclareSubsystem3(DummyParent):
 
         sub_test = subsystem()
         with sub_test as s:
@@ -677,7 +747,7 @@ def test_subsystem_declaration3():
             def _get_test(feat, driver):
                 return True
 
-    d = DeclareSubsystem()
+    d = DeclareSubsystem3()
     assert d.sub_test.test
 
 
@@ -686,10 +756,9 @@ def test_subsystem_declaration4():
 
     """
 
-    class DeclareSubsystem(DummyParent):
+    class DeclareSubsystem4(DummyParent):
 
         sub_test = subsystem()
-
         with sub_test as s:
 
             #: Subsystem feature doc
@@ -703,9 +772,11 @@ def test_subsystem_declaration4():
         def _get_test(feat, driver):
                 return True
 
-    class OverrideSubsystem(DeclareSubsystem):
+    class OverrideSubsystem(DeclareSubsystem4):
 
             sub_test = subsystem(Mixin)
+
+    assert DeclareSubsystem4.sub_test.aux.__doc__
 
     d = OverrideSubsystem()
     assert d.sub_test.test
@@ -800,19 +871,19 @@ def test_channel_declaration4():
 
     class DeclareChannel(DummyParent):
 
-        ch = channel((1,))
+        ch = channel((1, 2))
 
     class OverrideChannel(DeclareChannel):
 
-        ch = channel(aliases={'Test': 1})
+        ch = channel(aliases={1: 'Test', 2: ('a', 'b')})
 
     class OverrideChannel2(OverrideChannel):
 
         ch = channel()
 
     d = OverrideChannel2()
-    assert tuple(d.ch.available) == (1,)
-    assert d.ch.aliases == {'Test': 1}
+    assert tuple(d.ch.available) == (1, 2)
+    assert d.ch.aliases == {'Test': 1, 'a': 2, 'b': 2}
     assert d.ch['Test'].id == 1
 
 
@@ -947,3 +1018,27 @@ def test_get_feat():
         test = Feature()
 
     assert Tester().get_feat('test') is Tester.test
+
+
+# --- Settings API ------------------------------------------------------------
+
+def test_managing_settings():
+    """Test getting, setting and temporarily setting settings.
+
+    """
+    c = ToCustom()
+    assert c.read_settings('feat')['inter_set_delay'] == 0
+    c.set_setting('feat', 'inter_set_delay', 1)
+    assert c.read_settings('feat')['inter_set_delay'] == 1
+    with raises(KeyError):
+        c.set_setting('feat', '_last_set', 1)
+    with raises(KeyError):
+        c.set_setting('feat', 'xxxx', 1)
+
+    with ExitStack() as stack:
+        stack.enter_context(raises(RuntimeError))
+        stack.enter_context(c.temporary_setting('feat', 'inter_set_delay', 0))
+        assert c.read_settings('feat')['inter_set_delay'] == 0
+        raise RuntimeError()
+
+    assert c.read_settings('feat')['inter_set_delay'] == 1

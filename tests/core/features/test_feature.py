@@ -12,12 +12,12 @@
 from pytest import raises
 from stringparser import Parser
 
-from i3py.core.composition import customize
-from i3py.core.declarative import limit
+from i3py.core import customize, limit
+from i3py.core.features import Options
 from i3py.core.features.feature import Feature, get_chain, set_chain
 from i3py.core.features.factories import constant, conditional
 from i3py.core.errors import I3pyError, I3pyFailedGet, I3pyFailedSet
-from ..testing_tools import DummyParent
+from ..testing_tools import DummyParent, DummyDriver
 
 
 class TestFeatureInit(object):
@@ -474,5 +474,73 @@ def test_extract():
     feat = Feature(extract=Parser('The value is {:d}'))
     val = feat.post_get(None, 'The value is 11')
     assert val == 11
+
+
+def test_options():
+    """Test handling options in a Feature definition.
+
+    """
+    class Dummy(DummyDriver):
+
+        _test_ = True
+
+        _val = 1
+
+        op = Options()
+
+        @customize('op', 'get')
+        def _get(feat, driver):
+            return {'test': driver._test_}
+
+        feat = Feature(True, True, options="op['test']")
+
+        @customize('feat', 'get')
+        def _get_feat(feat, driver):
+            return driver._val
+
+        @customize('feat', 'set')
+        def _set_feat(feat, driver, value):
+            driver._val = value
+
+    a = Dummy()
+    assert a.feat
+
+    a.feat = 2
+    assert a.feat == 2  # test the caching seen in the coverage
+
+    Dummy._test_ = False
+    b = Dummy()
+    with raises(AttributeError):
+        b.feat
+    with raises(AttributeError):
+        b.feat = 1
+
+
+def test_inter_set_delay():
+    """Test that feature abides by inter_set_dealy setting value.
+
+    """
+    class Inter(DummyParent):
+
+        val = 1
+
+        feat_cac = Feature(getter=True, setter=True)
+
+        @customize('feat_cac', 'get')
+        def _get_feat_cac(feat, driver):
+            return driver.val
+
+        @customize('feat_cac', 'set')
+        def _set_feat_dis(feat, driver, value):
+            driver.val = value
+
+    d = Inter()
+    with d.temporary_setting('feat_cac', 'inter_set_delay', 0.5):
+        d.feat_cac = 2
+        old = d._settings['feat_cac']['_last_set']
+        d.feat_cac = 3
+
+    assert round(d._settings['feat_cac']['_last_set'] - old, 2) >= .5
+
 
 # Other behaviors are tested by the tests in test_has_features.py

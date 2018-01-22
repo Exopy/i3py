@@ -10,10 +10,12 @@
 
 """
 from .base_subsystem import SubSystem
-from .abstracts import AbstractChannel, AbstractChannelContainer
+from .abstracts import (AbstractChannel, AbstractChannelContainer,
+                        AbstractChannelDescriptor)
+from .utils import check_options
 
 
-class ChannelContainer(AbstractChannelContainer):
+class ChannelContainer(object):
     """Default container storing references to the instrument channels.
 
     Note that is the responsability of the user to check that a channel is
@@ -27,14 +29,14 @@ class ChannelContainer(AbstractChannelContainer):
     parent : HasFeatures
         Reference to the parent object holding the channel.
 
-    name : unicode
+    name : str
         Name of the channel subpart on the parent.
 
     list_available : callable
         Function to call to query the list of available channels.
 
     aliases : dict
-        Dict mapping aliases names to the real channel id to use.
+        Dict mapping channel ids to aliases names.
 
     """
 
@@ -43,8 +45,16 @@ class ChannelContainer(AbstractChannelContainer):
         self._channels = {}
         self._name = name
         self._parent = parent
-        self._aliases = aliases
         self._list = list_available
+        self._aliases = {}
+        # So far aliases map ch_ids to possible aliases. To identify an alias
+        # we need to invert this mapping.
+        for k, v in aliases.items():
+            if isinstance(v, (tuple, list)):
+                for nk in v:
+                    self._aliases[nk] = k
+            else:
+                self._aliases[v] = k
 
     @property
     def available(self):
@@ -67,12 +77,24 @@ class ChannelContainer(AbstractChannelContainer):
         if ch_id in self._channels:
             return self._channels[ch_id]
 
+        chs = self.available
+        if ch_id not in chs:
+            msg = f'{ch_id} is not listed among the available channels: {chs}'
+            raise KeyError(msg)
+
         parent = self._parent
         ch = self._cls(parent, ch_id,
-                       caching_allowed=parent.use_cache
+                       caching_allowed=parent._use_cache
                        )
         self._channels[ch_id] = ch
         return ch
+
+    def __iter__(self):
+        for id in self.available:
+            yield self[id]
+
+
+AbstractChannelContainer.register(ChannelContainer)
 
 
 class Channel(SubSystem):
@@ -110,14 +132,14 @@ class Channel(SubSystem):
         """Channels simply pipes the call to their parent.
 
         """
-        kwargs['id'] = self.id
+        kwargs['ch_id'] = self.id
         return self.parent.default_get_feature(feat, cmd, *args, **kwargs)
 
     def default_set_feature(self, feat, cmd, *args, **kwargs):
         """Channels simply pipes the call to their parent.
 
         """
-        kwargs['id'] = self.id
+        kwargs['ch_id'] = self.id
         return self.parent.default_set_feature(feat, cmd, *args, **kwargs)
 
     def default_check_operation(self, feat, value, i_value, response):
@@ -129,3 +151,44 @@ class Channel(SubSystem):
 
 
 AbstractChannel.register(Channel)
+
+
+class ChannelDescriptor(object):
+    """Descriptor giving access to a channel container.
+
+    The channel container is returned only if the proper conditions are matched
+    in terms of static options (as specified through the options of the
+    channel declarator).
+
+    """
+    __slots__ = ('cls', 'name', 'options', 'container', 'list_available',
+                 'aliases')
+
+    def __init__(self, cls, name, options, container, list_available, aliases):
+        self.cls = cls
+        self.name = name
+        self.options = options
+        self.container = container
+        self.list_available = list_available
+        self.aliases = aliases
+
+    def __get__(self, instance, cls):
+        if instance is None:
+            return self.cls
+        else:
+            if self.name not in instance._channel_container_instances:
+                if self.options:
+                    test, msg = check_options(instance, self.options)
+                    if not test:
+                        ex_msg = ('%s is not accessible with instrument '
+                                  'options: %s')
+                        raise AttributeError(ex_msg % (self.name, msg))
+
+                cc = self.container(self.cls, instance, self.name,
+                                    self.list_available, self.aliases)
+                instance._channel_container_instances[self.name] = cc
+
+            return instance._channel_container_instances[self.name]
+
+
+AbstractChannelDescriptor.register(ChannelDescriptor)

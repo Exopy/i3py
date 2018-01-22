@@ -14,8 +14,7 @@ from inspect import cleandoc
 from pyvisa.rname import (ASRLInstr, GPIBInstr, TCPIPInstr, TCPIPSocket)
 from pyvisa import errors
 
-from ...core.utils import byte_to_dict
-from ...core.actions import Action
+from ...core.actions import RegisterAction
 
 from .base import (BaseVisaDriver, VisaFeature, VisaAction,
                    get_visa_resource_manager)
@@ -37,20 +36,10 @@ class VisaMessageDriver(BaseVisaDriver):
     #: :type: str | list | tuple | None
     MODEL_CODE = None
 
-    #: Meaning of the status byte.
-    STATUS_BYTE = (0,
-                   1,
-                   2,
-                   3,
-                   'Message available',
-                   'Event status',
-                   'Request',
-                   7)
-
-    # XXX update once RegisterAction is finally there
-    @Action()
+    @RegisterAction({'Message available': 4, 'Event status': 5,
+                     'Request': 6})
     def read_status_byte(self):
-        return byte_to_dict(self._resource.read_stb(), self.STATUS_BYTE)
+        return self._resource.read_stb()
 
     def default_get_feature(self, feat, cmd, *args, **kwargs):
         """Query the value using the provided command.

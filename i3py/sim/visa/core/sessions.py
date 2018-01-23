@@ -1,16 +1,12 @@
-# -*- coding: utf-8 -*-
+# -----------------------------------------------------------------------------
+# Copyright 2018 by I3py Authors, see AUTHORS for more details.
+#
+# Distributed under the terms of the BSD license.
+#
+# The full license is in the file LICENCE, distributed with this software.
+# -----------------------------------------------------------------------------
 """
-    pyvisa-sim.sessions
-    ~~~~~~~~~~~~~~~~~~~
-
-    Base session class.
-
-    :copyright: 2014 by PyVISA-sim Authors, see AUTHORS for more details.
-    :license: MIT, see LICENSE for more details.
 """
-
-from __future__ import division, unicode_literals, print_function, absolute_import
-
 from pyvisa import constants, attributes, rname
 
 from .common import logger

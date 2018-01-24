@@ -1,0 +1,37 @@
+# -----------------------------------------------------------------------------
+# Copyright 2018 by I3py Authors, see AUTHORS for more details.
+#
+# Distributed under the terms of the BSD license.
+#
+# The full license is in the file LICENCE, distributed with this software.
+# -----------------------------------------------------------------------------
+"""Base driver for instrument implementing SCPI error reporting commands.
+
+"""
+from i3py.core.actions import Action
+from i3py.backends.visa import VisaMessageDriver
+
+
+class SCPIErrorReading(VisaMessageDriver):
+    """Base class for all instruments implementing 'SYST:ERR?'.
+
+    """
+
+    @Action()
+    def read_error(self):
+        """Read the first error in the error queue.
+
+        If an unhandle error occurs, the error queue should be polled till it
+        is empty.
+
+        """
+        code, msg = self.query('SYST:ERR?').split(',')
+        return int(code), msg
+
+    def default_check_operation(self, feat, value, i_value, response):
+        """Check if an error is present in the error queue.
+
+        """
+        # XXX
+        code, msg = self.read_error()
+        return bool(code), msg

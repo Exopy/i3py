@@ -1,21 +1,14 @@
 # -*- coding: utf-8 -*-
+# -----------------------------------------------------------------------------
+# Copyright 2018 by I3py Authors, see AUTHORS for more details.
+#
+# Distributed under the terms of the BSD license.
+#
+# The full license is in the file LICENCE, distributed with this software.
+# -----------------------------------------------------------------------------
+"""Session for Serial instruments.
+
 """
-    pyvisa-sim.serial
-    ~~~~~~~~~~~~~~~~~
-
-    ASRL (Serial) simulated session class.
-
-    :copyright: 2014 by PyVISA-sim Authors, see AUTHORS for more details.
-    :license: MIT, see LICENSE for more details.
-"""
-
-from __future__ import division, unicode_literals, print_function, absolute_import
-
-try:
-    import Queue as queue
-except ImportError:
-    import queue
-
 import time
 
 from pyvisa import constants
@@ -26,6 +19,9 @@ from . import sessions
 
 @sessions.Session.register(constants.InterfaceType.asrl, 'INSTR')
 class SerialInstrumentSession(sessions.Session):
+    """Session for Serial instruments.
+
+    """
 
     def after_parsing(self):
         self.attrs[constants.VI_ATTR_INTF_NUM] = int(self.parsed.board)
@@ -47,6 +43,7 @@ class SerialInstrumentSession(sessions.Session):
         start = time.time()
 
         out = b''
+        tc_success = constants.StatusCode.success_termination_character_read
 
         while time.time() - start <= timeout:
             last = self.device.read()
@@ -59,7 +56,7 @@ class SerialInstrumentSession(sessions.Session):
 
             if end_in == constants.SerialTermination.termination_char:
                 if out[-1:] == end_char:
-                    return out, constants.StatusCode.success_termination_character_read
+                    return out, tc_success
 
             elif end_in == constants.SerialTermination.last_bit:
 
@@ -67,11 +64,11 @@ class SerialInstrumentSession(sessions.Session):
                     return out, constants.StatusCode.success
 
                 if enabled and out[-1:] == end_char:
-                    return out, constants.StatusCode.success_termination_character_read
+                    return out, tc_success
 
             elif end_in == constants.SerialTermination.none:
                 if out[-1:] == end_char:
-                    return out, constants.StatusCode.success_termination_character_read
+                    return out, tc_success
 
             else:
                 raise ValueError('Unknown value for VI_ATTR_ASRL_END_IN')

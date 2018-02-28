@@ -13,7 +13,6 @@ import re
 from stringparser import Parser
 from i3py.core.base_channel import ChannelContainer, Channel
 
-from .common import build_matcher
 from .component import BaseComponentMixin, NoMatch, ErrorOccured
 
 

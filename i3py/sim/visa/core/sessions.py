@@ -5,7 +5,10 @@
 #
 # The full license is in the file LICENCE, distributed with this software.
 # -----------------------------------------------------------------------------
-"""
+"""Object representing a VISA session.
+
+This file is largely inspired by the work done in PyVISA-Sim package.
+
 """
 from pyvisa import constants, attributes, rname
 
@@ -17,12 +20,21 @@ class Session(object):
 
     Just makes sure that common methods are defined and information is stored.
 
-    :param resource_manager_session: The session handle of the parent Resource Manager
-    :param resource_name: The resource name.
-    :param parsed: the parsed resource name (optional).
+    Parameters
+    ----------
+    resource_manager_session:
+        The session handle of the parent Resource Manager
+
+    resource_name: str
+        The resource name.
+
+    parsed: str
+        the parsed resource name (optional).
+
     """
 
-    #: Maps (Interface Type, Resource Class) to Python class encapsulating that resource.
+    #: Maps (Interface Type, Resource Class) to Python class encapsulating that
+    #: resource.
     #: dict[(Interface Type, Resource Class) , Session]
     _session_classes = dict()
 
@@ -31,31 +43,54 @@ class Session(object):
 
     @classmethod
     def get_session_class(cls, interface_type, resource_class):
-        """Return the session class for a given interface type and resource class.
+        """Return the session class for a given interface type and resource
+        class.
 
-        :type interface_type: constants.InterfaceType
-        :type resource_class: str
-        :return: Session
+        Parameters
+        ----------
+        interface_type: constants.InterfaceType
+            The interface type to use for the session.
+
+        resource_class: str
+            The name of the resource class to use for the session.
+
+        Returns
+        -------
+        session: Session
+            Session class to use.
+
         """
         try:
             return cls._session_classes[(interface_type, resource_class)]
         except KeyError:
-            raise ValueError('No class registered for %s, %s' % (interface_type, resource_class))
+            raise ValueError('No class registered for %s, %s' %
+                             (interface_type, resource_class))
 
     @classmethod
     def register(cls, interface_type, resource_class):
-        """Register a session class for a given interface type and resource class.
+        """Register a session class for a given interface type and resource
+        class.
 
-        :type interface_type: constants.InterfaceType
-        :type resource_class: str
+        Parameters
+        ----------
+        interface_type: constants.InterfaceType
+            The interface type for which to register the session class.
+
+        resource_class: str
+            The name of the resource class for which to register the session
+            class.
+
         """
         def _internal(python_class):
             if (interface_type, resource_class) in cls._session_classes:
-                logger.warning('%s is already registered in the ResourceManager. '
-                               'Overwriting with %s' % ((interface_type, resource_class), python_class))
+                logger.warning('%s is already registered in the '
+                               'ResourceManager. Overwriting with %s' %
+                               ((interface_type, resource_class), python_class)
+                               )
 
             python_class.session_type = (interface_type, resource_class)
-            cls._session_classes[(interface_type, resource_class)] = python_class
+            cls._session_classes[(interface_type,
+                                  resource_class)] = python_class
             return python_class
         return _internal
 

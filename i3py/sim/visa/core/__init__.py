@@ -9,8 +9,5 @@
 
 """
 from i3py.core.highlevel import I3pySimVisaLibrary
-from i3py.version import __version__
 
-# XXX manually inject the backend in pyvisa
-WRAPPER_CLASS = I3pySimVisaLibrary
-
+__all__ = ['I3pySimVisaLibrary']

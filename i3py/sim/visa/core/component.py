@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # -----------------------------------------------------------------------------
 # Copyright 2018 by I3py Authors, see AUTHORS for more details.
 #
@@ -8,11 +9,11 @@
 """Base classes for simulated instrument components.
 
 """
-from i3py.core import HasFeature, Subsystem, subsystem, channel
+from i3py.core import HasFeature, Subsystem
 
 from .features import SimulatedFeature
 from .dialog import Dialog
-from .common import NamedObject, build_matcher, build_scpi_matcher
+from .common import NamedObject
 
 
 def to_bytes(val):
@@ -25,19 +26,15 @@ def to_bytes(val):
     return val.encode()
 
 
-# Sentinel used for when there is no match.
+#: Sentinel used for when there is no match.
 NoMatch = NamedObject(name='NoMatch')
 
 
-# Sentinel used for when there should not be a response to a query
+#: Sentinel used for when there should not be a response to a query
 NoResponse = NamedObject(name='NoResponse')
 
 
-#
-ErrorOccurred = NamedObject(name='ErrorOccured')
-
-
-# Sentinel marking that the available channels should be specified by the user.
+#: Sentinel marking that the available channels should be specified by the user
 UserSpecifiedChannels = NamedObject('UserSpecifiedChannels')
 
 
@@ -45,7 +42,37 @@ class BaseComponentMixin(HasFeature):
     """Base mixin class for simulated instrument components.
 
     """
-    def match(self, query):
+
+    @classmethod
+    def build_matchers(cls, builder, options):
+        """Build the matchers of all the features/dialogs/components.
+
+        """
+        for f in cls.__features__.values():
+            f.build_matcher(builder, options)
+
+        for a in cls.__actions__.values():
+            a.build_matcher(builder, options)
+
+        for s in cls.__subsystems__.values():
+            s.build_matchers(builder, options)
+
+        for c in cls.__channels__.values():
+            c.build_matchers(builder, options)
+
+    @classmethod
+    def collect_error_handlers(cls, root):
+        """Collect all declared error handlers.
+
+        Parameters
+        ----------
+        root : Device
+            Root component repsonsible for error management.
+
+        """
+        pass
+
+    def _match_(self, query):
         """Try to find a match for a query in the instrument commands.
 
         """
@@ -56,27 +83,25 @@ class BaseComponentMixin(HasFeature):
                 return response
 
         for s in self.__subsystems__:
-            response = s.match(query)
+            response = s._match_(query)
             if response is not NoMatch:
                 return response
 
         for c in self.__channels__:
-            response = c.match(query)
+            response = c._match_(query)
             if response is not NoMatch:
                 return response
 
         return NoMatch
 
     def handle_error(self, exception):
-        """
-        """
-        raise NotImplementedError()
+        """Simply pass the exception up to the parent.
 
-    @classmethod
-    def finalize_cls_creation(cls):
+        The root device is responsible for handling the errors that buble up
+        to him.
+
         """
-        """
-        pass
+        self.parent.handle_error(exception)
 
 
 class Component(BaseComponentMixin, Subsystem):
@@ -86,93 +111,22 @@ class Component(BaseComponentMixin, Subsystem):
     query.
 
     """
-    # XXX build matcher at init and retrieve scpi and case senitivity from root
-    @classmethod
-    def finalize_cls_creation():
-        """
-        """
-        pass
-
-    def match(self, query):
+    def _match_(self, query):
         """Analyse whether the query fits any known query.
 
         """
         if getattr(self, '_cmd_', None):
-            if query.startswith(self._cmd_):
-                query = query.strip(self._cmd_)
+            match = self._matcher.match(query)
+            if match:
+                query = query[match.end():]
                 return super(Component, self).match(query)
             else:
+                bypass = getattr(self, '_bypass_', [])
+                for b in bypass:
+                    response = b.match(self, query)
+                    if response is not NoMatch:
+                        return response
                 return NoResponse
 
         else:
             return super(Component, self).match(query)
-
-    # XXX call parent, rebuild full query perhaps
-    def handle_error(self, error):
-        """
-        """
-        pass
-
-
-class component(subsystem):
-    """Sentinel used to collect declarations for a subcomponent.
-
-    Parameters
-    ----------
-    cmd : unicode, optional
-        Prefix for all commands of the subsystem.
-
-    bases : class or tuple of classes, optional
-        Class or classes to use as base class when no matching subpart exists
-        on the driver.
-
-    """
-    def __init__(self, cmd='', use_scpi=None, bases=()):
-
-        super(component, self).__init__(bases)
-        if cmd:
-            self._cmd_ = cmd
-
-
-class component_channel(channel):
-    """Sentinel used to collect declarations or modifications for a channel.
-
-    Parameters
-    ----------
-    cmd : unicode, optional
-        Prefix for all commands of the channel. This may include fields to
-        extract to identify the channel.
-
-    available : tuple or list, optional
-        List of channel ids. This should only be specified if the channels of
-        an instrument are static.
-
-    selectable : bool, optional
-        Can the channel be selected and remembered (all following commands
-        hence being directed to the selected channel).
-
-    bases : class or tuple of classes, optional
-        Class or classes to use as base class when no matching subpart exists
-        on the driver.
-
-    aliases : dict, optional
-        Dictionary providing aliases for channels ids. Aliases can be simple
-        values, list or tuple.
-
-    container_type : type, optional
-        Container type to use to store channels.
-
-    """
-    def __init__(self, cmd='', available=None, selectable=False,
-                 bases=(), aliases=None, container_type=None):
-        if container_type is None:
-            from .channel import SimulatedChannelContainer
-            container_type = SimulatedChannelContainer
-        super(component_channel, self).__init__(available, bases, aliases,
-                                                container_type)
-        self._cmd_ = cmd
-        self._selectable_ = selectable
-        # In simulated instruments the available channels can be specified
-        # when the simulated instrument is initialized.
-        if available is None:
-            self._available_ = UserSpecifiedChannels

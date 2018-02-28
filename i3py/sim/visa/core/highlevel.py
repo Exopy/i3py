@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # -----------------------------------------------------------------------------
 # Copyright 2018 by I3py Authors, see AUTHORS for more details.
 #

@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # -----------------------------------------------------------------------------
 # Copyright 2018 by I3py Authors, see AUTHORS for more details.
 #
@@ -19,6 +20,7 @@ from .component import ErrorOccured, NoResponse
 
 
 # XXX setter should containe a value field
+# XXX need to support options
 class SimulatedFeature(AbstractFeature):
     """Feature describing a simulated instrument feature.
 
@@ -48,15 +50,16 @@ class SimulatedFeature(AbstractFeature):
         else:
             self._setter_matcher = None
 
-        # XXX set the creation_kwargs
-        self.creation_kwargs = {}
+        self._default = default
+
+        self.creation_kwargs = dict(getter=getter, setter=setter,
+                                    default=default,
+                                    answer_formats=answer_formats,
+                                    checks=checks, discard=discard,
+                                    types=types, limits=limits, values=values,
+                                    errors=errors)
 
         # XXX handle all magic arguments
-
-    def link_to_component(self, component, root):
-        """
-        """
-        pass
 
     def match(self, driver, query):
         """Try to match the query to the getter and setter.
@@ -68,6 +71,7 @@ class SimulatedFeature(AbstractFeature):
                     try:
                         kwargs = self._getter_extract(query)
                     except ValueError as e:
+                        # XXX Need a more specific error
                         driver.handle_error(e)
                         return ErrorOccured
                 else:
@@ -81,6 +85,7 @@ class SimulatedFeature(AbstractFeature):
                     try:
                         kwargs = self._setter_extract(query)
                     except ValueError as e:
+                        # XXX Need a more specific error
                         driver.handle_error(e)
                         return ErrorOccured
                 else:
@@ -97,6 +102,8 @@ class SimulatedFeature(AbstractFeature):
         """
         if kind in self._answer_formats:
             return self._answer_formats[kind].format(value, **kwargs)
+
+        return NoResponse
 
     def pre_get(self, driver):
         """Hook to perform checks before querying a value from the instrument.
@@ -232,6 +239,8 @@ class SimulatedFeature(AbstractFeature):
         """
         return self._default
 
+
+# XXX to work on
 
 class SimulatedRegister(SimulatedFeature):
     """

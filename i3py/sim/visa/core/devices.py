@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # -----------------------------------------------------------------------------
 # Copyright 2018 by I3py Authors, see AUTHORS for more details.
 #
@@ -10,7 +11,7 @@
 """
 from pyvisa import constants, rname
 
-from .common import logger
+from .common import logger, build_matcher, build_scpi_matcher
 from .component import to_bytes, BaseComponentMixin, NoResponse
 
 
@@ -38,6 +39,40 @@ class Device(BaseComponentMixin):
     # Default end of message used in response operations
     # :type: bytes
     _response_eom = None
+
+    #: Matcher build id to use.
+    matcher_builder_id = 'default'
+
+    #: Matcher builder options
+    matcher_builder_options = {}
+
+    #: Dictionary storing the registered matcher builders.
+    _matcher_builders = {}
+
+    @classmethod
+    def register_matcher_builder(cls, id, builder):
+        """Register a new function to build command matcher.
+
+        Parameters
+        ----------
+        id: str
+            Unique idetifying the builder
+
+        builder: Callable
+            Callable creating a matcher from a format string.
+
+        """
+        Device._matcher_builders[id] = builder
+
+    @classmethod
+    def __init_subclass__(cls, **kwargs):
+        """Build the command matchers.
+
+        At this stage we have all the features, actions and components in place
+
+
+        """
+        pass
 
     def __init__(self, name, delimiter):
 
@@ -80,6 +115,10 @@ class Device(BaseComponentMixin):
         #: :type: dict
         self._error_queues = {}
 
+        # Query message currently being processed. Can be used by error
+        # handlers
+        self._current_query_ = ''
+
     @property
     def resource_name(self):
         """Assigned resource name
@@ -94,8 +133,8 @@ class Device(BaseComponentMixin):
             self._query_eom, self._response_eom =\
                 self._eoms[(p.interface_type_const, p.resource_class)]
         except KeyError:
-            logger.warning('No eom provided for %s, %s.'
-                           'Using LF.'% (p.interface_type_const, p.resource_class))
+            logger.warning('No eom provided for %s, %s. Using LF.',
+                           p.interface_type_const, p.resource_class)
             self._query_eom, self._response_eom = b'\n', b'\n'
 
     def add_error_handler(self, error_input):
@@ -181,6 +220,7 @@ class Device(BaseComponentMixin):
             queries = (message.split(self.delimiter) if self.delimiter
                        else [message])
             for query in queries:
+                self._current_query_ = query
                 response = self._match(query)
                 eom = self._response_eom
 
@@ -236,6 +276,10 @@ class Device(BaseComponentMixin):
                          repr(response))
 
             return response
+
+
+Device.register_matcher_builder('default', build_matcher)
+Device.register_matcher_builder('scpi', build_scpi_matcher)
 
 
 class Devices(object):

@@ -48,6 +48,9 @@ int_to_byte = lambda val: bytes([val])
 last_int = lambda val: val[-1]
 
 
+# XXX add support for options (case_ sensitivity) and for extrating values
+# ie parsing
+
 def build_matcher(query, optional=False):
     """Build a regular expression matching a query no matter the arguments.
 

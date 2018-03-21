@@ -1,0 +1,6 @@
+formats:
+    - epub
+    - pdf
+
+python:
+  pip_install: true

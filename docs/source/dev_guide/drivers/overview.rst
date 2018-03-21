@@ -255,3 +255,61 @@ separated by ; .
 
 For more details please refer to the API documentation or to the dedicated
 section of the documentation about options :ref:`dev_driv_options`.
+
+Special class variables for VISA based driver
+---------------------------------------------
+
+In the case of VISA based drivers, it is desirable to specify which
+communication protocols are supported by the instrument, along which the
+parameters to use (such as termination characters, which may differ between
+protocols). All those informations can be specified to I3py drivers through the
+use of the class level variables listed below:
+
+- PROTOCOLS:
+  Dictionary specifying the protocols supported by the instrument. For each
+  type of interface a dictionary (or a list of dictionary), specifying the
+  default arguments to use should be provided. Valid interfaces are :
+
+    + ASRL: serial interface (RS232)
+    + USB: usb interface
+    + TCPIP: ethernet based interface
+    + GPIB: gpib based interface
+    + PXI: pxi based interface
+    + VXI: vxi based interface
+
+  For each supported interface, the dictionary should contain at least the
+  resource class to use. In addition, it can contain interface specific
+  settings that users will not have to provide to start the driver. For
+  example, if the instrument support the using raw sockets on TCPIP, the port
+  number is required and can be specified as follow.
+
+  .. codeblock:: python
+
+    PROTOCOLS = {'TCPIP': {'resource_class': 'SOCKET',
+                           'port': '50000'}}
+
+  The valid keys for each interface matches the named used in VISA resource
+  names which are described in PyVISA documentation_.
+
+  .. _documentation: https://pyvisa.readthedocs.io/en/stable/names.html
+
+- DEFAULTS:
+  Dictionary specifying the default parameters to use for the VISA session.
+  As some of those can be interface specific, the valid key for the dictionary
+  are the same as for PROTOCOLS with the addition on `'COMMON'` that applies
+  to all interfaces. The values associated to each key is expected to be
+  a dictionary, whose keys match the attributes of the underlying VISA
+  resource. The most commons are:
+
+  + write_termination: character appended at the end of each sent message
+  + read_termination: character expected at the end of each received message.
+  + timeout: time in ms after which to consider that the communication failed.
+
+- NON_VISA_NAMES:
+  By default all arguments passed to a VISA driver are used to build the
+  resource name. This class hold a tuple of named reserved to other usage.
+  By default it is set to `('parameters', 'backend')`, which should be
+  sufficient be sufficient in most cases.
+  'parameters' is a dictionary whose content is by default passed to the
+  underlying PyVISA object, but it is a matter of simply overriding initialize
+  to handle it in a different fashion.

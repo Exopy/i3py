@@ -27,14 +27,6 @@ class VisaMessageDriver(BaseVisaDriver):
     This covers among others GPIB, USB, TCPIP ...
 
     """
-    #: The identification number of the manufacturer as hex code.
-    #: :type: str | None
-    MANUFACTURER_ID = None
-
-    #: The code number of the model as hex code.
-    #: Can provide a tuple/list to indicate multiple models.
-    #: :type: str | list | tuple | None
-    MODEL_CODE = None
 
     @RegisterAction({'Message available': 4, 'Event status': 5,
                      'Request': 6})
@@ -70,13 +62,8 @@ class VisaMessageDriver(BaseVisaDriver):
         missing, the first USBTMC driver matching any of the provided values is
         returned.
 
-        To specify the manufacturer id and/or the model code override the
-        following class attributes::
-
-            class RigolDS1052E(VisaMessageDriver):
-
-                MANUFACTURER_ID = '0x1AB1'
-                MODEL_CODE = '0x0588'
+        If no manufacturer_id(model_code) is provided the value found in the
+        PROTOCOLS dictionary is used.
 
         Parameters
         ----------
@@ -101,8 +88,10 @@ class VisaMessageDriver(BaseVisaDriver):
 
         """
 
-        manufacturer_id = manufacturer_id or cls.MANUFACTURER_ID
-        model_code = model_code or cls.MODEL_CODE
+        manufacturer_id = (manufacturer_id or
+                           cls.PROTOCOLS.get('USB', {}).get('manufacturer_id'))
+        model_code = (model_code or
+                      cls.PROTOCOLS.get('USB', {}).get('model_code'))
 
         if isinstance(model_code, (list, tuple)):
             _models = model_code
@@ -151,13 +140,8 @@ class VisaMessageDriver(BaseVisaDriver):
         missing, the first USBTMC driver matching any of the provided values is
         returned.
 
-        To specify the manufacturer id and/or the model code override the
-        following class attributes::
-
-            class RigolDS1052E(VisaMessageDriver):
-
-                MANUFACTURER_ID = '0x1AB1'
-                MODEL_CODE = '0x0588'
+        If no manufacturer_id(model_code) is provided the value found in the
+        PROTOCOLS dictionary is used.
 
         Parameters
         ----------

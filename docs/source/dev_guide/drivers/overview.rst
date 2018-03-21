@@ -298,10 +298,10 @@ DEFAULTS
 ^^^^^^^^
 
 Dictionary specifying the default parameters to use for the VISA session.
-As some of those can be interface specific, the valid key for the dictionary
-are the same as for PROTOCOLS with the addition on `'COMMON'` that applies
-to all interfaces. The values associated to each key is expected to be
-a dictionary, whose keys match the attributes of the underlying VISA
+As some of those can be interface or resource specific, the valid keys for the dictionary include any pair (interface_type, resource_class), any
+interface_type, any resource_class and `'COMMON'` that applies
+to all interfaces/resources. The values associated to each key is expected to
+be a dictionary, whose keys match the attributes of the underlying VISA
 resource. The most commons are:
 
 - write_termination: character appended at the end of each sent message

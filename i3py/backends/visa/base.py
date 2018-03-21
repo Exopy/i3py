@@ -255,9 +255,9 @@ class BaseVisaDriver(BaseDriver):
 
         This is done by combining:
             - user provided keyword arguments.
-            - (instrument_type, resource_type) keyword arguments.
-            - instrument_type keyword arguments.
-            - resource_type keyword arguments.
+            - (interface_type, resource_class) keyword arguments.
+            - interface_type keyword arguments.
+            - resource_class keyword arguments.
             - common keyword arguments.
 
         (the first ones have precedence)

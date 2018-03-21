@@ -1,9 +1,9 @@
-.. _dev_drivers
+.. _dev-drivers:
 
 Driver machinery
 ================
 
-I3py strives to provide a conveninent but flexible interface to write drivers
+I3py strives to provide a convenient but flexible interface to write drivers
 that can handle the full complexity of the instrument you need to interface.
 Of course this has some cost in term of internal complexity, but those are
 believed to be worth it.

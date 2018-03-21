@@ -1,6 +1,6 @@
-.. _dev_driv_overview
+.. include:: ../../substitutions.sub
 
-.. include:: ../substitutions.sub
+.. _dev-driv-overview:
 
 Writing a driver
 ================
@@ -10,7 +10,7 @@ to you to write your driver. While it should be sufficient to write simple
 drivers you may want to check the following sections for more detailed
 explanations.
 
-.. notes::
+.. note::
 
     It may seem obvious, but, in order to write a driver for your instrument
     you need both a good knowledge of the instrument and to read its manual.
@@ -59,7 +59,7 @@ a standardized base class defining the expected features and actions. As those
 those your driver should inherit from a base class handling the communication
 and all the 'standards' your instrument supports.
 
-.. codeblock::
+.. code-block:: python
 
     class MyDriver(VisaMessageDriver, IEEEIdentify):
         """My driver (supporting *IDN?) docstring.
@@ -83,7 +83,7 @@ methods:
       See the API docs for more details.
 
 For more details about what are standards and how to use them please refer to
-:ref:`dev_driv_standards`
+:ref:`dev-driv-standards`
 
 .. note::
 
@@ -103,7 +103,7 @@ other setting of the driver is modified, but not in a spontaneous manner.
 To a add a Feature to your instrument you have nothing else to do that assign
 a Feature subclass to an identifier. As illustrated in the example below :
 
-.. codeblock::
+.. code-block:: python
 
     class MyDriver(VisaMessageDriver, IEEEIdentify):
         """My driver (supporting *IDN?) docstring.
@@ -125,7 +125,7 @@ the values are incorrect). In such cases, it is not necessary to entirely
 redefine the feature, one can use |set_feat| to change the proper keyword
 arguments values.
 
-.. codeblock::
+.. code-block:: python
 
     class MyNewDriver(MyDriver):
         """My driver (supporting *IDN?) docstring.
@@ -133,11 +133,11 @@ arguments values.
         """
         mode = set_feat(values=('CW', 'PULSED', 'TRIGGERED'))
 
-The detailed working of Features is detailed in :ref:`dev_driv_features`, and
+The detailed working of Features is detailed in :ref:`dev-driv-features`, and
 all the existing  features are described in the API. Finally, as instruments
 can be often quite surprising in their behaviors, the default behaviors of the
 provided features  may prove insufficient. More complex customization are
-possible and detailed in the section :ref:`dev_driv_advanced` of this manual.
+possible and detailed in the section :ref:`dev-driv-advanced` of this manual.
 
 Adding an Action
 ----------------
@@ -146,7 +146,7 @@ Actions are light wrapper around methods. They provide similar facility to run
 checks and conversion on the input and output values as do features. To declare
 one, you only have to declare a method:
 
-.. codeblock::
+.. code-block:: python
 
     class MyDriver(VisaMessageDriver):
         """My driver (suppporting *IDN?) docstring.
@@ -160,12 +160,12 @@ one, you only have to declare a method:
             """
             pass
 
-The above ewample shows how to check the value of an argument is valid.
+The above example shows how to check the value of an argument is valid.
 
-The detailed working of actions is described in :ref:`dev_driv_actions` section.
+The detailed working of actions is described in :ref:`dev-driv-actions` section.
 Just like  features several classes of actions exist and are describe in the
 API. Actions support advanced customization just like features which are
-described in section :ref:`dev_driv_advanced`
+described in section :ref:`dev-driv-advanced`
 
 Using subsystem and channels
 ----------------------------
@@ -175,7 +175,7 @@ avoid ridiculously long names. For example many lock-in amplifiers include a
 built-in oscillator and subsytems allow for example to group the related
 features such as amplitude and frequency as shown below:
 
-.. codeblock::
+.. code-block:: python
 
     class MyDriver(VisaMessageDriver):
         """My driver (supporting *IDN?) docstring.
@@ -189,7 +189,7 @@ features such as amplitude and frequency as shown below:
 
 Actions can also be attached to a subsystems:
 
-.. codeblock::
+.. code-block:: python
 
     class MyDriver(VisaMessageDriver):
         """My driver (supporting *IDN?) docstring.
@@ -219,7 +219,7 @@ driver.
 
 For more details please refer to the API documentation or to the dedicated
 section of the documentation about subsystems and channels
-:ref:`dev_driv_subsystem`.
+:ref:`dev-driv-subsystem`.
 
 Handling options
 ----------------
@@ -253,8 +253,7 @@ separated by ; .
 	inhibited if necessary using the 'checks' mechanism that exists on
 	features, actions, subsystems and channels.
 
-For more details please refer to the API documentation or to the dedicated
-section of the documentation about options :ref:`dev_driv_options`.
+For more details please refer to the API documentation.
 
 Special class variables for VISA based driver
 ---------------------------------------------
@@ -265,51 +264,59 @@ parameters to use (such as termination characters, which may differ between
 protocols). All those informations can be specified to I3py drivers through the
 use of the class level variables listed below:
 
-- PROTOCOLS:
-  Dictionary specifying the protocols supported by the instrument. For each
-  type of interface a dictionary (or a list of dictionary), specifying the
-  default arguments to use should be provided. Valid interfaces are :
+PROTOCOLS
+^^^^^^^^^
 
-    + ASRL: serial interface (RS232)
-    + USB: usb interface
-    + TCPIP: ethernet based interface
-    + GPIB: gpib based interface
-    + PXI: pxi based interface
-    + VXI: vxi based interface
+Dictionary specifying the protocols supported by the instrument. For each
+type of interface a dictionary (or a list of dictionary), specifying the
+default arguments to use should be provided. Valid interfaces are :
 
-  For each supported interface, the dictionary should contain at least the
-  resource class to use. In addition, it can contain interface specific
-  settings that users will not have to provide to start the driver. For
-  example, if the instrument support the using raw sockets on TCPIP, the port
-  number is required and can be specified as follow.
++ ASRL: serial interface (RS232)
++ USB: usb interface
++ TCPIP: ethernet based interface
++ GPIB: gpib based interface
++ PXI: pxi based interface
++ VXI: vxi based interface
 
-  .. codeblock:: python
+For each supported interface, the dictionary should contain at least the
+resource class to use. In addition, it can contain interface specific
+settings that users will not have to provide to start the driver. For
+example, if the instrument support the using raw sockets on TCPIP, the port
+number is required and can be specified as follow.
 
-    PROTOCOLS = {'TCPIP': {'resource_class': 'SOCKET',
-                           'port': '50000'}}
+.. code-block:: python
 
-  The valid keys for each interface matches the named used in VISA resource
-  names which are described in PyVISA documentation_.
+PROTOCOLS = {'TCPIP': {'resource_class': 'SOCKET',
+                       'port': '50000'}}
 
-  .. _documentation: https://pyvisa.readthedocs.io/en/stable/names.html
+The valid keys for each interface matches the named used in VISA resource
+names which are described in PyVISA documentation_.
 
-- DEFAULTS:
-  Dictionary specifying the default parameters to use for the VISA session.
-  As some of those can be interface specific, the valid key for the dictionary
-  are the same as for PROTOCOLS with the addition on `'COMMON'` that applies
-  to all interfaces. The values associated to each key is expected to be
-  a dictionary, whose keys match the attributes of the underlying VISA
-  resource. The most commons are:
+.. _documentation: https://pyvisa.readthedocs.io/en/stable/names.html
 
-  + write_termination: character appended at the end of each sent message
-  + read_termination: character expected at the end of each received message.
-  + timeout: time in ms after which to consider that the communication failed.
+DEFAULTS
+^^^^^^^^
 
-- NON_VISA_NAMES:
-  By default all arguments passed to a VISA driver are used to build the
-  resource name. This class hold a tuple of named reserved to other usage.
-  By default it is set to `('parameters', 'backend')`, which should be
-  sufficient be sufficient in most cases.
-  'parameters' is a dictionary whose content is by default passed to the
-  underlying PyVISA object, but it is a matter of simply overriding initialize
-  to handle it in a different fashion.
+Dictionary specifying the default parameters to use for the VISA session.
+As some of those can be interface specific, the valid key for the dictionary
+are the same as for PROTOCOLS with the addition on `'COMMON'` that applies
+to all interfaces. The values associated to each key is expected to be
+a dictionary, whose keys match the attributes of the underlying VISA
+resource. The most commons are:
+
+- write_termination: character appended at the end of each sent message
+- read_termination: character expected at the end of each received message.
+- timeout: time in ms after which to consider that the communication failed.
+
+
+NON_VISA_NAMES
+^^^^^^^^^^^^^^
+
+By default all arguments passed to a VISA driver are used to build the
+resource name. This class hold a tuple of named reserved to other usage.
+By default it is set to `('parameters', 'backend')`, which should be
+sufficient be sufficient in most cases.
+
+'parameters' is a dictionary whose content is by default passed to the
+underlying PyVISA object, but it is a matter of simply overriding initialize
+to handle it in a different fashion.

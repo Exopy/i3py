@@ -1,6 +1,6 @@
-.. _dev_driv_advanced
+.. include:: ../../substitutions.sub
 
-.. include:: ../substitutions.sub
+.. _dev-driv-advanced:
 
 Advanced customization
 ======================
@@ -20,7 +20,7 @@ Defining custom handler
 
 Custom handlers can be defined using the following syntax:
 
-.. codeblock::
+.. code-block:: python
 
     from i3py.core import customize
 

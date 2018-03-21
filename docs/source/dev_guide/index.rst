@@ -1,4 +1,4 @@
-.. _dev_guide:
+.. _dev-guide:
 
 Extending I3py
 ==============

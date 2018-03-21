@@ -1,15 +1,15 @@
-.. _dev_driv_standards
+.. include:: ../../substitutions.sub
 
-.. include:: ../substitutions.sub
+.. _dev-driv-standards:
 
 Standards
 =========
 
-In order to improve inter-operalibility and allow, up to point, to replace one
+In order to improve inter-operability and allow, up to point, to replace one
 instrument with another equivalent one, it is crucial for both instrument 
 interfaces to expose the same API to the user. I3py strives to achieve this
 kind of interoperability. Of course, it can never be perfect as commonly some
-instrument implement very specific behaviors not found in other. Furthermore,
+instrument implement very specific behaviours not found in other. Furthermore,
 one must accept that generality may mean that the interface may not appear as 
 simple as it could be because it takes into account possible variations in 
 other instruments. One example is the one of the instrument output (voltage,
@@ -22,8 +22,8 @@ Trying to figure out, the "right" interface for a class of instrument is a
 tedious task that requires to consider for the initial design two or three 
 instrument from different vendors. However once this work is done, implementing
 new drivers becomes straightforward. In addition, one can implement generic 
-behaviors as part of a standard: the case of IEEE * commands is one example and
-the SCPI 'SYSTem:ERRor?' is another. Implementing those behaviors once in a 
+behaviours as part of a standard: the case of IEEE * commands is one example and
+the SCPI 'SYSTem:ERRor?' is another. Implementing those behaviours once in a 
 standard allow to trivially support them in all instruments and limit code 
 duplication.
 

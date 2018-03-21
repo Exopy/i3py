@@ -4,7 +4,7 @@
    the file.
 
 .. ============================================================================
-.. I3py substitutions
+.. I3py core substitutions
 .. ============================================================================
 
 .. |AbstractSubSystemDescriptor| replace:: :py:class:`i3py.core.abstract.AbstractSubSystemDescriptor`
@@ -25,6 +25,8 @@
 
 .. |HasFeatures.default_check_operation| replace:: :py:meth:`~i3py.core.has_features.HasFeatures.default_check_operation`
 
+.. |BaseDriver| replace:: :py:class:`~i3py.core.base_driver.BaseDriver`
+
 .. |subsystem| replace:: :py:class:`~i3py.core.declarative.subsystem`
 
 .. |channel| replace:: :py:class:`~i3py.core.declarative.channel`
@@ -37,7 +39,7 @@
 
 .. |customize| replace:: :py:class:`~i3py.core.composition.customize`
 
-.. MethodComposer replace:: :py:class:`~i3py.core.composition.MethodComposer`
+.. |MethodComposer| replace:: :py:class:`~i3py.core.composition.MethodComposer`
 
 .. |I3pyFailedGet| replace:: :py:class:`~i3py.core.errors.I3pyFailedGet`
 
@@ -47,17 +49,17 @@
 
 .. |Feature| replace:: :py:class:`~i3py.core.features.feature.Feature`
 
-.. |Feature.pre_get| replace:: :py:method:`~i3py.core.features.feature.Feature.pre_get`
+.. |Feature.pre_get| replace:: :py:meth:`~i3py.core.features.feature.Feature.pre_get`
 
-.. |Feature.get| replace:: :py:method:`~i3py.core.features.feature.Feature.get`
+.. |Feature.get| replace:: :py:meth:`~i3py.core.features.feature.Feature.get`
 
-.. |Feature.post_get| replace:: :py:method:`~i3py.core.features.feature.Feature.post_get`
+.. |Feature.post_get| replace:: :py:meth:`~i3py.core.features.feature.Feature.post_get`
 
-.. |Feature.pre_set| replace:: :py:method:`~i3py.core.features.feature.Feature.pre_set`
+.. |Feature.pre_set| replace:: :py:meth:`~i3py.core.features.feature.Feature.pre_set`
 
-.. |Feature.set| replace:: :py:method:`~i3py.core.features.feature.Feature.set`
+.. |Feature.set| replace:: :py:meth:`~i3py.core.features.feature.Feature.set`
 
-.. |Feature.post_set| replace:: :py:method:`~i3py.core.features.feature.Feature.post_set`
+.. |Feature.post_set| replace:: :py:meth:`~i3py.core.features.feature.Feature.post_set`
 
 .. |Options| replace:: :py:class:`~i3py.core.features.options.Options`
 
@@ -71,15 +73,23 @@
 
 .. |Alias| replace:: :py:class:`~i3py.core.features.alias.Alias`
 
+.. |Register| replace:: :py:class:`~i3py.core.features.register.Register`
+
+.. |IntLimitsValidator| replace:: :py:class:`~i3py.core.limits.IntLimitsValidator`
+
+.. |FloatLimitsValidator| replace:: :py:class:`~i3py.core.limits.FloatLimitsValidator`
+
 .. |BaseAction| replace:: :py:class:`~i3py.core.actions.action.BaseAction`
 
-.. |BaseAction.pre_call| replace:: :py:method:`~i3py.core.actions.action.BaseAction.pre_call`
+.. |BaseAction.pre_call| replace:: :py:meth:`~i3py.core.actions.action.BaseAction.pre_call`
 
-.. |BaseAction.call| replace:: :py:method:`~i3py.core.actions.action.BaseAction.call`
+.. |BaseAction.call| replace:: :py:meth:`~i3py.core.actions.action.BaseAction.call`
 
-.. |BaseAction.post_call| replace:: :py:method:`~i3py.core.actions.action.BaseAction.post_call`
+.. |BaseAction.post_call| replace:: :py:meth:`~i3py.core.actions.action.BaseAction.post_call`
 
 .. |Action| replace:: :py:class:`~i3py.core.actions.action.Action`
+
+.. |ActionCall| replace:: :py:class:`~i3py.core.actions.action.ActionCall`
 
 .. |RegisterAction| replace:: :py:class:`~i3py.core.actions.register_action.RegisterAction`
 
@@ -90,3 +100,9 @@
 .. |ChannelContainer| replace:: :py:class:`~i3py.core.base_channel.ChannelContainer`
 
 .. |InstrJob| replace:: :py:class:`~i3py.core.job.InstrJob`
+
+.. ============================================================================
+.. I3py backends substitutions
+.. ============================================================================
+
+.. |VisaMessageDriver| replace:: :py:class:`i3py.backends.visa.message_based.VisaMessageDriver`

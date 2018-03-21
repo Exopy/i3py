@@ -24,15 +24,15 @@ class AbstractHasFeatures(ABC):
     #: are instances of AbstractAction.
     __actions__ = {}
 
-    #: Dictionary containing all the subsystems of the class by name. The 
+    #: Dictionary containing all the subsystems of the class by name. The
     #: values are subclasses of AbstractSubSystem.
     __subsystems__ = {}
 
-    #: Dictionary containing all the channels of the class by name. The 
+    #: Dictionary containing all the channels of the class by name. The
     #: values are subclasses of AbstractChannel.
     __channels__ = {}
 
-    #: Dictionary containing all the limits of the class by name. The 
+    #: Dictionary containing all the limits of the class by name. The
     #: values are the methods, decorated by limit, and in charge of creating
     #: the limit object.
     __limits__ = {}
@@ -67,6 +67,7 @@ class AbstractChannel(ABC):
 
     """
     pass
+
 
 AbstractHasFeatures.register(AbstractChannel)
 

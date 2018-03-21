@@ -13,6 +13,8 @@ from pytest import raises
 
 from i3py.core.base_driver import BaseDriver
 
+BaseDriver.__version__ = '0.1.0'
+
 
 def test_bdriver_multiple_creation():
     a = BaseDriver(a=1)
@@ -24,7 +26,8 @@ def test_bdriver_multiple_creation():
     assert b.newly_created is False
 
     class Aux(BaseDriver):
-        pass
+
+        __version__ = '0.2.0'
 
     c = Aux(a=1)
     assert c is not b
@@ -52,6 +55,8 @@ def test_bdriver_connected():
 def test_bdriver_context():
 
     class Driver(BaseDriver):
+
+        __version__ = '0.2.0'
 
         def initialize(self):
             self._c = True

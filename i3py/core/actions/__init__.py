@@ -9,7 +9,7 @@
 """Actions are used to wrap method and mark them as acting on the instrument.
 
 """
-from .action import AbstractAction, Action
+from .action import BaseAction, Action
 from .register_action import RegisterAction
 
-__all__ = ['AbstractAction', 'Action', 'RegisterAction']
+__all__ = ['BaseAction', 'Action', 'RegisterAction']

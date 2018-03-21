@@ -27,6 +27,24 @@ class InstrumentSigleton(type):
     _instances_cache = WeakKeyDictionary()
 
     def __call__(cls, *args, **kwargs):
+        # Enforce the presence of a version string per driver.
+        if '__version__' not in dir(cls):
+            raise AttributeError('All drivers must have a version string of '
+                                 'the form "{major}.{minor}.{micro}" set '
+                                 'in the __version__ attribute. It cannot be '
+                                 'simply inherited.')
+
+        non_new = set(dir(cls))
+        for ancestor in cls.mro()[1:]:
+            non_new -= set(dir(ancestor))
+        if ('__version__' not in non_new and
+                any(cls.__version__ is getattr(ancestor, '__version__', '')
+                    for ancestor in cls.mro()[1:])):
+            raise AttributeError('All drivers must have a version string of '
+                                 'the form "{major}.{minor}.{micro}" set '
+                                 'in the __version__ attribute. It cannot be '
+                                 'simply inherited.')
+
         # This is done on first call rather than init to avoid useless memory
         # allocation.
         if cls not in cls._instances_cache:

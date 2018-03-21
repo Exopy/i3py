@@ -21,7 +21,8 @@ from pyvisa import errors
 from ...core.base_driver import BaseDriver
 from ...core.errors import I3pyInterfaceNotSupported
 from ...core.features import AbstractFeature
-from ...core.actions import AbstractAction
+from ...core.actions import BaseAction
+from ...core.composition import SupportMethodCustomization
 
 
 _RESOURCE_MANAGERS = None
@@ -88,6 +89,25 @@ class VisaFeature(AbstractFeature):
                                           deleter)
         self.name = None
 
+    def clone(self):
+        """Clone itself by inspecting the presence of setter/deleter.
+
+        """
+        return type(self)(self.fset is not None,
+                          self.fdel)
+
+    def create_default_settings(self):
+        """A visa feature has no dynamic features.
+
+        """
+        return {}
+
+    def make_doc(self, doc):
+        """Do not alter the user doc.
+
+        """
+        return doc
+
     def _get(self, obj):
         if obj._resource:
             return getattr(obj._resource, self.name)
@@ -100,7 +120,7 @@ class VisaFeature(AbstractFeature):
             setattr(obj._resource, self.name, value)
 
 
-class VisaAction(AbstractAction):
+class VisaAction(BaseAction):
     """Action used for method modifying the VISA resource state.
 
     """

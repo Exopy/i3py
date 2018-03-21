@@ -89,7 +89,8 @@ class VisaMessageDriver(BaseVisaDriver):
         """
 
         manufacturer_id = (manufacturer_id or
-                           cls.INTERFACES.get('USB', {}).get('manufacturer_id'))
+                           cls.INTERFACES.get('USB', {}).get('manufacturer_id')
+                           )
         model_code = (model_code or
                       cls.INTERFACES.get('USB', {}).get('model_code'))
 

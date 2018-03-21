@@ -259,15 +259,15 @@ Special class variables for VISA based driver
 ---------------------------------------------
 
 In the case of VISA based drivers, it is desirable to specify which
-communication protocols are supported by the instrument, along which the
+communication interfaces are supported by the instrument, along which the
 parameters to use (such as termination characters, which may differ between
-protocols). All those informations can be specified to I3py drivers through the
-use of the class level variables listed below:
+interfaces). All those informations can be specified to I3py drivers through
+the use of the class level variables listed below:
 
-PROTOCOLS
-^^^^^^^^^
+INTERFACES
+^^^^^^^^^^
 
-Dictionary specifying the protocols supported by the instrument. For each
+Dictionary specifying the interfaces supported by the instrument. For each
 type of interface a dictionary (or a list of dictionary), specifying the
 default arguments to use should be provided. Valid interfaces are :
 
@@ -286,7 +286,7 @@ number is required and can be specified as follow.
 
 .. code-block:: python
 
-PROTOCOLS = {'TCPIP': {'resource_class': 'SOCKET',
+INTERFACES = {'TCPIP': {'resource_class': 'SOCKET',
                        'port': '50000'}}
 
 The valid keys for each interface matches the named used in VISA resource

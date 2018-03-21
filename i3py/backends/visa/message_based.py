@@ -63,7 +63,7 @@ class VisaMessageDriver(BaseVisaDriver):
         returned.
 
         If no manufacturer_id(model_code) is provided the value found in the
-        PROTOCOLS dictionary is used.
+        INTERFACES dictionary is used.
 
         Parameters
         ----------
@@ -89,9 +89,9 @@ class VisaMessageDriver(BaseVisaDriver):
         """
 
         manufacturer_id = (manufacturer_id or
-                           cls.PROTOCOLS.get('USB', {}).get('manufacturer_id'))
+                           cls.INTERFACES.get('USB', {}).get('manufacturer_id'))
         model_code = (model_code or
-                      cls.PROTOCOLS.get('USB', {}).get('model_code'))
+                      cls.INTERFACES.get('USB', {}).get('model_code'))
 
         if isinstance(model_code, (list, tuple)):
             _models = model_code
@@ -141,7 +141,7 @@ class VisaMessageDriver(BaseVisaDriver):
         returned.
 
         If no manufacturer_id(model_code) is provided the value found in the
-        PROTOCOLS dictionary is used.
+        INTERFACES dictionary is used.
 
         Parameters
         ----------

@@ -146,7 +146,7 @@ class BaseVisaDriver(BaseDriver):
     #: non zero retries values.
     retries_exceptions = (TimeoutError, errors.VisaIOError)
 
-    #: Protocols supported by the instrument.
+    #: Interfaces supported by the instrument.
     #: For each type of interface a dictionary (or a list of dictionary),
     #: specifying the default arguments to use should be provided.
     #: For example::
@@ -155,7 +155,7 @@ class BaseVisaDriver(BaseDriver):
     #:                {'resource_class': 'RAW'}],
     #:        'TCPIP': {'resource_class': 'SOCKET',
     #:                  'port': '50000'}
-    PROTOCOLS = {}
+    INTERFACES = {}
 
     #: Default arguments passed to the Resource constructor on initialize.
     #: It should be specified in two layers, the first indicating the
@@ -234,11 +234,11 @@ class BaseVisaDriver(BaseDriver):
     @classmethod
     def _get_visa_infos(cls, connection_infos):
         """Filter out non-VISA related keywords and fill the gaps using
-        PROTOCOLS
+        INTERFACES
 
         """
         interface_type = connection_infos['interface_type']
-        default_protocol = cls.PROTOCOLS.get(interface_type, {})
+        default_protocol = cls.INTERFACES.get(interface_type, {})
         if not isinstance(default_protocol, dict):
             default_protocol = default_protocol[0]
 

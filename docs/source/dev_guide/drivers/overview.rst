@@ -329,3 +329,47 @@ to handle it in a different fashion.
     messages when one connect to the instrument through its serial interface
     (and only then). The header to use can be specified as a BYTE string using
     the `RS232_HEADER` class variable.
+    
+Making the driver accessible from the top level manufacturer package
+--------------------------------------------------------------------
+
+Drivers in I3py are organized by manufacturers (inside each manufacturer 
+package, they can be organized by instrument type). However because building,
+the driver class is more expensive than regular Python classes, I3py provides
+a way to make drivers visible from the top level manufacturer package that
+does not lead to their automatic import when the manufacturer package is 
+imported. In particular this means that to import just one instrument from one
+manufacturer you do not import all the drivers for the manufacturer instrument.
+
+To achieve this, I3py replace the manufacturer package module by a custom one 
+providing lazy import capabilities. For each manufacturer, the top level 
+package should look like:
+
+.. code-block:: python 
+
+    # -*- coding: utf-8 -*-
+    # -------------------------------------------------------------------------
+    # Copyright 2018 by I3py Authors, see AUTHORS for more details.
+    #
+    # Distributed under the terms of the BSD license.
+    #
+    # The full license is in the file LICENCE, distributed with this software.
+    # -------------------------------------------------------------------------
+    """Package for the drivers of Itest instruments.
+
+    """
+    import sys
+    from i3py.core.lazy_package import LazyPackage
+
+    DRIVERS = {'BN100': 'bn100.BN100'}
+
+    sys.modules[__name__] = LazyPackage(DRIVERS, __name__, __doc__, locals())
+    
+The `DRIVERS` dictionary contains a mapping between the name of the drivers 
+that should be accessible and their import path (typically 
+module_name.class_name). To make your driver visible simply add it to this 
+dictionary. If you driver is defined in a sub-package and this package is 
+itself lazy, your driver will be visible as soon as it is visible in the 
+sub-package and that the sub-package is imported in the manufacturer package.
+
+

@@ -106,3 +106,10 @@
 .. ============================================================================
 
 .. |VisaMessageDriver| replace:: :py:class:`i3py.backends.visa.message_based.VisaMessageDriver`
+
+
+.. ============================================================================
+.. I3py drivers substitutions
+.. ============================================================================
+
+.. |VisaRS232| replace:: :py:class:`i3py.drivers.common.rs232.VisaRS232`

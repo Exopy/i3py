@@ -25,8 +25,10 @@ def test_register_action_with_name_list():
             return 2**3 + 2**5
 
     reg = RegTest().reg()
-    assert reg.pop('d') and reg.pop('f')
-    assert not any(reg.values())
+    assert reg & reg.d
+    assert reg & reg.f
+    for name in ('a', 'b', 'c', 'e', 'g', 'h'):
+        assert not (reg & getattr(reg, name))
 
 
 def test_register_action_with_name_dict():
@@ -40,9 +42,8 @@ def test_register_action_with_name_dict():
             return 2**3 + 2**5
 
     reg = RegTest().reg()
-    assert len(reg) == 16
-    assert reg.pop('c') and reg.pop('e')
-    assert not any(reg.values())
+    assert hasattr(reg, 'BIT_15')
+    assert reg & reg.c and reg and reg.e
 
 
 def test_register_action_wrong_length():
@@ -50,4 +51,4 @@ def test_register_action_wrong_length():
 
     """
     with pytest.raises(ValueError):
-        RegisterAction(('a', 'b'))
+        RegisterAction(('a', 'b')).__set_name__(None, 'test')

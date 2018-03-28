@@ -173,11 +173,13 @@ Specialized features
 
 - The |Register| is a specialized feature which can be used to get and set
   the value of a binary register such as the ones commonly used by VISA based
-  instrument. It takes two special arguments:
+  instrument. It will create a dedicated subclass of IntFlag and will handle
+  the conversion. It takes two special arguments:
 
     + names: a list of names describing each bit in order (from least
       significant to most significant) or a dictionary mapping each name to the
-      bit it describe.
+      bit it describe. Those names should be valid python attribute names and
+      ideally be all upper case.
 
     + length: the length of the register (8 by default but some instrument use
       16 bits register).

@@ -87,7 +87,7 @@ For more details about what are standards and how to use them please refer to
 
 .. note::
 
-    To simplify the handling of changes to driver over time I3py recommend to
+    To simplify the handling of changes to driver over time I3py enforce to
     add a class variable `__version__` to all drivers. The format of this
     variable should be the one of a usual version string:
     MAJOR.MINOR.MICRO
@@ -320,3 +320,12 @@ sufficient be sufficient in most cases.
 'parameters' is a dictionary whose content is by default passed to the
 underlying PyVISA object, but it is a matter of simply overriding initialize
 to handle it in a different fashion.
+
+.. note::
+
+    Serial instruments usually requires to be switched to remote control before
+    accepting any instruction. To streamline this process, the |VisaRS232|
+    provides the automatic addition of the proper header to all outgoing
+    messages when one connect to the instrument through its serial interface
+    (and only then). The header to use can be specified as a BYTE string using
+    the `RS232_HEADER` class variable.

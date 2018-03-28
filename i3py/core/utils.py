@@ -13,6 +13,7 @@ from types import CodeType
 from inspect import currentframe
 from pprint import pformat
 from collections import OrderedDict
+from enum import IntFlag, _EnumDict
 
 from .errors import I3pyValueError, I3pyLimitsError
 from .abstracts import AbstractBaseDriver, AbstractOptions
@@ -175,11 +176,14 @@ def raise_limits_error(name, value, limits):
     raise I3pyLimitsError(mess)
 
 
-def register_names_from_names_and_length(names, length):
-    """Create a list of names to match a bit field of given length.
+def create_register_flag(register_name, names, length):
+    """Create a IntFlag subclass for a bit field.
 
     Parameters
     ----------
+    register_name : str
+        Name of the subclass to create.
+
     names : dict | list
         Mapping between the field names and their index or list of names.
         In the case of a list its length must match length.
@@ -189,62 +193,24 @@ def register_names_from_names_and_length(names, length):
 
     Returns
     -------
-    register_names : list
-        List of names for the bit field fields. Missing are replaced by their
-        index (as an int).
+    register_flag : enum.IntFlag
+        IntFlag subclass whose fields match the register fields. If some of the
+        names are not provided, the associated fields are named 'BIT_n' with n
+        the bit number.
 
     """
+    register_names = _EnumDict()
+    register_names.update({'BIT_%d' % i: 2**i for i in range(length)})
     if isinstance(names, dict):
-        aux = list(range(length))
         for n, i in names.items():
-            aux[i] = n
-        register_names = aux
+            register_names[n] = 2**i
 
     else:
-        register_names = list(names)
         if len(names) != length:
             raise ValueError('Register necessitates %d names' % length)
 
-        # Makes sure every key is unique by using the bit index if None is
-        # found
         for i, n in enumerate(names[:]):
-            register_names[i] = n or i
+            if n:
+                register_names[n] = 2**i
 
-    return register_names
-
-
-def byte_to_dict(byte, mapping):
-    """Convert a byte to a dictionary.
-
-    Parameters
-    ----------
-    byte : int
-        Byte value to interpret.
-
-    mapping : iterable
-        Names to associate to each bit value. The length of the iterable should
-        match the number of bit to decode.
-
-    """
-    def bit_conversion(x, i):
-        return bool(x & (1 << i))
-
-    return OrderedDict((n or i, bit_conversion(byte, i))
-                       for i, n in enumerate(mapping))
-
-
-def dict_to_byte(values, mapping):
-    """Convert a dictionary to a byte value.
-
-    Parameters
-    ----------
-    values : dict
-        Dictionary whose True values will be interpreted as high bit.
-
-    mapping : iterable
-        Name to associate to each bit value. The length of the iterable should
-        match the number of bit to endecode.
-
-    """
-    byte = sum((2**mapping.index(k) for k in values if values[k]))
-    return byte
+    return type(register_name, (IntFlag,), register_names)

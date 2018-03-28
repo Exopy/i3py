@@ -9,7 +9,7 @@
 """Convenience action use to warp a method reading a binary register.
 
 """
-from ..utils import byte_to_dict, register_names_from_names_and_length
+from ..utils import create_register_flag
 from .action import BaseAction
 
 
@@ -17,7 +17,7 @@ class RegisterAction(BaseAction):
     """Automatically convert the returned register value.
 
     The register should be returned as a integer and will be converted to a
-    dictionary according to the provided mapping (see )
+    IntFlag subclass according to the provided mapping.
 
     All parameters must be passed as keyword arguments.
 
@@ -54,8 +54,7 @@ class RegisterAction(BaseAction):
         kwargs['names'] = names
         kwargs['length'] = length
         super().__init__(**kwargs)
-        self.register_names = register_names_from_names_and_length(names,
-                                                                   length)
+        self.flag = None
 
     def customize_call(self, func, kwargs):
         """Store the function in call attributes and customize pre/post based
@@ -63,9 +62,9 @@ class RegisterAction(BaseAction):
 
         """
         super().customize_call(func, kwargs)
-        self.add_register_conversion(kwargs['names'], kwargs['length'])
+        self.add_register_conversion()
 
-    def add_register_conversion(self, names, length):
+    def add_register_conversion(self):
         """Wrap a func using Pint to automatically convert Quantity to float.
 
         """
@@ -73,7 +72,15 @@ class RegisterAction(BaseAction):
             """Convert the result to a dictionary describing the register.
 
             """
-            return byte_to_dict(result, self.register_names)
+            return action.flag(result)
 
         self.modify_behavior('post_call', convert_byte, ('prepend',),
                              'names', internal=True)
+
+    def __set_name__(self, owner, name):
+        """Use set name to construct the flag class once we get our name.
+
+        """
+        self.flag = create_register_flag(name.capitalize() + 'Flag',
+                                         self.creation_kwargs['names'],
+                                         self.creation_kwargs['length'])

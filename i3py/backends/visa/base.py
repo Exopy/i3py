@@ -9,21 +9,21 @@
 """Tools for instruments relying on the VISA protocol.
 
 """
-import os
 import logging
+import os
 from inspect import cleandoc
 from time import sleep
+from typing import Callable, ClassVar, Dict, List, Optional, Tuple, Union
 
-from pyvisa.highlevel import ResourceManager
-from pyvisa.rname import (assemble_canonical_name, to_canonical_name)
 from pyvisa import errors
+from pyvisa.highlevel import ResourceManager
+from pyvisa.rname import assemble_canonical_name, to_canonical_name
 
+from ...core.actions import BaseAction
 from ...core.base_driver import BaseDriver
+from ...core.composition import SupportMethodCustomization
 from ...core.errors import I3pyInterfaceNotSupported
 from ...core.features import AbstractFeature
-from ...core.actions import BaseAction
-from ...core.composition import SupportMethodCustomization
-
 
 _RESOURCE_MANAGERS = None
 
@@ -78,7 +78,7 @@ def set_visa_resource_manager(rm, backend='default'):
         _RESOURCE_MANAGERS[backend] = rm
 
 
-class VisaFeature(AbstractFeature):
+class VisaFeature(SupportMethodCustomization, AbstractFeature):
     """Special property used to wrap a property present in a Pyvisa resource.
 
     """
@@ -107,6 +107,20 @@ class VisaFeature(AbstractFeature):
 
         """
         return doc
+
+    @property
+    def self_alias(self) -> str:
+        """For features self is replaced by feat in function signature.
+
+        """
+        return 'feat'
+
+    def analyse_function(self, method_name: str, func: Callable,
+                         specifiers: Tuple[str, ...]):
+        """Check the signature of the function.
+
+        """
+        raise RuntimeError('VisaFeatures do not support customization.')
 
     def _get(self, obj):
         if obj._resource:
@@ -164,7 +178,7 @@ class BaseVisaDriver(BaseDriver):
     """
     #: Exceptions triggering a new communication attempts for Features with a
     #: non zero retries values.
-    retries_exceptions = (TimeoutError, errors.VisaIOError)
+    retries_exceptions = (TimeoutError, errors.VisaIOError)  # type: ignore
 
     #: Interfaces supported by the instrument.
     #: For each type of interface a dictionary (or a list of dictionary),
@@ -175,7 +189,8 @@ class BaseVisaDriver(BaseDriver):
     #:                {'resource_class': 'RAW'}],
     #:        'TCPIP': {'resource_class': 'SOCKET',
     #:                  'port': '50000'}
-    INTERFACES = {}
+    INTERFACES: ClassVar[Dict[str, Union[Dict[str, str],
+                                         List[Dict[str, str]]]]] = {}
 
     #: Default arguments passed to the Resource constructor on initialize.
     #: It should be specified in two layers, the first indicating the
@@ -188,11 +203,11 @@ class BaseVisaDriver(BaseDriver):
     #:        'USB':      {'read_termination': \r'},
     #:        'COMMON':   {'write_termination': '\n'}
     #:       }
-    DEFAULTS = None
+    DEFAULTS: ClassVar[Optional[Dict[str, str]]] = None
 
     #: Tuple of keywords unrelated to Visa resource name. Used to remove them
     #: from the kwargs when building the resource name.
-    NON_VISA_NAMES = ('parameters', 'backend')
+    NON_VISA_NAMES: ClassVar[Tuple[str, ...]] = ('parameters', 'backend')
 
     def __init__(self, *args, **kwargs):
         super(BaseVisaDriver, self).__init__(*args, **kwargs)

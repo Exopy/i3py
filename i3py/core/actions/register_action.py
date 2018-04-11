@@ -10,7 +10,7 @@
 
 """
 from enum import IntFlag
-from typing import Any, Callable, Dict, Sequence, Type
+from typing import Any, Callable, Dict, Optional, Tuple, Type, Union
 
 from ..abstracts import AbstractHasFeatures
 from ..utils import create_register_flag
@@ -54,7 +54,9 @@ class RegisterAction(BaseAction):
         Dictionary mapping the field of the bit field to their value.
 
     """
-    def __init__(self, names: Sequence[str], length: int=8, **kwargs
+    def __init__(self,
+                 names: Union[Tuple[Optional[str], ...], Dict[str, int]],
+                 length: int=8, **kwargs
                  ) -> None:
         kwargs['names'] = names
         kwargs['length'] = length

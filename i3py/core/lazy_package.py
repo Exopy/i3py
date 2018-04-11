@@ -8,9 +8,10 @@
 """A lazy module implementation based on a mapping of accessible classes.
 
 """
-from types import ModuleType
-from itertools import chain
 from importlib import import_module
+from itertools import chain
+from types import ModuleType
+from typing import Any, Dict, List
 
 
 class LazyPackage(ModuleType):
@@ -54,7 +55,8 @@ class LazyPackage(ModuleType):
                                             locals()))
 
     """
-    def __init__(self, lazy_imports, name, doc, local_vars):
+    def __init__(self, lazy_imports: Dict[str, str], name: str, doc: str,
+                 local_vars: dict) -> None:
 
         super().__init__(name, doc)
         self._lazy_imports = lazy_imports
@@ -65,21 +67,21 @@ class LazyPackage(ModuleType):
             if isinstance(val, LazyPackage):
                 lazy_modules[key] = val.__all__
 
-        self.__all__ = list(chain(lazy_imports, local_vars,
-                                  *[attrs for attrs in lazy_modules.values()]
-                                  )
-                            )
+        self.__all__: List[str] =\
+            list(chain(lazy_imports, local_vars,
+                 *[attrs for attrs in lazy_modules.values()])
+                 )
         self._lazy_modules = lazy_modules
 
-    def __getattr__(self, attr_name):
+    def __getattr__(self, attr_name: str) -> Any:
         """When an attr is not found fall back to looking in the lazy imports.
 
         """
         if attr_name in self._lazy_imports:
             mod, attr = self._lazy_imports[attr_name].rsplit('.', 1)
             mod = mod if mod.startswith('.') else '.' + mod
-            mod = import_module(mod, self.__package__)
-            return getattr(mod, attr)
+            mod_obj = import_module(mod, self.__package__)
+            return getattr(mod_obj, attr)
 
         if attr_name in self._local_vars:
             return self._local_vars[attr_name]

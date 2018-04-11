@@ -9,6 +9,7 @@
 """BaseInstrument defines the common expected interface for all drivers.
 
 """
+from typing import Hashable, Type
 from threading import RLock
 from weakref import WeakKeyDictionary, WeakValueDictionary
 from textwrap import fill
@@ -24,9 +25,9 @@ class InstrumentSigleton(type):
 
     """
 
-    _instances_cache = WeakKeyDictionary()
+    _instances_cache: WeakKeyDictionary = WeakKeyDictionary()
 
-    def __call__(cls, *args, **kwargs):
+    def __call__(cls, *args, **kwargs) -> 'BaseDriver':
         # Enforce the presence of a version string per driver.
         if '__version__' not in dir(cls):
             raise AttributeError('All drivers must have a version string of '
@@ -51,7 +52,7 @@ class InstrumentSigleton(type):
             cls._instances_cache[cls] = WeakValueDictionary()
 
         cache = cls._instances_cache[cls]
-        driver_id = cls.compute_id(args, kwargs)
+        driver_id = cls.compute_id(args, kwargs)  # type: ignore
         if driver_id not in cache:
             dr = super(InstrumentSigleton, cls).__call__(*args, **kwargs)
 
@@ -98,7 +99,7 @@ class BaseDriver(HasFeatures, metaclass=InstrumentSigleton):
         self.lock = RLock()
 
     @classmethod
-    def compute_id(cls, args, kwargs):
+    def compute_id(cls, args: tuple, kwargs: dict) -> Hashable:
         """Use the arguments to compute a unique id for the instrument.
 
         This can also be used to alter the content of the kwargs dictionary.
@@ -143,7 +144,7 @@ class BaseDriver(HasFeatures, metaclass=InstrumentSigleton):
             80)
         raise NotImplementedError(message)
 
-    def check_connection(self):
+    def check_connection(self) -> bool:
         """Check whether or not the cache is likely to have been corrupted.
 
         Returns
@@ -155,7 +156,7 @@ class BaseDriver(HasFeatures, metaclass=InstrumentSigleton):
         return False
 
     @property
-    def connected(self):
+    def connected(self) -> bool:
         """Return whether or not commands can be sent to the instrument.
 
         """
@@ -166,7 +167,7 @@ class BaseDriver(HasFeatures, metaclass=InstrumentSigleton):
             80)
         raise NotImplementedError(message)
 
-    def __enter__(self):
+    def __enter__(self) -> 'BaseDriver':
         """Context manager handling the connection to the instrument.
 
         """

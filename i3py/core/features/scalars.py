@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # -----------------------------------------------------------------------------
-# Copyright 2016-2017 by I3py Authors, see AUTHORS for more details.
+# Copyright 2016-2018 by I3py Authors, see AUTHORS for more details.
 #
 # Distributed under the terms of the BSD license.
 #
@@ -9,24 +9,37 @@
 """Features for scalars values such float, int, string, etc...
 
 """
+from typing import Any, Union, Optional, Dict, Tuple
+
 from .enumerable import Enumerable
 from .limits_validated import LimitsValidated
 from .mapping import Mapping
 from ..unit import get_unit_registry, UNIT_SUPPORT, UNIT_RETURN
 from ..utils import raise_limits_error
 from ..limits import IntLimitsValidator, FloatLimitsValidator
+from ..abstracts import AbstractHasFeatures, AbstractLimitsValidator
 
 if UNIT_SUPPORT:
     from pint.quantity import _Quantity
+    FLOAT_QUANTITY = Union[float, _Quantity]
+else:
+    FLOAT_QUANTITY = float  # type: ignore
 
 
 class Str(Mapping, Enumerable):
     """ Feature casting the instrument answer to a str, support enumeration.
 
     """
-    def __init__(self, getter=None, setter=None, values=(), mapping=None,
-                 extract='', retries=0, checks=None, discard=None,
-                 options=None):
+    def __init__(self, getter: Any=None,
+                 setter: Any=None,
+                 values: Tuple[str, ...]=(),
+                 mapping: Optional[dict]=None,
+                 extract: str='',
+                 retries: int=0,
+                 checks: Optional[str]=None,
+                 discard: Optional[Union[Tuple[str, ...],
+                                         Dict[str, Tuple[str, ...]]]]=None,
+                 options: Optional[str]=None) -> None:
 
         if mapping:
             Mapping.__init__(self, getter, setter, mapping, extract,
@@ -38,7 +51,7 @@ class Str(Mapping, Enumerable):
         self.modify_behavior('post_get', self.cast_to_str.__func__,
                              ('append',), 'cast_to_str', True)
 
-    def cast_to_str(self, driver, value):
+    def cast_to_str(self, driver: AbstractHasFeatures, value: Any) -> str:
         return str(value)
 
 
@@ -48,9 +61,17 @@ class Int(LimitsValidated, Mapping, Enumerable):
     Support enumeration or range validation (the range takes precedence).
 
     """
-    def __init__(self, getter=None, setter=None, values=(), mapping=None,
-                 limits=None, extract='', retries=0, checks=None,
-                 discard=None, options=None):
+    def __init__(self, getter: Any=None,
+                 setter: Any=None,
+                 values: Tuple[int, ...]=(),
+                 mapping: Optional[dict]=None,
+                 limits: Optional[Union[str, AbstractLimitsValidator]]=None,
+                 extract: str='',
+                 retries: int=0,
+                 checks: Optional[str]=None,
+                 discard: Optional[Union[Tuple[str, ...],
+                                         Dict[str, Tuple[str, ...]]]]=None,
+                 options: Optional[str]=None) -> None:
         if mapping:
             Mapping.__init__(self, getter, setter, mapping, extract,
                              retries, checks, discard)
@@ -66,7 +87,7 @@ class Int(LimitsValidated, Mapping, Enumerable):
         self.modify_behavior('post_get', self.cast_to_int.__func__,
                              ('append',), 'cast', True)
 
-    def cast_to_int(self, driver, value):
+    def cast_to_int(self, driver: AbstractHasFeatures, value: Any) -> int:
         """Cast the value returned by the instrument to an int.
 
         """
@@ -82,9 +103,18 @@ class Float(LimitsValidated, Mapping, Enumerable):
     unit but may be specified without one.
 
     """
-    def __init__(self, getter=None, setter=None, values=(), mapping=None,
-                 limits=None, unit=None, extract='', retries=0, checks=None,
-                 discard=None, options=None):
+    def __init__(self, getter: Any=None,
+                 setter: Any=None,
+                 values: Tuple[float, ...]=(),
+                 mapping: Optional[dict]=None,
+                 limits: Optional[Union[str, AbstractLimitsValidator]]=None,
+                 unit: Optional[str]=None,
+                 extract: str='',
+                 retries: int=0,
+                 checks: Optional[str]=None,
+                 discard: Optional[Union[Tuple[str, ...],
+                                         Dict[str, Tuple[str, ...]]]]=None,
+                 options: Optional[str]=None) -> None:
         if mapping:
             Mapping.__init__(self, getter, setter, mapping, extract,
                              retries, checks, discard, options)
@@ -115,7 +145,7 @@ class Float(LimitsValidated, Mapping, Enumerable):
         self.modify_behavior('post_get', self.cast_to_float.__func__,
                              ('append',), 'cast', True)
 
-    def create_default_settings(self):
+    def create_default_settings(self) -> Dict[str, Any]:
         """Create the default settings for a feature.
 
         """
@@ -123,7 +153,8 @@ class Float(LimitsValidated, Mapping, Enumerable):
         settings['unit_return'] = UNIT_RETURN
         return settings
 
-    def cast_to_float(self, driver, value):
+    def cast_to_float(self, driver: AbstractHasFeatures, value: Any
+                      ) -> FLOAT_QUANTITY:
         """Cast the value returned by the instrument to float or Quantity.
 
         """
@@ -135,7 +166,8 @@ class Float(LimitsValidated, Mapping, Enumerable):
         else:
             return fval
 
-    def convert(self, driver, value):
+    def convert(self, driver: AbstractHasFeatures, value: FLOAT_QUANTITY
+                ) -> float:
         """Convert unit.
 
         """
@@ -148,7 +180,8 @@ class Float(LimitsValidated, Mapping, Enumerable):
 
         return value
 
-    def validate_limits(self, driver, value):
+    def validate_limits(self, driver: AbstractHasFeatures,
+                        value: FLOAT_QUANTITY):
         """Make sure a value is in the given range.
 
         This method is meant to be used as a pre-set.
@@ -159,7 +192,8 @@ class Float(LimitsValidated, Mapping, Enumerable):
         else:
             return value
 
-    def _read_cache(self, driver, cache, name):
+    def _read_cache(self, driver: AbstractHasFeatures, cache: Dict[str, Any],
+                    name: str) -> FLOAT_QUANTITY:
         """Read the cache and return a value in agreement with the settings.
 
         """
@@ -169,13 +203,16 @@ class Float(LimitsValidated, Mapping, Enumerable):
         else:
             return cache[name][-1]
 
-    def _is_value_cached(self, driver, cache, name, value):
+    def _is_value_cached(self, driver: AbstractHasFeatures,
+                         cache: Dict[str, Any], name: str,
+                         value: FLOAT_QUANTITY) -> bool:
         """Check if the proposed value is among the cached values.
 
         """
         return name in cache and value in cache[name]
 
-    def _fill_cache(self, driver, cache, name, value):
+    def _fill_cache(self, driver: AbstractHasFeatures, cache: Dict[str, Any],
+                    name: str, value: FLOAT_QUANTITY):
         """Set both magntitude and quantity in cache.
 
         """

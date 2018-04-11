@@ -10,6 +10,10 @@
 
 """
 from abc import ABC, abstractmethod, abstractproperty
+from inspect import Signature
+from types import MethodType
+from typing import (Any, Callable, ClassVar, Dict, Hashable, Iterable, Mapping,
+                    Optional, Tuple, Type, Union)
 
 
 class AbstractHasFeatures(ABC):
@@ -18,41 +22,279 @@ class AbstractHasFeatures(ABC):
     """
     #: Dictionary containing all the features of the class by name. The values
     #: are instances of AbstractFeature.
-    __feats__ = {}
+    __feats__: ClassVar[Dict[str, 'AbstractFeature']] = {}
 
     #: Dictionary containing all the actions of the class by name. The values
     #: are instances of AbstractAction.
-    __actions__ = {}
+    __actions__: ClassVar[Dict[str, 'AbstractAction']] = {}
 
     #: Dictionary containing all the subsystems of the class by name. The
     #: values are subclasses of AbstractSubSystem.
-    __subsystems__ = {}
+    __subsystems__: ClassVar[Dict[str, 'AbstractSubSystem']] = {}
 
     #: Dictionary containing all the channels of the class by name. The
     #: values are subclasses of AbstractChannel.
-    __channels__ = {}
+    __channels__: ClassVar[Dict[str, 'AbstractChannel']] = {}
 
     #: Dictionary containing all the limits of the class by name. The
     #: values are the methods, decorated by limit, and in charge of creating
     #: the limit object.
-    __limits__ = {}
+    __limits__: ClassVar[Dict[str, 'AbstractLimitsValidator']] = {}
+
+    #: Tuple of exception to consider when securing a communication (either via
+    #: secure_communication decorator or for features with a non zero
+    #: retries value)
+    retries_exceptions: ClassVar[Tuple[Type[Exception], ...]] = ()
+
+    #: Private member in which instance specific settings for features and
+    #: actions can be stored.
+    _settings: Dict[str, Dict[str, Any]]
+
+    #: _Private member in which features expect to be able to store values
+    #: under their name.
+    _cache: Dict[str, Any]
+
+    #: XXX Private member indicating if this
+    _enabled_: bool
+
+    #: XXX
+    _enabled_error_: Exception
+
+    #: Private member used to store the instances of subsystems declared on the
+    #: class. This member can be used by AbstractSubsystemDescriptor subclasses
+    _subsystem_instances: Optional[Dict[str, 'AbstractSubSystem']]
+
+    #: Private member used to store the instances of channel containers
+    #: matching the channels  declared on the  class. This member can be used
+    #: by AbstractChannelDescriptor subclasses.
+    _channel_container_instances: Optional[Dict[str,
+                                                'AbstractChannelContainer']]
+
+    #: Should this particular instance use caching
+    _use_cache: bool = True
+
+    @abstractmethod
+    def __init__(self, caching_allowed: bool=True) -> None:
+        pass
+
+    @abstractproperty
+    def lock(self) -> Any:
+        pass
+
+    @abstractmethod
+    def default_get_feature(self, feat: 'AbstractFeature', cmd: Any,
+                            *args, **kwargs) -> Any:
+        """Method used by default by the Feature to retrieve a value from an
+        instrument.
+
+        Parameters
+        ----------
+        feat : Feature
+            Reference to the property issuing this call.
+        cmd :
+            Command used by the implementation to determine what should be done
+            to get the answer from the instrument.
+        *args :
+            Additional arguments necessary to retrieve the instrument state.
+        **kwargs :
+            Additional keywords arguments necessary to retrieve the instrument
+            state.
+
+        """
+        pass
+
+    @abstractmethod
+    def default_set_feature(self, feat: 'AbstractFeature', cmd: Any,
+                            *args, **kwargs) -> Any:
+        """Method used by default by the Feature to set an instrument value.
+
+        Parameters
+        ----------
+        feat : Feature
+            Reference to the property issuing this call.
+        cmd :
+            Command used by the implementation to determine what should be done
+            to set the instrument state.
+        *args :
+            Additional arguments necessary to set the instrument state.
+        **kwargs :
+            Additional keywords arguments necessary to set the instrument
+            state.
+
+        """
+        pass
+
+    @abstractmethod
+    def default_check_operation(self,
+                                feat: 'AbstractFeature',
+                                value: Any,
+                                i_value: Any,
+                                state: Any=None) -> Tuple[bool, Any]:
+        """Method used by default by the Feature to check the instrument
+        operation.
+
+        Parameters
+        ----------
+        feat : Feature
+            Reference to the Feature issuing this call.
+        value :
+            Value assigned by the user.
+        i_value :
+            Value computed by the pre_set method of the Feature.
+        state : optional
+            State of the instrument if already known.
+
+        Returns
+        -------
+        result : bool
+            Is everything ok ? Can we assume that the last operation succeeded.
+        precision :
+            Any precision about the situation, this can be any object but
+            something should always be returned.
+
+        """
+        pass
+
+    @abstractmethod
+    def reopen_connection(self):
+        """Handle the need to close and re-open a potential bad connection.
+
+        """
+        pass
+
+    @abstractmethod
+    def clear_cache(self, subsystems: bool=True, channels: bool=True,
+                    features: Optional[Iterable[str]]=None):
+        """ Clear the cache of all the features or only of the specified
+        ones.
+
+        Parameters
+        ----------
+        subsystems : bool, optional
+            Whether or not to clear the subsystems. This argument is used only
+            if features is None.
+        channels : bool, optional
+            Whether or not to clear the channels. This argument is used only
+            if features is None.
+        features : iterable of str, optional
+            Name of the features whose cache should be cleared. Dotted names
+            can be used to access subsystems and channels. When accessing
+            channels the cache of all instances is cleared. All caches
+            will be cleared if not specified.
+
+        """
+        pass
+
+    @abstractmethod
+    def get_limits(self, limits: str) -> 'AbstractLimitsValidator':
+        """Return the limits validator matching the passed name.
+
+        """
+        pass
+
+    @abstractmethod
+    def discard_limits(self, limits: Iterable[str]) -> None:
+        """Discard specified cached limits validators.
+
+        """
+        pass
 
 
-class AbstractBaseDriver(ABC):
+class AbstractBaseDriver(AbstractHasFeatures):
     """Sentinel class for the identification of a driver.
 
     """
-    pass
+    #: Id of the last 'user' of the driver can be used by framework to keep
+    #: track 'who' last interacted with the instrument.
+    owner: str
+
+    #: Boolean indicating if the driver that has just been returned is a new
+    #: instance or not, because an instance connected to the same instrument
+    #: already existed.
+    newly_created: bool
+
+    @abstractmethod
+    def __init__(self, *args, **kwargs):
+        pass
+
+    @abstractmethod
+    @classmethod
+    def compute_id(cls, args: tuple, kwargs: dict) -> Hashable:
+        """Use the arguments to compute a unique id for the instrument.
+
+        This can also be used to alter the content of the kwargs dictionary.
+        This is why we do not unpack it.
+
+        Parameters
+        ----------
+        args :
+            Positional arguments passed to the constructor
+
+        kwargs :
+            Keyword arguments passed to the constructor.
+
+        Returns
+        -------
+        id : hashable
+            Unique id identifying the instrument this driver is connected to.
+
+        """
+        pass
+
+    @abstractmethod
+    def initialize(self):
+        """Open a connection to an instrument.
+
+        """
+        pass
+
+    @abstractmethod
+    def finalize(self):
+        """Close the connection to the instrument.
+
+        """
+        pass
+
+    @abstractmethod
+    def check_connection(self) -> bool:
+        """Check whether or not the cache is likely to have been corrupted.
+
+        Returns
+        -------
+        status : bool
+            True is the connection can be trusted, False otherwise.
+
+        """
+        pass
+
+    @abstractproperty
+    def connected(self) -> bool:
+        """Return whether or not commands can be sent to the instrument.
+
+        """
+        pass
+
+    @abstractmethod
+    def __enter__(self) -> 'AbstractBaseDriver':
+        """Context manager handling the connection to the instrument.
+
+        """
+        pass
+
+    @abstractmethod
+    def __exit__(self, exc_type, exc_value, traceback):
+        """Context manager handling the connection to the instrument.
+
+        """
+        pass
 
 
-class AbstractSubSystem(ABC):
+class AbstractSubSystem(AbstractHasFeatures):
     """Sentinel for subsystem identification.
 
     """
-    pass
-
-
-AbstractHasFeatures.register(AbstractSubSystem)
+    #: Parent component (AbstractHasFeature) to which this subsystem is linked.
+    parent: AbstractHasFeatures
 
 
 class AbstractSubSystemDescriptor(property, ABC):
@@ -62,14 +304,16 @@ class AbstractSubSystemDescriptor(property, ABC):
     pass
 
 
-class AbstractChannel(ABC):
+class AbstractChannel(AbstractSubSystem):
     """Sentinel class for channel identification.
 
     """
-    pass
+    #: Parent component (AbstractHasFeature) to which this channel is linked.
+    parent: AbstractHasFeatures
 
-
-AbstractHasFeatures.register(AbstractChannel)
+    @abstractmethod
+    def __init__(self, ch_id: Any, caching_allowed: bool=True) -> None:
+        pass
 
 
 class AbstractChannelContainer(ABC):
@@ -78,6 +322,11 @@ class AbstractChannelContainer(ABC):
     The interface is defined in the ChannelContainer subclass.
 
     """
+    @abstractmethod
+    def __init__(self, cls: Type[AbstractChannel], parent: AbstractHasFeatures,
+                 name: str, list_available: Callable, aliases: dict) -> None:
+        pass
+
     @abstractproperty
     def available(self) -> list:
         """List the available channels (the aliases are not listed).
@@ -93,7 +342,7 @@ class AbstractChannelContainer(ABC):
         pass
 
     @abstractmethod
-    def __getitem__(self, ch_id):
+    def __getitem__(self, ch_id: Any):
         pass
 
     @abstractmethod
@@ -199,9 +448,11 @@ class AbstractSupportMethodCustomization(ABC):
     """Abstract class for objects supporting to have their method customized.
 
     """
+    _customs: Dict[str, Union[Callable, Mapping]]
 
     @abstractmethod
-    def modify_behavior(self, method_name: str, func, specifiers: tuple=(),
+    def modify_behavior(self, method_name: str, func: Callable,
+                        specifiers: tuple=(), modif_id: str='custom',
                         internal: bool=False):
         """Alter the behavior of the Feature using the provided method.
 
@@ -245,7 +496,7 @@ class AbstractSupportMethodCustomization(ABC):
         pass
 
     @abstractmethod
-    def copy_custom_behaviors(self, obj):
+    def copy_custom_behaviors(self, obj: 'AbstractSupportMethodCustomization'):
         """Copy the custom behaviors existing on a feature to this one.
 
         This is used by set_feat to preserve the custom behaviors after
@@ -266,21 +517,19 @@ class AbstractSupportMethodCustomization(ABC):
 class AbstractFeature(property, AbstractSupportMethodCustomization):
     """Abstract class for Features.
 
-    Attributes
-    ----------
-    name : str
-        Name under which this feature is known in the class to which it
-        belongs. This is set by the framework.
-
-    creation_kwargs : dict
-        Dictionary preserving the arguments with which the feature was
-        initialized. This is used when customizing.
-
     """
+    #: Name under which this feature is known in the class to which it
+    #: belongs. This is set by the framework.
+    name: str
+
+    #: Dictionary preserving the arguments with which the feature was
+    #: initialized. This is used when customizing.
+    creation_kwargs: Dict[str, Any]
+
     __slots__ = ('creation_kwargs', 'name')
 
     @abstractmethod
-    def make_doc(self, doc: str):
+    def make_doc(self, doc: str) -> str:
         """Build a comprehensive docstring from the provided user doc and using
         the configuration of the feature.
 
@@ -288,14 +537,14 @@ class AbstractFeature(property, AbstractSupportMethodCustomization):
         pass
 
     @abstractmethod
-    def create_default_settings(self):
+    def create_default_settings(self) -> dict:
         """Create the default settings for a feature.
 
         """
         pass
 
     @abstractmethod
-    def clone(self):
+    def clone(self) -> 'AbstractFeature':
         """Create a clone of itself.
 
         """
@@ -329,31 +578,35 @@ class AbstractFeatureModifier(ABC):
 class AbstractAction(AbstractSupportMethodCustomization):
     """Abstract class for actions.
 
-    Attributes
-    ----------
-    name : str
-        Name under which this action is known in the class to which it
-        belongs. This is set by the framework.
-
-    creation_kwargs : dict
-        Dictionary preserving the arguments with which the feature was
-        initialized. This is used when customizing.
-
-    func : callable
-        Function on which the Action has been used as a decorator.
-
     """
+    #: Name under which this action is known in the class to which it
+    #: belongs. This is set by the framework.
+    name: str
+
+    #: Dictionary preserving the arguments with which the action was
+    #: initialized. This is used when customizing.
+    creation_kwargs: Dict[str, Any]
+
+    #: Function on which the Action has been used as a decorator.
+    func: Callable
+
+    #: Signature of the function this action wraps
+    sig: Optional[Signature]
+
     __slots__ = ('creation_kwargs', 'name', 'func')
 
     @abstractmethod
-    def __call__(self, func):
+    def __call__(self, func: Callable) -> Any:
         """Invoked when the class is used as a decorator.
 
         """
         pass
 
     @abstractmethod
-    def __get__(self, obj, objtype=None):
+    def __get__(self,
+                obj: AbstractHasFeatures,
+                objtype: Optional[Type[AbstractHasFeatures]]=None
+                ) -> Union[Callable, Type['AbstractAction']]:
         """Descriptor protocol.
 
         Should return a callable.
@@ -369,7 +622,7 @@ class AbstractAction(AbstractSupportMethodCustomization):
         raise NotImplementedError
 
     @abstractmethod
-    def clone(self):
+    def clone(self) -> 'AbstractAction':
         """Create a clone of itself.
 
         """
@@ -382,7 +635,7 @@ class AbstractActionModifier(ABC):
     """
 
     @abstractmethod
-    def customize(self, action) -> AbstractAction:
+    def customize(self, action: AbstractAction) -> AbstractAction:
         """Customize an action and return a new instance.
 
         """
@@ -392,21 +645,19 @@ class AbstractActionModifier(ABC):
 class AbstractLimitsValidator(ABC):
     """ Base class for all limits validators.
 
-    Attributes
-    ----------
-    minimum :
-        Minimal allowed value or None.
-    maximum :
-        Maximal allowed value or None.
-    step :
-        Allowed step between values or None.
-
-    Methods
-    -------
-    validate :
-        Validate a given value against the range.
-
     """
+    #: Minimal allowed value or None.
+    minimum: Any
+
+    #: Maximal allowed value or None.
+    maximum: Any
+
+    #: Allowed step between values or None.
+    step: Any
+
+    #: Validate a given value against the range.
+    validate: MethodType
+
     __slots__ = ('minimum', 'maximum', 'step', 'validate')
 
 
@@ -416,7 +667,7 @@ class AbstractLimitDeclarator(ABC):
     """
 
     @abstractmethod
-    def __call__(self, func):
+    def __call__(self, func: Callable) -> 'AbstractLimitDeclarator':
         """Decorate a function to use to compute limits.
 
         Should return itself.
@@ -434,7 +685,7 @@ class AbstractGetSetFactory(ABC):
     """
 
     @abstractmethod
-    def build_getter(self):
+    def build_getter(self) -> Callable:
         """Build the function for getting the Feature value.
 
         This method is called when a get/set factory is passed as the getter
@@ -444,7 +695,7 @@ class AbstractGetSetFactory(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    def build_setter(self):
+    def build_setter(self) -> Callable:
         """Build the function for setting the Feature value.
 
         This method is called when a get/set factory is passed as the setter
@@ -459,14 +710,15 @@ class AbstractMethodCustomizer(ABC):
 
     """
     @abstractmethod
-    def __call__(self, func):
+    def __call__(self, func: Callable):
         """Use the method customizer as a decorator.
 
         """
         pass
 
     @abstractmethod
-    def customize(self, owner, decorated_name):
+    def customize(self, owner: AbstractSupportMethodCustomization,
+                  decorated_name: str):
         """Customize the object owned by owner.
 
         Parameters

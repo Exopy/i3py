@@ -18,4 +18,4 @@ from .factories import constant, conditional
 from .options import Options
 
 __all__ = ['AbstractFeature', 'Feature', 'Bool', 'Str', 'Int', 'Float',
-           'Register', 'Alias', 'constant', 'conditional']
+           'Register', 'Alias', 'Options', 'constant', 'conditional']

@@ -10,17 +10,19 @@
 
 """
 from abc import abstractmethod, abstractproperty
+from collections import Mapping, OrderedDict
+from inspect import Signature, signature
 from types import MethodType
-from collections import OrderedDict, Mapping
-
-from inspect import signature
+from typing import (Any, Callable, ClassVar, Dict, List, Optional, Sequence,
+                    Tuple, Type)
 
 from .abstracts import (AbstractMethodCustomizer,
                         AbstractSupportMethodCustomization)
 
 
 # XXX rework for keyword only args
-def normalize_signature(sig, alias=None):
+def normalize_signature(sig: Signature,
+                        alias: Optional[str]=None) -> Tuple[str, ...]:
     """Normalize a function signature for quick matching.
 
     Parameters
@@ -83,13 +85,29 @@ class MethodComposer(object):
 
     """
     #: Dict storing custom class for each signature
-    signatures = {}
+    signatures: ClassVar[Dict[Tuple[Tuple[Tuple[str, ...], ...], str],
+                         Type['MethodComposer']]] = {}
 
     __slots__ = ('__self__', '__name__', '_alias', '_chain_on', '_names',
                  '_methods', '_signatures')
 
-    def __new__(cls, obj, func, alias, chain_on, func_id='old',
-                signatures=None):
+    #:
+    __self__: Any
+
+    _alias: str
+
+    _chain_on: str
+
+    _names: list
+
+    _methods: list
+
+    _signatures: List[Tuple[str, ...]]
+
+    def __new__(cls, obj: AbstractSupportMethodCustomization,
+                func: Callable, alias: str, chain_on: str,
+                func_id: str='old',
+                signatures: Optional[Sequence[Tuple[str, ...]]]=None):
         """Create a custom subclass for each signature function.
 
         Parameters
@@ -113,7 +131,7 @@ class MethodComposer(object):
             Id of the original function to use in the composer.
 
         signatures : list, optional
-            List of signatures to accept. If specified the signature of the
+            List of signatures to accept. If specified the signatures of the
             passed function is ignored and the __call__ method will have the
             signature of the first specified signature.
 
@@ -137,8 +155,15 @@ class MethodComposer(object):
         composer._signatures = signatures
         return composer
 
+    def __call__(self, *args, **kwargs):
+        """The signature is customized to match the one of the replaced method.
+
+        """
+        pass
+
     @classmethod
-    def create_composer(cls, name, sigs, chain_on):
+    def create_composer(cls, name: str, sigs: Sequence[Tuple[str, ...]],
+                        chain_on: str) -> Type['MethodComposer']:
         """Dynamically create a subclass of base composer for a signature.
 
         """
@@ -158,8 +183,16 @@ class MethodComposer(object):
         exec(decl, glob)
         return glob[name]
 
-    def clone(self, new_obj=None):
+    def clone(self,
+              new_obj: Optional[AbstractSupportMethodCustomization]=None) -> (
+                  'MethodComposer'):
         """Create a full copy of the composer.
+
+        Parameters
+        ----------
+        new_obj : AbstractSupportMethodCustomization, optional
+            New object to which the composer should be bound. If not specified
+            The composer is bound to self.__self__.
 
         """
         new = type(self)(new_obj or self.__self__, self, self._alias,
@@ -168,7 +201,7 @@ class MethodComposer(object):
         new._methods = self._methods[:]
         return new
 
-    def prepend(self, name, method):
+    def prepend(self, name: str, method: MethodType) -> None:
         """Prepend a method to existing ones.
 
         Parameters
@@ -185,7 +218,7 @@ class MethodComposer(object):
         self._names.insert(0, name)
         self._methods.insert(0, method)
 
-    def append(self, name, method):
+    def append(self, name: str, method: MethodType) -> None:
         """Append a method to existing ones.
 
         Parameters
@@ -202,7 +235,7 @@ class MethodComposer(object):
         self._names.append(name)
         self._methods.append(method)
 
-    def add_after(self, anchor, name, method):
+    def add_after(self, anchor: str, name: str, method: MethodType) -> None:
         """Add the given method after a given one.
 
         Parameters
@@ -222,7 +255,7 @@ class MethodComposer(object):
         self._names.insert(i+1, name)
         self._methods.insert(i+1, method)
 
-    def add_before(self, anchor, name, method):
+    def add_before(self, anchor: str, name: str, method: MethodType) -> None:
         """Add the given method before the specified one.
 
         Parameters
@@ -242,7 +275,7 @@ class MethodComposer(object):
         self._names.insert(i, name)
         self._methods.insert(i, method)
 
-    def replace(self, name, method):
+    def replace(self, name: str, method: MethodType) -> None:
         """Replace an existing method by a new one.
 
         Only custom methods can be replaced. Methods whose presence is
@@ -260,7 +293,7 @@ class MethodComposer(object):
         i = self._names.index(name)
         self._methods[i] = method
 
-    def remove(self, name):
+    def remove(self, name: str) -> None:
         """Remove a method.
 
         Parameters
@@ -273,24 +306,24 @@ class MethodComposer(object):
         del self._names[i]
         del self._methods[i]
 
-    def reset(self):
+    def reset(self) -> None:
         """Empty the composer.
 
         """
         self._names = []
         self._methods = []
 
-    def __getitem__(self, key):
+    def __getitem__(self, key: str) -> MethodType:
         return self._methods[self._names.index(key)]
 
-    def __contains__(self, item):
+    def __contains__(self, item: str) -> bool:
         return item in self._names
 
     @property
-    def __func__(self):
+    def __func__(self) -> 'MethodComposer':
         return self
 
-    def _check_duplicates(self, name):
+    def _check_duplicates(self, name: str) -> None:
         """Avoid duplicate ids.
 
         """
@@ -326,22 +359,29 @@ class customize(AbstractMethodCustomizer):
         Id of the modification used to identify it.
 
     """
+    #: Function to use to modify the behavior of the customized method
+    func: Optional[Callable]
+
     __slots__ = ('desc_name', 'meth_name', 'specifiers', 'modif_id', 'func',
                  '__name__')
 
-    def __init__(self, desc_name, meth_name, specifiers=(), modif_id='custom'):
+    def __init__(self, desc_name: str, meth_name: str,
+                 specifiers: Optional[Tuple[str, ...]]=(),
+                 modif_id: str='custom') -> None:
         self.desc_name = desc_name
         self.meth_name = meth_name
         self.specifiers = specifiers
         self.modif_id = modif_id
         self.func = None
 
-    def __call__(self, func):
+    def __call__(self, func: Callable) -> 'customize':
         self.func = func
         self.__name__ = func.__name__
         return self
 
-    def customize(self, owner, decorated_name):
+    def customize(self,
+                  owner: AbstractSupportMethodCustomization,
+                  decorated_name: str):
         """Customize the object owned by owner.
 
         Parameters
@@ -369,22 +409,21 @@ class customize(AbstractMethodCustomizer):
 class SupportMethodCustomization(AbstractSupportMethodCustomization):
     """Abstract class for objects supporting to have their method customized.
 
-    Attributes
-    ----------
-    name : str
-        Name of the object. Used in error reporting.
-
     """
+    #: Name of the object. Used in error reporting.
+    name: str
+
     def __init__(self, *args, **kwargs):
         super(SupportMethodCustomization, self).__init__(*args, **kwargs)
         self.name = ''
-        self._customs = OrderedDict()
+        self._customs: Dict[str, Dict[str, tuple]] = OrderedDict()
         # Ids to use to refer to the old method when replacing it with a
         # composer.
         self._old_ids = {}
 
     @abstractmethod
-    def analyse_function(self, meth_name, func, specifiers):
+    def analyse_function(self, meth_name: str, func: Callable,
+                         specifiers: Tuple[str, ...]):
         """Analyse the possibility to use a function for a method.
 
         Parameters
@@ -423,14 +462,16 @@ class SupportMethodCustomization(AbstractSupportMethodCustomization):
         pass
 
     @abstractproperty
-    def self_alias(self):
+    def self_alias(self) -> str:
         """Name used instead of self in function signature.
 
         """
         pass
 
-    def modify_behavior(self, method_name, func, specifiers=(),
-                        modif_id='custom', internal=False):
+    def modify_behavior(self, method_name: str, func: Callable,
+                        specifiers: Optional[Tuple[str, ...]]=(),
+                        modif_id: str='custom',
+                        internal: bool=False):
         """Alter the behavior of the Feature using the provided method.
 
         Those operations are logged into the _customs dictionary in OrderedDict
@@ -560,7 +601,7 @@ class SupportMethodCustomization(AbstractSupportMethodCustomization):
                 op = (func, original_specifiers)
                 customs[modif_id] = op
 
-    def copy_custom_behaviors(self, obj):
+    def copy_custom_behaviors(self, obj: AbstractSupportMethodCustomization):
         """Copy the custom behaviors existing on an object to this one.
 
         This is used to preserve the custom behaviors after recreating an

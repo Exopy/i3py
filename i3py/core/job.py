@@ -10,6 +10,7 @@
 
 """
 import time
+from typing import Callable, Optional
 
 
 class InstrJob(object):
@@ -31,14 +32,20 @@ class InstrJob(object):
         is called with and the function return value will be returned.
 
     """
-    def __init__(self, condition_callable, expected_waiting_time, cancel=None):
+    def __init__(self,
+                 condition_callable: Callable[[], bool],
+                 expected_waiting_time: float,
+                 cancel: Optional[Callable]=None) -> None:
         self.condition_callable = condition_callable
         self.expected_waiting_time = expected_waiting_time
         self._cancel = cancel
         self._start_time = time.time()
 
-    def wait_for_completion(self, break_condition_callable=None, timeout=15,
-                            refresh_time=1):
+    def wait_for_completion(self,
+                            break_condition_callable:
+                                Optional[Callable[[], bool]]=None,
+                            timeout: float=15,
+                            refresh_time: float=1) -> bool:
         """Wait for the task to complete.
 
         Parameters
@@ -60,7 +67,9 @@ class InstrJob(object):
 
         """
         if break_condition_callable is None:
-            break_condition_callable = lambda: None
+            def no_check():
+                pass
+            break_condition_callable = no_check
 
         while True:
             remaining_time = (self.expected_waiting_time -

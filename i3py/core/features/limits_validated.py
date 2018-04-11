@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # -----------------------------------------------------------------------------
-# Copyright 2016-2017 by I3py Authors, see AUTHORS for more details.
+# Copyright 2016-2018 by I3py Authors, see AUTHORS for more details.
 #
 # Distributed under the terms of the BSD license.
 #
@@ -10,10 +10,11 @@
 
 """
 from inspect import cleandoc
+from typing import Any, Union, Optional, Dict, Tuple
 
 from .feature import Feature
 from ..utils import validate_limits
-from ..limits import AbstractLimitsValidator
+from ..abstracts import (AbstractLimitsValidator, AbstractHasFeatures)
 
 
 class LimitsValidated(Feature):
@@ -26,8 +27,15 @@ class LimitsValidated(Feature):
         provided it is used to retrieve the range from the driver at runtime.
 
     """
-    def __init__(self, getter=None, setter=None, limits=None, extract='',
-                 retries=0, checks=None, discard=None, options=None):
+    def __init__(self, getter: Any=None,
+                 setter: Any=None,
+                 limits: Optional[Union[str, AbstractLimitsValidator]]=None,
+                 extract: str='',
+                 retries: int=0,
+                 checks: Optional[str]=None,
+                 discard: Optional[Union[Tuple[str, ...],
+                                         Dict[str, Tuple[str, ...]]]]=None,
+                 options: Optional[str]=None) -> None:
         Feature.__init__(self, getter, setter, extract,
                          retries, checks, discard)
         if limits:
@@ -48,7 +56,8 @@ class LimitsValidated(Feature):
 
         self.creation_kwargs['limits'] = limits
 
-    def validate_limits(self, driver, value):
+    def validate_limits(self, driver: AbstractHasFeatures,
+                        value: Any) -> Union[int, float]:
         """Make sure a value is in the given range.
 
         This method is meant to be used as a pre-set.
@@ -56,7 +65,8 @@ class LimitsValidated(Feature):
         """
         return validate_limits(driver, value, self.limits, self.name)
 
-    def get_limits_and_validate(self, driver, value):
+    def get_limits_and_validate(self, driver: AbstractHasFeatures,
+                                value: Any) -> Union[int, float]:
         """Query the current range from the driver and validate the values.
 
         This method is meant to be used as a pre-set.

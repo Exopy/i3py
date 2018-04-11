@@ -9,7 +9,7 @@
 """BaseInstrument defines the common expected interface for all drivers.
 
 """
-from typing import Hashable, Type
+from typing import Hashable
 from threading import RLock
 from weakref import WeakKeyDictionary, WeakValueDictionary
 from textwrap import fill

@@ -11,12 +11,11 @@
 """
 from inspect import cleandoc
 
-from pyvisa.rname import (ASRLInstr, GPIBInstr, TCPIPInstr, TCPIPSocket)
 from pyvisa import errors
+from pyvisa.rname import ASRLInstr, GPIBInstr, TCPIPInstr, TCPIPSocket
 
 from ...core.actions import RegisterAction
-
-from .base import (BaseVisaDriver, VisaFeature, VisaAction,
+from .base import (BaseVisaDriver, VisaAction, VisaFeature,
                    get_visa_resource_manager)
 
 

@@ -9,12 +9,14 @@
 """Module defining the limits utilities used for int and float.
 
 """
-from types import MethodType
-from math import modf
 from functools import update_wrapper
+from math import modf
+from types import MethodType
+from typing import Callable, Optional, Union
 
-from .unit import UNIT_SUPPORT, get_unit_registry
 from .abstracts import AbstractLimitsValidator
+from .unit import UNIT_SUPPORT, get_unit_registry
+
 if UNIT_SUPPORT:
     from pint.quantity import _Quantity
 
@@ -41,7 +43,8 @@ class IntLimitsValidator(AbstractLimitsValidator):
 
     __slots__ = ()
 
-    def __init__(self, min=None, max=None, step=None):
+    def __init__(self, min: Optional[int]=None, max: Optional[int]=None,
+                 step: Optional[int]=None) -> None:
         mess = 'The {} of an IntRange must be an integer not {}.'
         if min is None and max is None:
             raise ValueError('An IntLimitsValidator must have a min or max')
@@ -73,37 +76,37 @@ class IntLimitsValidator(AbstractLimitsValidator):
             else:
                 self.validate = self._validate_smaller
 
-    def _validate_smaller(self, value):
+    def _validate_smaller(self, value: int) -> bool:
         """Check if the value is smaller than the maximum.
 
         """
         return value <= self.maximum
 
-    def _validate_smaller_and_step(self, value):
+    def _validate_smaller_and_step(self, value: int) -> bool:
         """Check if the value is smaller than the maximum and respect the step.
 
         """
         return value <= self.maximum and (value-self.maximum) % self.step == 0
 
-    def _validate_larger(self, value):
+    def _validate_larger(self, value: int) -> bool:
         """Check if the value is larger than the minimum.
 
         """
         return value >= self.minimum
 
-    def _validate_larger_and_step(self, value):
+    def _validate_larger_and_step(self, value: int) -> bool:
         """Check if the value is larger than the minimum and respect the step.
 
         """
         return value >= self.minimum and (value-self.minimum) % self.step == 0
 
-    def _validate_range(self, value):
+    def _validate_range(self, value: int) -> bool:
         """Check if the value is in the range.
 
         """
         return self.minimum <= value <= self.maximum
 
-    def _validate_range_and_step(self, value):
+    def _validate_range_and_step(self, value: int) -> bool:
         """Check if the value is in the range and respect the step.
 
         """
@@ -141,7 +144,8 @@ class FloatLimitsValidator(AbstractLimitsValidator):
 
     __slots__ = ('unit')
 
-    def __init__(self, min=None, max=None, step=None, unit=None):
+    def __init__(self, min: Optional[float]=None, max: Optional[float]=None,
+                 step: Optional[float]=None, unit: str=None) -> None:
         mess = 'The {} of an FloatLimitsValidator must be a float not {}.'
         if min is None and max is None:
             raise ValueError('An FloatLimitsValidator must have a min or max')
@@ -161,7 +165,7 @@ class FloatLimitsValidator(AbstractLimitsValidator):
             self.unit = ureg.parse_expression(unit)
             wrap = self._unit_conversion
         else:
-            wrap = lambda x: x
+            wrap = lambda x: x  # type: ignore
 
         if min is not None:
             if max is not None:
@@ -180,7 +184,12 @@ class FloatLimitsValidator(AbstractLimitsValidator):
             else:
                 self.validate = wrap(self._validate_smaller)
 
-    def _unit_conversion(self, cmp_func):
+    def _unit_conversion(self,
+                         cmp_func: Union[MethodType,
+                                         Callable[['FloatLimitsValidator',
+                                                   float, Optional[str]],
+                                                  bool]]
+                         ) -> (MethodType):
         """Decorator handling unit conversion to the unit.
 
         """
@@ -200,39 +209,45 @@ class FloatLimitsValidator(AbstractLimitsValidator):
         wrapper.__doc__ += '\nAutomatic handling of unit conversions'
         return MethodType(wrapper, self)
 
-    def _validate_smaller(self, value, unit=None):
+    def _validate_smaller(self, value: float, unit: Optional[str]=None
+                          ) -> bool:
         """Check if the value is smaller than the maximum.
 
         """
         return value <= self.maximum
 
-    def _validate_smaller_and_step(self, value, unit=None):
+    def _validate_smaller_and_step(self, value: float, unit: Optional[str]=None
+                                   ) -> bool:
         """Check if the value is smaller than the maximum and respect the step.
 
         """
         ratio = round(abs((value-self.maximum)/self.step), 9)
         return value <= self.maximum and modf(ratio)[0] < 1e-9
 
-    def _validate_larger(self, value, unit=None):
+    def _validate_larger(self, value: float, unit: Optional[str]=None
+                         ) -> bool:
         """Check if the value is larger than the minimum.
 
         """
         return value >= self.minimum
 
-    def _validate_larger_and_step(self, value, unit=None):
+    def _validate_larger_and_step(self, value: float, unit: Optional[str]=None
+                                  ) -> bool:
         """Check if the value is larger than the minimum and respect the step.
 
         """
         ratio = round(abs((value-self.minimum)/self.step), 9)
         return value >= self.minimum and modf(ratio)[0] < 1e-9
 
-    def _validate_range(self, value, unit=None):
+    def _validate_range(self, value: float, unit: Optional[str]=None
+                        ) -> bool:
         """Check if the value is in the range.
 
         """
         return self.minimum <= value <= self.maximum
 
-    def _validate_range_and_step(self, value, unit=None):
+    def _validate_range_and_step(self, value: float, unit: Optional[str]=None
+                                 ) -> bool:
         """Check if the value is in the range and respect the step.
 
         """

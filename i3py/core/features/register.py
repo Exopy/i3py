@@ -9,8 +9,12 @@
 """Module defining a Feature used to deal with 8-bits binary register.
 
 """
+from enum import IntFlag
+from typing import Any, Union, Optional, Dict, Tuple, Type
+
 from .feature import Feature
 from ..utils import create_register_flag
+from ..abstracts import AbstractHasFeatures
 
 
 class Register(Feature):
@@ -18,7 +22,7 @@ class Register(Feature):
 
     Parameters
     ----------
-    names : iterable or dict
+    names : tuple or dict
         Names to associate to each bit fields from 0 to length-1. When using an
         iterable None can be used to mark a useless bit. When using a dict
         the values are used to specify the bits to consider.
@@ -28,9 +32,20 @@ class Register(Feature):
         value.
 
     """
-    def __init__(self, getter=None, setter=None, names=(), length=8,
-                 extract='', retries=0, checks=None, discard=None,
-                 options=None):
+    #: Attribute in which the custom class to represent the Feature values is
+    #: stored
+    flag: Optional[Type[IntFlag]]
+
+    def __init__(self, getter: Any=None,
+                 setter: Any=None,
+                 names: Union[Tuple[Optional[str], ...], Dict[str, int]]=(),
+                 length: int=8,
+                 extract: str='',
+                 retries: int=0,
+                 checks: Optional[str]=None,
+                 discard: Optional[Union[Tuple[str, ...],
+                                         Dict[str, Tuple[str, ...]]]]=None,
+                 options: Optional[str]=None) -> None:
         Feature.__init__(self, getter, setter, extract, retries,
                          checks, discard, options)
 
@@ -44,20 +59,20 @@ class Register(Feature):
         self.modify_behavior('pre_set', self.flag_to_int.__func__,
                              ('append',), 'flag_to_int', True)
 
-    def int_to_flag(self, driver, value):
+    def int_to_flag(self, driver: AbstractHasFeatures, value: int) -> IntFlag:
         """Convert the byte returned by the instrument to a dict.
 
         """
         val = int(value)
         return self.flag(val)
 
-    def flag_to_int(self, driver, value):
-        """Convert a dict into a byte value.
+    def flag_to_int(self, driver: AbstractHasFeatures, value: IntFlag) -> int:
+        """Convert a flag into a byte value.
 
         """
         return int(value)
 
-    def __set_name__(self, owner, name):
+    def __set_name__(self, owner: type, name: str):
         """Use set name to construct the flag class once we get our name.
 
         """

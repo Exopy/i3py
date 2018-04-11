@@ -10,7 +10,9 @@
 
 """
 from types import MethodType
+from typing import Any, Dict, Callable
 
+from ..abstracts import AbstractHasFeatures
 from .feature import Feature, get_chain, set_chain
 
 
@@ -31,9 +33,19 @@ SET_DEF =\
 class Alias(Feature):
     """Feature whose value is mapped to another Feature.
 
+    Parameters
+    ----------
+    alias : str
+        Path to the feature to which the alias refers to. The path should be
+        dot separated and use leading dots to access to parent features.
+
+    settable: bool, optional
+        Boolean indicating if the alias can be used to set the value of the
+        aliased feature.
+
     """
 
-    def __init__(self, alias, settable=None):
+    def __init__(self, alias: str, settable: bool=False) -> None:
 
         super(Alias, self).__init__(True, settable)
 
@@ -44,15 +56,16 @@ class Alias(Feature):
         if settable:
             defs += '\n' + SET_DEF.format(accessor)
 
-        loc = {}
+        loc: Dict[str, Callable] = {}
         exec(defs, globals(), loc)
 
-        self.get = MethodType(loc['get'], self)
+        self.get = MethodType(loc['get'], self)  # type: ignore
         if settable:
-            self.set = MethodType(loc['set'], self)
+            self.set = MethodType(loc['set'], self)  # type: ignore
 
-    def post_set(self, driver, value, i_value, response):
-        """Re-implemented here as an Alias does not need to do anaything
+    def post_set(self, driver: AbstractHasFeatures, value: Any, i_value: Any,
+                 response: Any):
+        """Re-implemented here as an Alias does not need to do anything
         by default.
 
         """
@@ -62,14 +75,14 @@ class Alias(Feature):
     # --- Private API ---------------------------------------------------------
     # =========================================================================
 
-    def _get(self, driver):
+    def _get(self, driver: AbstractHasFeatures):
         """Re-implemented so that Alias never use the cache.
 
         """
         with driver.lock:
             return get_chain(self, driver)
 
-    def _set(self, driver, value):
+    def _set(self, driver: AbstractHasFeatures, value: Any):
         """Re-implemented so that Alias never uses the cache.
 
         """

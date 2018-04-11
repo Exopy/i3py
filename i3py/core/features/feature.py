@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # -----------------------------------------------------------------------------
-# Copyright 2016-2017 by I3py Authors, see AUTHORS for more details.
+# Copyright 2016-2018 by I3py Authors, see AUTHORS for more details.
 #
 # Distributed under the terms of the BSD license.
 #
@@ -10,6 +10,7 @@
 
 """
 from types import MethodType
+from typing import Any, Union, Optional, Dict, Tuple, Callable, cast
 from time import perf_counter, sleep
 
 from stringparser import Parser
@@ -17,7 +18,8 @@ from inspect import signature
 
 from ..errors import I3pyError, I3pyFailedGet, I3pyFailedSet
 from ..utils import build_checker, check_options
-from ..abstracts import AbstractFeature, AbstractGetSetFactory
+from ..abstracts import (AbstractFeature, AbstractGetSetFactory,
+                         AbstractHasFeatures)
 from ..composition import (SupportMethodCustomization, normalize_signature)
 
 
@@ -88,8 +90,14 @@ class Feature(SupportMethodCustomization, AbstractFeature):
 
     """
 
-    def __init__(self, getter=None, setter=None, extract='', retries=0,
-                 checks=None, discard=None, options=None):
+    def __init__(self, getter: Any=None,
+                 setter: Any=None,
+                 extract: str='',
+                 retries: int=0,
+                 checks: Optional[str]=None,
+                 discard: Optional[Union[Tuple[str, ...],
+                                         Dict[str, Tuple[str, ...]]]]=None,
+                 options: Optional[str]=None) -> None:
         self._getter = getter
         self._setter = setter
         self._retries = retries
@@ -131,7 +139,7 @@ class Feature(SupportMethodCustomization, AbstractFeature):
 
         self._use_options = bool(options)
 
-    def make_doc(self, doc):
+    def make_doc(self, doc: str):
         """Build the doc of the feature based on the passed string and kwargs.
 
         """
@@ -148,7 +156,7 @@ class Feature(SupportMethodCustomization, AbstractFeature):
             checks = self.creation_kwargs['checks']
             if isinstance(checks, tuple):
                 doc += ('\nThe following checks are run :\n  - on get: %s\n'
-                        '  - on set: %s') % (checks)
+                        '  - on set: %s') % (checks[0], checks[1])
             else:
                 doc += ('\nThe following checks are run on get and '
                         'set:\n  - %s' % checks)
@@ -165,7 +173,7 @@ class Feature(SupportMethodCustomization, AbstractFeature):
 
         self.__doc__ = doc
 
-    def pre_get(self, driver):
+    def pre_get(self, driver: AbstractHasFeatures):
         """Hook to perform checks before querying a value from the instrument.
 
         If anything goes wrong this method should raise the corresponding
@@ -179,7 +187,7 @@ class Feature(SupportMethodCustomization, AbstractFeature):
         """
         pass
 
-    def get(self, driver):
+    def get(self, driver: AbstractHasFeatures) -> Any:  # type: ignore
         """Acces the parent driver to retrieve the state of the instrument.
 
         By default this method falls back to calling the parent
@@ -200,7 +208,7 @@ class Feature(SupportMethodCustomization, AbstractFeature):
         """
         return driver.default_get_feature(self, self._getter)
 
-    def post_get(self, driver, value):
+    def post_get(self, driver: AbstractHasFeatures, value: Any) -> Any:
         """Hook to alter the value returned by the underlying driver.
 
         This can be used to convert the answer from the instrument to a more
@@ -223,7 +231,7 @@ class Feature(SupportMethodCustomization, AbstractFeature):
         """
         return value
 
-    def pre_set(self, driver, value):
+    def pre_set(self, driver: AbstractHasFeatures, value: Any) -> Any:
         """Hook to format the value passed to the Feature before sending it
         to the instrument.
 
@@ -247,7 +255,9 @@ class Feature(SupportMethodCustomization, AbstractFeature):
         """
         return value
 
-    def set(self, driver, value):
+    def set(self,  # type: ignore
+            driver: AbstractHasFeatures,
+            value: Any) -> Any:
         """Access the driver to actually set the instrument state.
 
         By default this method falls back to calling the parent
@@ -269,7 +279,8 @@ class Feature(SupportMethodCustomization, AbstractFeature):
         """
         return driver.default_set_feature(self, self._setter, value)
 
-    def post_set(self, driver, value, i_value, response):
+    def post_set(self, driver: AbstractHasFeatures, value: Any, i_value: Any,
+                 response: Any):
         """Hook to perform additional action after setting a value.
 
         This can be used to check the instrument operated correctly or perform
@@ -296,7 +307,8 @@ class Feature(SupportMethodCustomization, AbstractFeature):
         """
         self.check_operation(driver, value, i_value, response)
 
-    def check_operation(self, driver, value, i_value, response):
+    def check_operation(self, driver: AbstractHasFeatures, value: Any,
+                        i_value: Any, response: Any):
         """Check the instrument operated correctly.
 
         This uses the driver default_check_operation method.
@@ -328,8 +340,11 @@ class Feature(SupportMethodCustomization, AbstractFeature):
                 mess += '.'
             raise I3pyError(mess.format(self.name, value, i_value))
 
-    def discard_cache(self, driver, value, i_value, response):
+    def discard_cache(self, driver: AbstractHasFeatures, value: Any,
+                      i_value: Any, response: Any):
         """Empty the cache of the specified values.
+
+        Used as a post-set modifier.
 
         """
         if 'features' in self._discard:
@@ -337,13 +352,13 @@ class Feature(SupportMethodCustomization, AbstractFeature):
         if 'limits' in self._discard:
             driver.discard_limits(self._discard['limits'])
 
-    def extract(self, driver, value):
+    def extract(self, driver: AbstractHasFeatures, value: str) -> Any:
         """Extract the return value using the extract value.
 
         """
         return self._parser(value)
 
-    def check_options(self, driver):
+    def check_options(self, driver: AbstractHasFeatures):
         """Check that the driver options allow to use this feature.
 
         """
@@ -359,7 +374,7 @@ class Feature(SupportMethodCustomization, AbstractFeature):
         msg = 'Options does not allow to access %s : %s' % (self.name, msg)
         raise AttributeError(msg)
 
-    def clone(self):
+    def clone(self) -> AbstractFeature:
         """Clone the Feature by copying all the local attributes and driver
         methods
 
@@ -371,23 +386,24 @@ class Feature(SupportMethodCustomization, AbstractFeature):
 
         return new
 
-    def create_default_settings(self):
+    def create_default_settings(self) -> Dict[str, Any]:
         """Create the default settings for a feature.
 
         """
-        settings = {'inter_set_delay': 0, '_last_set': 0}
+        settings: Dict[str, Any] = {'inter_set_delay': 0, '_last_set': 0}
         if self._use_options:
             settings['_options'] = (None, '')
         return settings
 
     @property
-    def self_alias(self):
+    def self_alias(self) -> str:
         """For features self is replaced by feat in function signature.
 
         """
         return 'feat'
 
-    def analyse_function(self, method_name, func, specifiers):
+    def analyse_function(self, method_name: str, func: Callable,
+                         specifiers: Tuple[str, ...]):
         """Check the signature of the function.
 
         """
@@ -422,13 +438,14 @@ class Feature(SupportMethodCustomization, AbstractFeature):
 
         return specifiers, [sig], chain
 
-    def _build_checkers(self, checks):
+    def _build_checkers(self, checks: Union[str, Tuple[str, str]]) -> None:
         """Create the custom check function and bind them to check_get and
         check_set.
 
         """
         build = build_checker
         if len(checks) != 2:
+            checks = cast(str, checks)
             checks = (checks, checks)
 
         if checks[0]:
@@ -443,7 +460,7 @@ class Feature(SupportMethodCustomization, AbstractFeature):
             self.modify_behavior('pre_set', self.set_check,
                                  ('prepend',), 'checks', internal=True)
 
-    def _get(self, driver):
+    def _get(self, driver: AbstractHasFeatures) -> Any:
         """Getter defined when the user provides a value for the get arg.
 
         """
@@ -467,7 +484,7 @@ class Feature(SupportMethodCustomization, AbstractFeature):
             msg = 'Failed to get the value of feature {} for driver {}.'
             raise I3pyFailedGet(msg.format(self.name, driver)) from e
 
-    def _set(self, driver, value):
+    def _set(self, driver: AbstractHasFeatures, value: Any):
         """Setter defined when the user provides a value for the set arg.
 
         """
@@ -499,35 +516,35 @@ class Feature(SupportMethodCustomization, AbstractFeature):
             if isd:
                 settings['_last_set'] = perf_counter()
 
-    def _del(self, driver):
+    def _del(self, driver: AbstractHasFeatures):
         """Deleter clearing the cache of the instrument for this Feature.
 
         """
         driver.clear_cache(features=(self.name,))
 
-    @staticmethod
-    def _read_cache(driver, cache, name):
+    def _read_cache(self, driver: AbstractHasFeatures,
+                    cache: Dict[str, Any], name: str) -> Any:
         """Return the value stored in the cache.
 
         """
         return cache[name]
 
-    @staticmethod
-    def _is_value_cached(driver, cache, name, value):
+    def _is_value_cached(self, driver: AbstractHasFeatures,
+                         cache: Dict[str, Any], name: str, value: Any) -> bool:
         """Check if a value is cached, which means set is supefluous.
 
         """
         return name in cache and value == cache[name]
 
-    @staticmethod
-    def _fill_cache(driver, cache, name, value):
+    def _fill_cache(self, driver: AbstractHasFeatures, cache: Dict[str, Any],
+                    name: str, value: Any):
         """Fill the cache value.
 
         """
         cache[name] = value
 
 
-def get_chain(feat, driver):
+def get_chain(feat: Feature, driver: AbstractHasFeatures) -> Any:
     """Generic get chain for Features.
 
     """
@@ -551,7 +568,7 @@ def get_chain(feat, driver):
     return alt_val
 
 
-def set_chain(feat, driver, value):
+def set_chain(feat: Feature, driver: AbstractHasFeatures, value: Any):
     """Generic set chain for Features.
 
     """

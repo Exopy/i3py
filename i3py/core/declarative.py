@@ -10,12 +10,16 @@
 
 """
 from inspect import currentframe
+from typing import Any, Callable, Dict, List, Optional, Tuple, Type, Union
 
-from .abstracts import (AbstractSubpartDeclarator,
+from .abstracts import (AbstractAction, AbstractActionModifier,
+                        AbstractChannel, AbstractChannelContainer,
+                        AbstractChannelDeclarator, AbstractChannelDescriptor,
+                        AbstractFeature, AbstractFeatureModifier,
+                        AbstractHasFeatures, AbstractLimitDeclarator,
+                        AbstractLimitsValidator, AbstractSubpartDeclarator,
                         AbstractSubSystem, AbstractSubSystemDeclarator,
-                        AbstractChannel, AbstractChannelDeclarator,
-                        AbstractFeatureModifier, AbstractActionModifier,
-                        AbstractLimitDeclarator)
+                        AbstractSubSystemDescriptor)
 from .utils import build_checker
 
 # Sentinel returned when decorating a method with a subpart.
@@ -50,26 +54,32 @@ class SubpartDecl(object):
                  '_descriptor_type_', '_parent_', '_aliases_', '_inners_',
                  '_enter_locals_')
 
-    def __init__(self, bases=(), checks='', options=None,
-                 descriptor_type=None):
+    def __init__(self,
+                 bases: Union[type, Tuple[type, ...]]=(),
+                 checks: str='',
+                 options: Optional[str]=None,
+                 descriptor_type: Optional[Union[AbstractSubSystemDescriptor,
+                                                 AbstractChannelDescriptor]
+                                           ]=None
+                 ) -> None:
         self._name_ = ''
         if not isinstance(bases, tuple):
             bases = (bases,)
-        self._bases_ = bases
+        self._bases_: Tuple[type, ...] = bases
         self._checks_ = checks
         self._options_ = options
         self._descriptor_type_ = descriptor_type
         self._parent_ = None
-        self._aliases_ = []
-        self._inners_ = {}
-        self._enter_locals_ = None
+        self._aliases_: List[str] = []
+        self._inners_: Dict[str, Any] = {}
+        self._enter_locals_: Optional[Dict[str, Any]] = None
 
-    def __setattr__(self, name, value):
+    def __setattr__(self, name: str, value: Any):
         if isinstance(value, SubpartDecl):
             object.__setattr__(value, '_parent_', self)
         object.__setattr__(self, name, value)
 
-    def __call__(self, func):
+    def __call__(self, func: Callable) -> Any:
         """Decorator maker to register functions in the subpart.
 
         The function is stored in the object under its own name.
@@ -83,7 +93,7 @@ class SubpartDecl(object):
         object.__setattr__(self, func.__name__, func)
         return SUBPART_FUNC
 
-    def __enter__(self):
+    def __enter__(self) -> 'SubpartDecl':
         """Using this a context manager helps readability and can allow to
         use shorter names in declarations.
 
@@ -91,7 +101,7 @@ class SubpartDecl(object):
         self._enter_locals_ = currentframe().f_back.f_locals.copy()
         return self
 
-    def __exit__(self, exc_type, exc_value, traceback):
+    def __exit__(self, exc_type: type, exc_value: Any, traceback: Any):
         """"Using this a context manager helps readability and can allow to
         use shorter names in declarations.
 
@@ -110,7 +120,7 @@ class SubpartDecl(object):
         self._enter_locals_ = None
         self._inners_ = {k: v for k, v in frame_locals.items() if k in diff}
 
-    def clean_namespace(self, cls):
+    def clean_namespace(self, cls: type):
         """Remove all inner names if the value is the one seen.
 
         Parameters
@@ -124,7 +134,7 @@ class SubpartDecl(object):
             if k in cls.__dict__ and getattr(cls, k) is v:
                 delattr(cls, k)
 
-    def build_cls(self, parent_cls, base, docs):
+    def build_cls(self, parent_cls: type, base: type, docs: dict) -> type:
         """Build a class based declared base classes and attributes.
 
         Parameters
@@ -162,6 +172,9 @@ class SubpartDecl(object):
 
         # Add docs to the class dictionary before creation (the slots are not
         # listed in __dict__)
+        # This allow to pass any attribute of the declaration to the created
+        # class. This is used in particular to pass the retries_exception of
+        # the parent class.
         dct = dict(self.__dict__)
         dct['_docs_'] = docs
 
@@ -200,24 +213,25 @@ class SubpartDecl(object):
 
         new_class = meta(name, bases, dct)
         new_class.__doc__ = part_doc
-        new_class._declaration_ = self
+        new_class._declaration_ = self  # type: ignore
 
         return new_class
 
-    def update_from_ancestor(self, ancestor_decl):
+    def update_from_ancestor(self, ancestor_decl: 'SubpartDecl') -> None:
         """Update the declaration with parameters from inherited subpart.
 
         """
         self._descriptor_type_ = (self._descriptor_type_ or
                                   ancestor_decl._descriptor_type_)
         if ancestor_decl._checks_:
-            self._checks_ = (';'.join(self._checks_, ancestor_decl._checks_)
+            self._checks_ = (';'.join((self._checks_, ancestor_decl._checks_))
                              if self._checks_ else ancestor_decl._checks_)
         if ancestor_decl._options_:
-            self._options_ = (';'.join(self._options_, ancestor_decl._options_)
+            self._options_ = (';'.join((self._options_,
+                                        ancestor_decl._options_))
                               if self._options_ else ancestor_decl._options_)
 
-    def compute_base_classes(self):
+    def compute_base_classes(self) -> Tuple[type, ...]:
         """Determine the base classes to use when creating a class.
 
         This should look into the classes stored in the _bases_ attribute and
@@ -227,7 +241,11 @@ class SubpartDecl(object):
         """
         raise NotImplementedError
 
-    def build_descriptor(self):
+    def build_descriptor(self, name: str,
+                         cls: Union[Type[AbstractSubSystem],
+                                    Type[AbstractChannel]]
+                         ) -> Union[AbstractSubSystemDescriptor,
+                                    AbstractChannelDescriptor]:
         """Build the descriptor used access the subpart from the driver.
 
         """
@@ -262,7 +280,7 @@ class subsystem(SubpartDecl):
         AbstractSubSystemDescriptor.
 
     """
-    def compute_base_classes(self):
+    def compute_base_classes(self) -> Tuple[type, ...]:
         """Add SubSystem in the base classes if necessary.
 
         The first class should always be a SubSystem subclass so prepend if it
@@ -272,11 +290,13 @@ class subsystem(SubpartDecl):
         bases = self._bases_
         if not bases or not issubclass(bases[0], AbstractSubSystem):
             from .base_subsystem import SubSystem
-            bases = (SubSystem,) + bases
+            bases = (SubSystem,) + bases  # type: ignore
 
         return bases
 
-    def build_descriptor(self, name, cls):
+    def build_descriptor(self, name: str,
+                         cls: Type[AbstractSubSystem]) -> (
+                             AbstractSubSystemDescriptor):
         """Build the descriptor that will be used to access the subsystem.
 
         Parameters
@@ -302,7 +322,6 @@ AbstractSubSystemDeclarator.register(subsystem)
 
 class channel(SubpartDecl):
     """Sentinel used to collect declarations or modifications for a channel.
-
 
     Parameters
     ----------
@@ -338,15 +357,21 @@ class channel(SubpartDecl):
         AbstractSubSystemDescriptor.
 
     """
-    def __init__(self, available=None, bases=(), aliases=None,
-                 container_type=None, options=None, checks=None,
-                 descriptor_type=None):
+    def __init__(self,
+                 available: Optional[Union[str, list, tuple]]=None,
+                 bases: Union[type, Tuple[type, ...]]=(),
+                 aliases: Optional[dict]=None,
+                 container_type: Optional[Type[AbstractChannelContainer]]=None,
+                 options: Optional[str]= None,
+                 checks: Optional[str]=None,
+                 descriptor_type: Optional[AbstractChannelDescriptor]=None
+                 ) -> None:
         super().__init__(bases, checks, options, descriptor_type)
         self._available_ = available
         self._ch_aliases_ = aliases if aliases else {}
         self._container_type_ = container_type
 
-    def update_from_ancestor(self, ancestor_decl):
+    def update_from_ancestor(self, ancestor_decl: 'channel') -> None:
         """Update the declaration with parameters from inherited subpart.
 
         """
@@ -356,7 +381,7 @@ class channel(SubpartDecl):
         self._container_type_ = (self._container_type_ or
                                  ancestor_decl._container_type_)
 
-    def compute_base_classes(self):
+    def compute_base_classes(self) -> Tuple[type, ...]:
         """Add Channel in the base classes if necessary.
 
         The first class should always be a Channel subclass so prepend if it
@@ -366,20 +391,22 @@ class channel(SubpartDecl):
         bases = self._bases_
         if not bases or not issubclass(bases[0], AbstractChannel):
             from .base_channel import Channel
-            bases = (Channel,) + (bases)
+            bases = (Channel,) + (bases)  # type: ignore
         return bases
 
-    def build_list_channel_function(self):
+    def build_list_channel_function(self) -> Callable:
         """Build the function used to list the available channels.
 
         """
         if isinstance(self._available_, (tuple, list)):
             return lambda driver: self._available_
-
         else:
             return lambda driver: getattr(driver, self._available_)()
 
-    def build_descriptor(self, name, cls):
+    def build_descriptor(self,
+                         name: str,
+                         cls: Type[AbstractChannel]
+                         ) -> AbstractChannelDescriptor:
         """Build the descriptor that will be used to access the channel.
 
         Parameters
@@ -427,7 +454,7 @@ class set_feat(object):
     def __init__(self, **kwargs):
         self.custom_attrs = kwargs
 
-    def customize(self, feat):
+    def customize(self, feat: AbstractFeature) -> AbstractFeature:
         """Customize a feature using the given kwargs.
 
         """
@@ -459,14 +486,14 @@ class set_action(object):
     def __init__(self, **kwargs):
         self.custom_attrs = kwargs
 
-    def customize(self, action):
+    def customize(self, action: AbstractAction) -> AbstractAction:
         """Customize an action using the given kwargs.
 
         """
         cls = type(action)
         kwargs = action.creation_kwargs.copy()
         kwargs.update(self.custom_attrs)
-        new = cls(**kwargs)
+        new = cls(**kwargs)  # type: ignore
 
         new(action.func)
         new.copy_custom_behaviors(action)
@@ -489,10 +516,13 @@ class limit(object):
     """
     __slots__ = ('name', 'func')
 
-    def __init__(self, limit_name=None):
+    def __init__(self, limit_name: Optional[str]=None) -> None:
         self.name = limit_name
 
-    def __call__(self, func):
+    def __call__(self,
+                 func: Callable[[AbstractHasFeatures],
+                                AbstractLimitsValidator]
+                 ) -> 'limit':
         self.func = func
         return self
 

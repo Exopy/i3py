@@ -9,9 +9,13 @@
 """Base class for instrument channels.
 
 """
-from .base_subsystem import SubSystem
+from typing import (Any, Callable, Dict, Iterable, Hashable, Optional, Tuple,
+                    Type, Union)
+
 from .abstracts import (AbstractChannel, AbstractChannelContainer,
-                        AbstractChannelDescriptor)
+                        AbstractChannelDescriptor, AbstractFeature,
+                        AbstractHasFeatures)
+from .base_subsystem import SubSystem
 from .utils import check_options
 
 
@@ -40,13 +44,14 @@ class ChannelContainer(object):
 
     """
 
-    def __init__(self, cls, parent, name, list_available, aliases):
+    def __init__(self, cls: Type[AbstractChannel], parent: AbstractHasFeatures,
+                 name: str, list_available: Callable, aliases: dict) -> None:
         self._cls = cls
-        self._channels = {}
+        self._channels: Dict[Hashable, AbstractChannel] = {}
         self._name = name
         self._parent = parent
         self._list = list_available
-        self._aliases = {}
+        self._aliases: Dict[Hashable, Any] = {}
         # So far aliases map ch_ids to possible aliases. To identify an alias
         # we need to invert this mapping.
         for k, v in aliases.items():
@@ -57,20 +62,20 @@ class ChannelContainer(object):
                 self._aliases[v] = k
 
     @property
-    def available(self):
+    def available(self) -> list:
         """List the available channels.
 
         """
         return self._list(self._parent)
 
     @property
-    def aliases(self):
+    def aliases(self) -> dict:
         """List the aliases.
 
         """
         return self._aliases.copy()
 
-    def __getitem__(self, ch_id):
+    def __getitem__(self, ch_id: Any) -> AbstractChannel:
         if ch_id in self._aliases:
             ch_id = self._aliases[ch_id]
 
@@ -89,7 +94,7 @@ class ChannelContainer(object):
         self._channels[ch_id] = ch
         return ch
 
-    def __iter__(self):
+    def __iter__(self) -> Iterable[AbstractChannel]:
         for id in self.available:
             yield self[id]
 
@@ -124,25 +129,31 @@ class Channel(SubSystem):
         Id of the channel used by the instrument to correctly route the calls.
 
     """
-    def __init__(self, parent, id, **kwargs):
+    def __init__(self, parent: AbstractHasFeatures, id: Any, **kwargs) -> None:
         super(Channel, self).__init__(parent, **kwargs)
         self.id = id
 
-    def default_get_feature(self, feat, cmd, *args, **kwargs):
+    def default_get_feature(self, feat: AbstractFeature, cmd: Any,
+                            *args, **kwargs) -> Any:
         """Channels simply pipes the call to their parent.
 
         """
         kwargs['ch_id'] = self.id
         return self.parent.default_get_feature(feat, cmd, *args, **kwargs)
 
-    def default_set_feature(self, feat, cmd, *args, **kwargs):
+    def default_set_feature(self, feat: AbstractFeature, cmd: Any,
+                            *args, **kwargs):
         """Channels simply pipes the call to their parent.
 
         """
         kwargs['ch_id'] = self.id
         return self.parent.default_set_feature(feat, cmd, *args, **kwargs)
 
-    def default_check_operation(self, feat, value, i_value, response):
+    def default_check_operation(self,
+                                feat: AbstractFeature,
+                                value: Any,
+                                i_value: Any,
+                                response: Any=None) -> Tuple[bool, Any]:
         """Channels simply pipes the call to their parent.
 
         """
@@ -164,7 +175,10 @@ class ChannelDescriptor(object):
     __slots__ = ('cls', 'name', 'options', 'container', 'list_available',
                  'aliases')
 
-    def __init__(self, cls, name, options, container, list_available, aliases):
+    def __init__(self, cls: Type[AbstractChannel], name: str, options: str,
+                 container: Type[AbstractChannelContainer],
+                 list_available: Callable,
+                 aliases: dict) -> None:
         self.cls = cls
         self.name = name
         self.options = options
@@ -172,7 +186,10 @@ class ChannelDescriptor(object):
         self.list_available = list_available
         self.aliases = aliases
 
-    def __get__(self, instance, cls):
+    def __get__(self,
+                instance: Optional[AbstractHasFeatures],
+                cls: Optional[Type['ChannelDescriptor']]=None
+                ) -> (Union[AbstractChannelContainer, Type[AbstractChannel]]):
         if instance is None:
             return self.cls
         else:

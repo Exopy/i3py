@@ -9,6 +9,10 @@
 """Convenience action use to warp a method reading a binary register.
 
 """
+from enum import IntFlag
+from typing import Any, Callable, Dict, Sequence, Type
+
+from ..abstracts import AbstractHasFeatures
 from ..utils import create_register_flag
 from .action import BaseAction
 
@@ -50,13 +54,14 @@ class RegisterAction(BaseAction):
         Dictionary mapping the field of the bit field to their value.
 
     """
-    def __init__(self, names, length=8, **kwargs):
+    def __init__(self, names: Sequence[str], length: int=8, **kwargs
+                 ) -> None:
         kwargs['names'] = names
         kwargs['length'] = length
         super().__init__(**kwargs)
-        self.flag = None
+        self.flag: Type[IntFlag] = None
 
-    def customize_call(self, func, kwargs):
+    def customize_call(self, func: Callable, kwargs: Dict[str, Any]):
         """Store the function in call attributes and customize pre/post based
         on the kwargs.
 
@@ -77,7 +82,7 @@ class RegisterAction(BaseAction):
         self.modify_behavior('post_call', convert_byte, ('prepend',),
                              'names', internal=True)
 
-    def __set_name__(self, owner, name):
+    def __set_name__(self, owner: AbstractHasFeatures, name: str):
         """Use set name to construct the flag class once we get our name.
 
         """

@@ -12,20 +12,26 @@ possibility to customize Feature and Action behaviours.
 
 """
 import logging
-from inspect import getsourcelines
-from itertools import chain
 from collections import defaultdict
 from contextlib import contextmanager
+from inspect import getsourcelines
+from itertools import chain
+from typing import (Any, Callable, ClassVar, Dict, Iterable, List, Optional,
+                    Tuple, Type)
 
-from .abstracts import (AbstractHasFeatures, AbstractFeature, AbstractAction,
-                        AbstractMethodCustomizer, AbstractActionModifier,
-                        AbstractFeatureModifier, AbstractSubpartDeclarator,
-                        AbstractSubSystemDeclarator, AbstractChannelDeclarator,
-                        AbstractLimitDeclarator)
-from .errors import I3pyFailedGet, I3pyFailedSet, I3pyFailedCall
+from .abstracts import (AbstractAction, AbstractActionModifier,
+                        AbstractChannel, AbstractChannelDeclarator,
+                        AbstractFeature, AbstractFeatureModifier,
+                        AbstractHasFeatures, AbstractLimitDeclarator,
+                        AbstractLimitsValidator, AbstractMethodCustomizer,
+                        AbstractSubpartDeclarator, AbstractSubSystem,
+                        AbstractSubSystemDeclarator)
+from .errors import I3pyFailedCall, I3pyFailedGet, I3pyFailedSet
 
 
-def check_enabling(name, driver, exc_type):
+def check_enabling(name: str,
+                   driver: AbstractHasFeatures,
+                   exc_type: Type[Exception]):
     """Check if the driver is enabled.
 
     """
@@ -42,15 +48,29 @@ class HasFeatures(object):
     #: Tuple of exception to consider when securing a communication (either via
     #: secure_communication decorator or for features with a non zero
     #: retries value)
-    retries_exceptions = ()
+    retries_exceptions: ClassVar[Tuple[Type[Exception], ...]] = ()
 
-    #: The following class attributes are documented on the
-    #: AbstractHasFeatures class in i3py.core.abstracts
-    __feats__ = {}
-    __actions__ = {}
-    __subsystems__ = {}
-    __channels__ = {}
-    __limits__ = {}
+    #: Dictionary containing all the features of the class by name. The values
+    #: are instances of AbstractFeature.
+    __feats__: ClassVar[Dict[str, AbstractFeature]] = {}
+
+    #: Dictionary containing all the actions of the class by name. The values
+    #: are instances of AbstractAction.
+    __actions__: ClassVar[Dict[str, AbstractAction]] = {}
+
+    #: Dictionary containing all the subsystems of the class by name. The
+    #: values are subclasses of AbstractSubSystem.
+    __subsystems__: ClassVar[Dict[str, Type[AbstractSubSystem]]] = {}
+
+    #: Dictionary containing all the channels of the class by name. The
+    #: values are subclasses of AbstractChannel.
+    __channels__: ClassVar[Dict[str, Type[AbstractChannel]]] = {}
+
+    #: Dictionary containing all the limits of the class by name. The
+    #: values are the methods, decorated by limit, and in charge of creating
+    #: the limit object.
+    __limits__: ClassVar[Dict[str, Callable[['HasFeatures'],
+                                            AbstractLimitsValidator]]] = {}
 
     @classmethod
     def __init_subclass__(cls, **kwargs):
@@ -278,10 +298,10 @@ class HasFeatures(object):
                  '_use_cache', '__dict__', '__weakref__',
                  '_enabled_error_')
 
-    def __init__(self, caching_allowed=True):
+    def __init__(self, caching_allowed: bool=True) -> None:
 
         # Cache for features values.
-        self._cache = {}
+        self._cache: Dict[str, Any] = {}
 
         # Parameters for features and actions.
         self._settings = {f_a.name: f_a.create_default_settings()
@@ -289,8 +309,10 @@ class HasFeatures(object):
                                            self.__actions__.values())}
 
         # Cache for the computed limits
-        self._limits_cache = {}
+        self._limits_cache: Dict[str, AbstractLimitsValidator] = {}
 
+        self._subsystem_instances: Optional[Dict[str, AbstractSubSystem]]
+        self._channel_container_instances: Optional[Dict[str, AbstractChannel]]
         if self.__subsystems__:
             self._subsystem_instances = {}
         if self.__channels__:
@@ -304,7 +326,7 @@ class HasFeatures(object):
 
         self._use_cache = caching_allowed
 
-    def get_feat(self, name):
+    def get_feat(self, name: str) -> AbstractFeature:
         """ Acces the feature matching the given name.
 
         Parameters
@@ -320,7 +342,8 @@ class HasFeatures(object):
         """
         return getattr(self.__class__, name)
 
-    def clear_cache(self, subsystems=True, channels=True, features=None):
+    def clear_cache(self, subsystems: bool=True, channels: bool=True,
+                    features: Optional[Iterable[str]]=None) -> None:
         """ Clear the cache of all the features or only of the specified
         ones.
 
@@ -342,8 +365,8 @@ class HasFeatures(object):
         cache = self._cache
         if features:
             par = list()
-            sss = defaultdict(list)
-            chs = defaultdict(list)
+            sss: Dict[str, List[str]] = defaultdict(list)
+            chs: Dict[str, List[str]] = defaultdict(list)
             for name in features:
                 if '.' in name:
                     aux, n = name.split('.', 1)
@@ -357,26 +380,28 @@ class HasFeatures(object):
                     del cache[name]
 
             if par:
-                self.parent.clear_cache(features=par)
+                self.parent.clear_cache(features=par)  # type: ignore
 
             for ss in sss:
                 getattr(self, ss).clear_cache(features=sss[ss])
 
             if self.__channels__:
-                for ch in chs:
-                    for o in getattr(self, ch):
-                        o.clear_cache(features=chs[ch])
+                for channel_name in chs:
+                    for o in getattr(self, channel_name):
+                        o.clear_cache(features=chs[channel_name])
         else:
             self._cache = {}
             if subsystems:
                 for ss in self.__subsystems__:
                     getattr(self, ss).clear_cache(subsystems, channels)
             if channels and self.__channels__:
-                for chs in self.__channels__:
-                    for ch in getattr(self, chs):
+                for channel_name in self.__channels__:
+                    ch: AbstractChannel
+                    for ch in getattr(self, channel_name):
                         ch.clear_cache(subsystems, channels)
 
-    def check_cache(self, subsystems=True, channels=True, features=None):
+    def check_cache(self, subsystems: bool=True, channels: bool=True,
+                    features: Optional[Iterable[str]]=None) -> Dict[str, Any]:
         """Return the value of the cache of the object.
 
         The cache values for the subsystems and channels are not accessible.
@@ -402,8 +427,8 @@ class HasFeatures(object):
         """
         cache = {}
         if features:
-            sss = defaultdict(list)
-            chs = defaultdict(list)
+            sss: Dict[str, List[str]] = defaultdict(list)
+            chs: Dict[str, List[str]] = defaultdict(list)
             for name in features:
                 if '.' in name:
                     aux, n = name.split('.', 1)
@@ -419,7 +444,7 @@ class HasFeatures(object):
 
             if self.__channels__:
                 for ch in chs:
-                    ch_cache = {}
+                    ch_cache: Dict[str, Dict[str, Any]] = {}
                     cache[ch] = ch_cache
                     channel_cont = getattr(self, ch)
                     for ch_id in channel_cont.available:
@@ -432,16 +457,16 @@ class HasFeatures(object):
                     cache[ss] = getattr(self, ss)._cache.copy()
 
             if channels:
-                for chs in self.__channels__:
+                for channel_name in self.__channels__:
                     ch_cache = {}
-                    cache[chs] = ch_cache
-                    channel_cont = getattr(self, chs)
+                    cache[channel_name] = ch_cache
+                    channel_cont = getattr(self, channel_name)
                     for ch in channel_cont.available:
                         ch_cache[ch] = channel_cont[ch]._cache.copy()
 
         return cache
 
-    def read_settings(self, name):
+    def read_settings(self, name: str) -> Dict[str, Any]:
         """Read the values of the publicly available settings.
 
         Parameters
@@ -453,7 +478,7 @@ class HasFeatures(object):
         return {k: v for k, v in self._settings[name].items()
                 if not k[0] == '_'}
 
-    def set_setting(self, name, key, value):
+    def set_setting(self, name: str, key: str, value: Any):
         """Set the value of a settings.
 
         Names starting with an underscore are considered privet and cannot be
@@ -479,7 +504,7 @@ class HasFeatures(object):
         settings[key] = value
 
     @contextmanager
-    def temporary_setting(self, name, key, value):
+    def temporary_setting(self, name: str, key: str, value: Any):
         """Temporary set a setting.
 
         Parameters
@@ -502,7 +527,7 @@ class HasFeatures(object):
             self.set_setting(name, key, old_val)
 
     @property
-    def declared_limits(self):
+    def declared_limits(self) -> List[str]:
         """Set of declared limits for the class.
 
         Limits are considered declared as soon as a getter has been defined.
@@ -510,7 +535,7 @@ class HasFeatures(object):
         """
         return list(self.__limits__)
 
-    def get_limits(self, limits_id):
+    def get_limits(self, limits_id: str) -> AbstractLimitsValidator:
         """Access the limits object matching the definition.
 
         Parameters
@@ -531,7 +556,7 @@ class HasFeatures(object):
 
         return self._limits_cache[limits_id]
 
-    def discard_limits(self, limits_id):
+    def discard_limits(self, limits_id: Iterable[str]) -> None:
         """Remove a limits from the cache.
 
         This is called when a Feature declare a limits key in the discard dict.
@@ -552,7 +577,8 @@ class HasFeatures(object):
         """
         raise NotImplementedError()
 
-    def default_get_feature(self, feat, cmd, *args, **kwargs):
+    def default_get_feature(self, feat: AbstractFeature, cmd: Any,
+                            *args, **kwargs) -> Any:
         """Method used by default by the Feature to retrieve a value from an
         instrument.
 
@@ -572,7 +598,8 @@ class HasFeatures(object):
         """
         raise NotImplementedError()
 
-    def default_set_feature(self, feat, cmd, *args, **kwargs):
+    def default_set_feature(self, feat: AbstractFeature, cmd: Any,
+                            *args, **kwargs) -> Any:
         """Method used by default by the Feature to set an instrument value.
 
         Parameters
@@ -591,7 +618,11 @@ class HasFeatures(object):
         """
         raise NotImplementedError()
 
-    def default_check_operation(self, feat, value, i_value, state=None):
+    def default_check_operation(self,
+                                feat: AbstractFeature,
+                                value: Any,
+                                i_value: Any,
+                                state: Any=None) -> Tuple[bool, Any]:
         """Method used by default by the Feature to check the instrument
         operation.
 

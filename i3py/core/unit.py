@@ -22,13 +22,16 @@ UNIT_RETURN = True
 try:
     from pint import UnitRegistry
 except ImportError:
+    from typing import Any
+    UnitRegistry = Any
     UNIT_SUPPORT = False
 
 
 UNIT_REGISTRY = None
 
 
-def set_unit_registry(unit_registry, return_quantity=True):
+def set_unit_registry(unit_registry: 'UnitRegistry',
+                      return_quantity: bool=True):
     """Set the UnitRegistry used by I3py.
 
     Given that conversion can only happen for units declared in the same
@@ -60,7 +63,7 @@ def set_unit_registry(unit_registry, return_quantity=True):
     UNIT_RETURN = return_quantity
 
 
-def get_unit_registry():
+def get_unit_registry() -> 'UnitRegistry':
     """Access the UnitRegistry currently in use by I3py.
 
     If no UnitRegistry has been previously declared using `set_unit_registry`,
@@ -76,7 +79,8 @@ def get_unit_registry():
     return UNIT_REGISTRY
 
 
-def to_float(value):
+# HINT: we cannot properly hint quantity here ...
+def to_float(value: Any) -> float:
     """Convert a value which could be a Quantity to a float.
 
     """
@@ -86,7 +90,7 @@ def to_float(value):
         return value
 
 
-def to_quantity(value, unit):
+def to_quantity(value: float, unit: str) -> Any:
     """Turn a value into a Quantity with the given unit.
 
     This is a no-op if unit support is not available.

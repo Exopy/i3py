@@ -10,17 +10,16 @@
 
 """
 from functools import partial
-from inspect import signature, currentframe
+from inspect import Signature, currentframe, signature
+from typing import Any, Callable, Dict, List, Optional, Tuple, Type, Union
 
-from ..errors import I3pyFailedCall
-from ..abstracts import AbstractAction
+from ..abstracts import AbstractAction, AbstractHasFeatures
 from ..composition import SupportMethodCustomization, normalize_signature
-from ..limits import IntLimitsValidator, FloatLimitsValidator
-from ..unit import UNIT_SUPPORT, UNIT_RETURN, get_unit_registry
-from ..utils import (build_checker, validate_in, validate_limits,
-                     get_limits_and_validate, check_options,
-                     update_function_lineno)
-
+from ..errors import I3pyFailedCall
+from ..limits import FloatLimitsValidator, IntLimitsValidator
+from ..unit import UNIT_RETURN, UNIT_SUPPORT, get_unit_registry
+from ..utils import (build_checker, check_options, get_limits_and_validate,
+                     update_function_lineno, validate_in, validate_limits)
 
 LINENO = currentframe().f_lineno
 
@@ -53,9 +52,10 @@ class ActionCall(object):
     __slots__ = ('action', 'driver')
 
     #: Dict storing custom class for each signature
-    sigs = {}
+    sigs: Dict[Tuple[str, ...], Type['ActionCall']] = {}
 
-    def __new__(cls, action, driver):
+    def __new__(cls, action: AbstractAction, driver: AbstractHasFeatures
+                ) -> 'ActionCall':
         """Create a custom subclass for each signature action.
 
         Parameters
@@ -75,7 +75,8 @@ class ActionCall(object):
         return object.__new__(custom_type)
 
     @classmethod
-    def create_callable(cls, action, sig):
+    def create_callable(cls, action: AbstractAction, sig: Tuple[str, ...]
+                        ) -> Type['ActionCall']:
         """Dynamically create a subclass of ActionCall for a signature.
 
         """
@@ -91,14 +92,15 @@ class ActionCall(object):
         # Consider that this file is the source of the function
         code = compile(decl, __file__, 'exec')
         exec(code, glob)
-        cls = glob[name]
+        action_call_cls: Type[ActionCall] = glob[name]
 
         # Set the lineno to point to the string source.
         update_function_lineno(cls.__call__, LINENO + 3)
 
-        return cls
+        return action_call_cls
 
-    def __init__(self, action, driver):
+    def __init__(self, action: AbstractAction, driver: AbstractHasFeatures
+                 ) -> None:
         self.action = action
         self.driver = driver
 
@@ -109,13 +111,14 @@ class BaseAction(AbstractAction, SupportMethodCustomization):
     """
     def __init__(self, **kwargs):
         super().__init__()
-        self.name = ''
-        self.func = None
-        self.creation_kwargs = kwargs
-        self._desc = None
+        self.name: str = ''
+        self.func: Optional[Callable] = None
+        self.sig: Optional[Signature] = None
+        self.creation_kwargs: dict = kwargs
+        self._desc: Optional[ActionCall] = None
         self._use_options = bool(kwargs.get('options', False))
 
-    def __call__(self, func):
+    def __call__(self, func: Callable) -> 'BaseAction':
         if self.func:
             msg = 'Attempt to decorate a second function using one Action.'
             raise RuntimeError(msg)
@@ -126,7 +129,10 @@ class BaseAction(AbstractAction, SupportMethodCustomization):
         self.customize_call(func, self.creation_kwargs)
         return self
 
-    def __get__(self, obj, objtype=None):
+    def __get__(self,
+                obj: AbstractHasFeatures,
+                objtype: Optional[Type[AbstractHasFeatures]]=None
+                ) -> Union[ActionCall, 'BaseAction']:
         if obj is None:
             return self
 
@@ -145,7 +151,7 @@ class BaseAction(AbstractAction, SupportMethodCustomization):
             self._desc = ActionCall(self, obj)
         return self._desc
 
-    def clone(self):
+    def clone(self) -> 'BaseAction':
         """Create a clone of itself.
 
         """
@@ -156,7 +162,7 @@ class BaseAction(AbstractAction, SupportMethodCustomization):
         new.name = self.name
         return new
 
-    def create_default_settings(self):
+    def create_default_settings(self) -> Dict[str, Any]:
         """Create the default settings for an action.
 
         """
@@ -165,7 +171,8 @@ class BaseAction(AbstractAction, SupportMethodCustomization):
             settings['_options'] = (None, '')
         return settings
 
-    def pre_call(self, driver, *args, **kwargs):
+    def pre_call(self, driver: AbstractHasFeatures, *args, **kwargs
+                 ) -> Tuple[tuple, Dict[str, Any]]:
         """Method called before calling the decorated function.
 
         This method can be used to validate or modify the arguments passed
@@ -200,7 +207,8 @@ class BaseAction(AbstractAction, SupportMethodCustomization):
         """
         return args, kwargs
 
-    def post_call(self, driver, result, *args, **kwargs):
+    def post_call(self, driver: AbstractHasFeatures, result: Any,
+                  *args, **kwargs) -> Any:
         """Method called after calling the decorated function.
 
         This method can be used to alter the returned function.
@@ -235,7 +243,7 @@ class BaseAction(AbstractAction, SupportMethodCustomization):
         """
         return result
 
-    def customize_call(self, func, kwargs):
+    def customize_call(self, func: Callable, kwargs: Dict[str, Any]):
         """Store the function in call attributes.
 
         """
@@ -254,7 +262,13 @@ class BaseAction(AbstractAction, SupportMethodCustomization):
             self.modify_behavior('pre_call', checker_wrapper,
                                  ('append',), 'checks', internal=True)
 
-    def analyse_function(self, meth_name, func, specifiers):
+    def analyse_function(self,
+                         meth_name: str,
+                         func: Callable,
+                         specifiers: Tuple[str, ...]
+                         ) -> Tuple[Tuple[str, ...],
+                                    List[Tuple[str, ...]],
+                                    str]:
         """Analyse the possibility to use a function for a method.
 
         Parameters
@@ -333,7 +347,7 @@ class BaseAction(AbstractAction, SupportMethodCustomization):
         return specifiers, sigs, chain_on
 
     @property
-    def self_alias(self):
+    def self_alias(self) -> str:
         """Name used instead of self in function signature.
 
         """
@@ -384,7 +398,7 @@ class Action(BaseAction):
     same unit as the one used by the limits.
 
     """
-    def create_default_settings(self):
+    def create_default_settings(self) -> Dict[str, Any]:
         """Create the default settings for an action.
 
         """
@@ -392,7 +406,7 @@ class Action(BaseAction):
         settings['unit_return'] = UNIT_RETURN
         return settings
 
-    def customize_call(self, func, kwargs):
+    def customize_call(self, func: Callable, kwargs: Dict[str, Any]):
         """Store the function in call attributes and customize pre/post based
         on the kwargs.
 
@@ -405,7 +419,7 @@ class Action(BaseAction):
         if UNIT_SUPPORT and 'units' in kwargs:
             self.add_unit_support(kwargs['units'])
 
-    def add_unit_support(self, units):
+    def add_unit_support(self, units: Tuple[str, Dict[str, Optional[str]]]):
         """Wrap a func using Pint to automatically convert Quantity to float.
 
         """
@@ -450,7 +464,9 @@ class Action(BaseAction):
         self.modify_behavior('post_call', convert_output, ('append',), 'units',
                              internal=True)
 
-    def add_values_limits_validation(self, values, limits):
+    def add_values_limits_validation(self, values: Dict[str, tuple],
+                                     limits: Dict[str, Union[str, list, tuple]]
+                                     ):
         """Add arguments validation to pre_call.
 
         Parameters
@@ -477,7 +493,7 @@ class Action(BaseAction):
                 if any([isinstance(e, float) for e in lims]):
                     lim = FloatLimitsValidator(*lims)
                 else:
-                    lim = IntLimitsValidator(*lims)
+                    lim = IntLimitsValidator(*lims)  # type: ignore
 
                 validators[name] = partial(validate_limits, limits=lim,
                                            name=name)

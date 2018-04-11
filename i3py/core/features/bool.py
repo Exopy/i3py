@@ -9,6 +9,9 @@
 """Feature for boolean like values.
 
 """
+from typing import Any, Dict, Optional, Sequence, Tuple, Union
+
+from ..abstracts import AbstractHasFeatures
 from .mapping import Mapping
 
 
@@ -24,9 +27,17 @@ class Bool(Mapping):
         Keys should be True and False and values the list of aliases.
 
     """
-    def __init__(self, getter=None, setter=None, mapping=None, aliases=None,
-                 extract='', retries=0, checks=None, discard=None,
-                 options=None):
+    def __init__(self,
+                 getter: Any=None,
+                 setter: Any=None,
+                 mapping: Optional[dict]=None,
+                 aliases: Optional[Dict[bool, Sequence]]=None,
+                 extract: str='',
+                 retries: int=0,
+                 checks: Optional[str]=None,
+                 discard: Optional[Union[Tuple[str, ...],
+                                         Dict[str, Tuple[str, ...]]]]=None,
+                 options: Optional[str]=None) -> None:
         Mapping.__init__(self, getter, setter, mapping, extract,
                          retries, checks, discard, options)
 
@@ -37,6 +48,6 @@ class Bool(Mapping):
                     self._aliases[v] = k
         self.creation_kwargs['aliases'] = aliases
 
-    def map_value(self, driver, value):
+    def map_value(self, driver: AbstractHasFeatures, value: Any):
         self._aliases[value]
         return self._map[self._aliases[value]]

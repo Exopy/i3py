@@ -9,17 +9,19 @@
 """Collection of utility functions.
 
 """
-from types import CodeType
-from inspect import currentframe
+from enum import IntFlag, _EnumDict  # type: ignore
+from inspect import Signature, currentframe
 from pprint import pformat
-from collections import OrderedDict
-from enum import IntFlag, _EnumDict
+from types import CodeType
+from typing import Any, Callable, Dict, Optional, Tuple, Type, Union, cast
 
-from .errors import I3pyValueError, I3pyLimitsError
-from .abstracts import AbstractBaseDriver, AbstractOptions
+from .abstracts import (AbstractBaseDriver, AbstractChannel,
+                        AbstractHasFeatures, AbstractLimitsValidator,
+                        AbstractOptions, AbstractSubSystem)
+from .errors import I3pyLimitsError, I3pyValueError
 
 
-def update_function_lineno(func, lineno):
+def update_function_lineno(func: Callable, lineno: int) -> Callable:
     """Update the co_lineno of the code object of a function.
 
     """
@@ -36,7 +38,7 @@ def update_function_lineno(func, lineno):
 
 # TODO use AST analysis to provide more infos about assertion
 # failure. Take inspiration from pytest.assertions.rewrite.
-def report_on_assertion_error(assertion, namespace):
+def report_on_assertion_error(assertion: str, namespace: dict) -> str:
     """Build a string explaining why an assertion failed.
 
     The explanantion is built from the string representing the assertion and
@@ -57,7 +59,9 @@ def check{signature}:
 """
 
 
-def build_checker(checks, signature, ret=''):
+def build_checker(checks: str,
+                  signature: Union[str, Signature],
+                  ret: str='') -> Callable:
     """Assemble a checker function from the provided assertions.
 
     Parameters
@@ -84,7 +88,7 @@ def build_checker(checks, signature, ret=''):
                   for a_str in checks.split(';')}
     func_def = CHECKER_TEMPLATE.format(signature=str(signature),
                                        ret=ret or 'None')
-    loc = {'assertions': assertions}
+    loc: Dict[str, Any] = {'assertions': assertions}
     glob = globals().copy()
     glob.update(loc)
     exec(compile(func_def, __file__, 'exec'), glob, loc)
@@ -92,7 +96,8 @@ def build_checker(checks, signature, ret=''):
     return update_function_lineno(loc['check'], LINENO + 3)
 
 
-def check_options(driver_or_options, option_values):
+def check_options(driver_or_options: Union[AbstractHasFeatures, dict],
+                  option_values: str) -> Tuple[bool, str]:
     """Check that the specified options match their expected values.
 
     Parameters
@@ -117,6 +122,7 @@ def check_options(driver_or_options, option_values):
             if isinstance(d, AbstractBaseDriver):
                 break
             else:
+                d = cast(Union[AbstractSubSystem, AbstractChannel], d)
                 d = d.parent
     else:
         options = driver_or_options
@@ -133,7 +139,8 @@ def check_options(driver_or_options, option_values):
 # The next three function take all driver as first argument for homogeneity.
 # This allows to use them nearly as is to modify Feature or Action
 
-def validate_in(driver, value, values, name):
+def validate_in(driver: AbstractHasFeatures, value: Any,
+                values: set, name: str) -> Any:
     """Assert that a value is in a container.
 
     """
@@ -143,25 +150,31 @@ def validate_in(driver, value, values, name):
     return value
 
 
-def validate_limits(driver, value, limits, name):
+def validate_limits(driver: AbstractHasFeatures,
+                    value: Union[int, float],
+                    limits: AbstractLimitsValidator,
+                    name: str) -> Optional[Union[int, float]]:
     """Make sure a value is in the given range.
 
     """
     if not limits.validate(value):
         raise_limits_error(name, value, limits)
-    else:
-        return value
+    return value
 
 
-def get_limits_and_validate(driver, value, limits, name):
+def get_limits_and_validate(driver: AbstractHasFeatures,
+                            value: Union[int, float],
+                            limits: str,
+                            name: str) -> Union[int, float]:
     """Query the current limits from the driver and validate the values.
 
     """
-    limits = driver.get_limits(limits)
-    return validate_limits(driver, value, limits, name)
+    limits_validator = driver.get_limits(limits)
+    return validate_limits(driver, value, limits_validator, name)
 
 
-def raise_limits_error(name, value, limits):
+def raise_limits_error(name: str, value: Union[int, float],
+                       limits: AbstractLimitsValidator):
     """Raise a value when the limits validation fails.
 
     """
@@ -176,7 +189,9 @@ def raise_limits_error(name, value, limits):
     raise I3pyLimitsError(mess)
 
 
-def create_register_flag(register_name, names, length):
+def create_register_flag(register_name: str,
+                         names: Union[tuple, dict],
+                         length: int) -> Type[IntFlag]:
     """Create a IntFlag subclass for a bit field.
 
     Parameters

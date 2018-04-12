@@ -54,10 +54,8 @@ class AbstractHasFeatures(ABC):
     #: under their name.
     _cache: Dict[str, Any]
 
-    #: XXX Private member indicating if this
-    _enabled_: bool
-
-    #: XXX
+    #: private member in which the exception justifying the component being
+    #: disabled can be found.
     _enabled_error_: Exception
 
     #: Private member used to store the instances of subsystems declared on the
@@ -79,6 +77,15 @@ class AbstractHasFeatures(ABC):
 
     @abstractproperty
     def lock(self) -> Any:
+        pass
+
+    @abstractproperty
+    def _enabled_(self) -> bool:
+        """Is this component is enabled/accessible at runtime.
+
+        This may not be so if a runtime setting of the instrument changed.
+
+        """
         pass
 
     @abstractmethod

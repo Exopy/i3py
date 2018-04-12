@@ -74,6 +74,12 @@ class ActionCall(object):
         custom_type = cls.sigs[sig]
         return object.__new__(custom_type)
 
+    def __call__(self, *args, **kwargs):
+        """Updated in subclasses to preserve the decorated function signature.
+
+        """
+        pass
+
     @classmethod
     def create_callable(cls, action: AbstractAction, sig: Tuple[str, ...]
                         ) -> Type['ActionCall']:

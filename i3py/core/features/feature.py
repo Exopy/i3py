@@ -27,9 +27,9 @@ class Feature(SupportMethodCustomization, property):
     """Descriptor representing the most basic instrument property.
 
     Features should not be used outside the definition of a class to avoid
-    weird behaviour when some methods are customized.
+    weird behavior when some methods are customized.
     Feature are not meant to be used when writing a driver as it is a bit
-    bare, one should rather use the more specialised found in other modules
+    bare, one should rather use the more specialized found in other modules
     of the features package.
 
     When subclassing a Feature a number of rule should be enforced :
@@ -42,12 +42,12 @@ class Feature(SupportMethodCustomization, property):
     getter : optional
         Object used to access the instrument property value through the use
         of the driver. If absent the Feature will be considered write only.
-        This is typically a string. If the default get behaviour is overwritten
+        This is typically a string. If the default get behavior is overwritten
         True should be passed to mark the property as readable.
     setter : optional
         Object used to set the instrument property value through the use
         of the driver. If absent the Feature will be considered read-only.
-        This is typically a string. If the default set behaviour is overwritten
+        This is typically a string. If the default set behavior is overwritten
         True should be passed to mark the property as settable.
     extract : str or Parser, optional
         String or stringparser.Parser to use to extract the interesting value
@@ -57,7 +57,7 @@ class Feature(SupportMethodCustomization, property):
         to communicate after re-opening the communication. The value is used to
         determine how many times to retry.
     checks : str or tuple(2)
-        Booelan tests to execute before anything else when attempting to get or
+        Boolean tests to execute before anything else when attempting to get or
         set a feature. Multiple assertion can be separated with ';'. The
         driver can be accessed under the name driver and in a setter the value
         under the name value, ie the following assertion is correct:
@@ -86,7 +86,7 @@ class Feature(SupportMethodCustomization, property):
         should not be manipulated by user code.
     creation_kwargs : dict
         Dictionary in which all the creation args should be stored to allow
-        subclass customisation. This should not be manipulated by user code.
+        subclass customization. This should not be manipulated by user code.
 
     """
 
@@ -188,10 +188,10 @@ class Feature(SupportMethodCustomization, property):
         pass
 
     def get(self, driver: AbstractHasFeatures) -> Any:  # type: ignore
-        """Acces the parent driver to retrieve the state of the instrument.
+        """Access the parent driver to retrieve the state of the instrument.
 
         By default this method falls back to calling the parent
-        default_get_feature method. This behaviour can be customized by
+        default_get_feature method. This behavior can be customized by
         creating a _get_(feat name) method on the driver class.
 
         Parameters
@@ -213,7 +213,7 @@ class Feature(SupportMethodCustomization, property):
 
         This can be used to convert the answer from the instrument to a more
         human friendly representation. By default this is a no-op. This
-        behaviour can be customized by creating a _post_get_(feat name) method
+        behavior can be customized by creating a _post_get_(feat name) method
         on the driver class.
 
         Parameters
@@ -236,7 +236,7 @@ class Feature(SupportMethodCustomization, property):
         to the instrument.
 
         This can be used to convert the passed value to something easier to
-        pass to the instrument. By default this is a no-op. This behaviour can
+        pass to the instrument. By default this is a no-op. This behavior can
         be customized by creating a _pre_set_(feat name) method on the driver
         class.
 
@@ -285,7 +285,7 @@ class Feature(SupportMethodCustomization, property):
 
         This can be used to check the instrument operated correctly or perform
         some cleanup. By default this falls back on the driver
-        default_check_operation method. This behaviour can be customized
+        default_check_operation method. This behavior can be customized
         by creating a _post_set_(feat name) method on the driver class.
 
         Parameters
@@ -531,7 +531,7 @@ class Feature(SupportMethodCustomization, property):
 
     def _is_value_cached(self, driver: AbstractHasFeatures,
                          cache: Dict[str, Any], name: str, value: Any) -> bool:
-        """Check if a value is cached, which means set is supefluous.
+        """Check if a value is cached, which means set is superfluous.
 
         """
         return name in cache and value == cache[name]

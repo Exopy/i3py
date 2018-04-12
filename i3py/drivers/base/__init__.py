@@ -9,5 +9,4 @@
 """Package storing the definitions of the standards used by I3py.
 
 """
-
 # This package is always needed so there is no point making it lazy

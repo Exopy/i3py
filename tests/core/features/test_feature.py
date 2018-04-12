@@ -486,7 +486,7 @@ def test_options():
 
         _val = 1
 
-        op = Options()
+        op = Options(names={'test': None})
 
         @customize('op', 'get')
         def _get(feat, driver):

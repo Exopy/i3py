@@ -564,6 +564,8 @@ class AbstractOptions(AbstractFeature):
     change while the system is connected to the instrument. Options name should
     only be used once inside a driver.
 
+    The options are expected to be returned as a dictionary with str keys.
+
     """
     pass
 

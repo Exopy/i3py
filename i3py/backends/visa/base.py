@@ -13,7 +13,7 @@ import logging
 import os
 from inspect import cleandoc
 from time import sleep
-from typing import Callable, ClassVar, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, ClassVar, Dict, List, Optional, Tuple, Union
 
 from pyvisa import errors
 from pyvisa.highlevel import ResourceManager
@@ -78,7 +78,7 @@ def set_visa_resource_manager(rm, backend='default'):
         _RESOURCE_MANAGERS[backend] = rm
 
 
-class VisaFeature(SupportMethodCustomization, AbstractFeature):
+class VisaFeature(SupportMethodCustomization, property):
     """Special property used to wrap a property present in a Pyvisa resource.
 
     """
@@ -132,6 +132,9 @@ class VisaFeature(SupportMethodCustomization, AbstractFeature):
         obj.resource_kwargs[self.name] = value
         if obj._resource:
             setattr(obj._resource, self.name, value)
+
+
+AbstractFeature.register(VisaFeature)
 
 
 class VisaAction(BaseAction):
@@ -203,7 +206,7 @@ class BaseVisaDriver(BaseDriver):
     #:        'USB':      {'read_termination': \r'},
     #:        'COMMON':   {'write_termination': '\n'}
     #:       }
-    DEFAULTS: ClassVar[Optional[Dict[str, str]]] = None
+    DEFAULTS: ClassVar[Optional[Dict[str, Dict[str, Any]]]] = None
 
     #: Tuple of keywords unrelated to Visa resource name. Used to remove them
     #: from the kwargs when building the resource name.

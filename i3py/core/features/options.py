@@ -23,9 +23,16 @@ class Options(Feature):
     in the formatting of the options, the user is expected to implement
     manually the getter function.
 
+    Parameters
+    ----------
+    names : dict
+        Names of the different options, as returned by this feature. Hint about
+        the possible values can be provided as a type or a tuple of values.
+
     """
-    def __init__(self, getter: bool=True,
+    def __init__(self, getter: Any=True,
                  setter: Any=None,
+                 names: Dict[str, Optional[Union[type, tuple]]]={},
                  extract: str='',
                  retries: int=0,
                  checks: Optional[str]=None,
@@ -35,8 +42,12 @@ class Options(Feature):
 
         if setter is not None:
             raise ValueError('Options is read-only can have a setter.')
+        if not names:
+            raise ValueError('No names were provided for Options')
         Feature.__init__(self, getter, None, extract, retries,
                          checks, discard, options)
+        self.creation_kwargs['names'] = names
+        self.names = names
 
 
 AbstractOptions.register(Options)

@@ -32,7 +32,7 @@ class SSOptionsParent(DummyDriver):
 
         _test_ = True
 
-        options = Options()
+        options = Options(names={'test': None})
 
         ss = subsystem(options='options["test"]')
 

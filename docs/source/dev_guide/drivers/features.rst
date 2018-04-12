@@ -106,7 +106,7 @@ three steps:
   value went without trouble. By default, it simply calls the
   |HasFeatures.default_check_operation| on the parent class.
 
-Once the value has been set and if no error occured, the value
+Once the value has been set and if no error occurred, the value
 specified by the user is cached.  If an error occurs during any of the
 step, if it is one of the ones listed in the retries_exceptions
 attribute of the driver the connection will be closed and re-opened
@@ -183,6 +183,14 @@ Specialized features
 
     + length: the length of the register (8 by default but some instrument use
       16 bits register).
+
+- The |Options| is feature dedicated to the handling of hardware/firmware level
+  options that cannot change while the instrument is running. It is expected
+  to return a dictionary containing the values of the instrument options. To
+  improve clarity the declaration of the feature should include the names of
+  all the options to which it gives access along with hint about their possible
+  values either as type or as a tuple of values. These information should be
+  provided as a dictionary to the `names` argument.
 
 
 Flexible getter/setter

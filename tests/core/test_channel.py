@@ -48,7 +48,7 @@ class ChOptionsParent(DummyDriver):
 
         _test_ = True
 
-        options = Options()
+        options = Options(names={'test': None})
 
         ch = channel(('a',), options='options["test"]')
 

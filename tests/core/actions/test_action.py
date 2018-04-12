@@ -78,7 +78,7 @@ def test_options_action():
 
         _test_ = True
 
-        op = Options()
+        op = Options(names={'test': None})
 
         @customize('op', 'get')
         def _get(feat, driver):

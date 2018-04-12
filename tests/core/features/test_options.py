@@ -19,3 +19,6 @@ def test_handling_wrong_args():
     """
     with raises(ValueError):
         Options(setter=True)
+
+    with raises(ValueError):
+        Options()

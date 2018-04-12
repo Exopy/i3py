@@ -47,7 +47,7 @@ class Alias(Feature):
 
     def __init__(self, alias: str, settable: bool=False) -> None:
 
-        super(Alias, self).__init__(True, settable)
+        super(Alias, self).__init__(True, settable if settable else None)
 
         accessor = 'driver.' + '.'.join([p if p else 'parent'
                                          for p in alias.split('.')])

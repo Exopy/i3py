@@ -24,7 +24,7 @@ class Options(Feature):
     manually the getter function.
 
     """
-    def __init__(self, getter: Any=None,
+    def __init__(self, getter: bool=True,
                  setter: Any=None,
                  extract: str='',
                  retries: int=0,

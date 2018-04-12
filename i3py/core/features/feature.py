@@ -23,7 +23,7 @@ from ..abstracts import (AbstractFeature, AbstractGetSetFactory,
 from ..composition import (SupportMethodCustomization, normalize_signature)
 
 
-class Feature(SupportMethodCustomization, AbstractFeature):
+class Feature(SupportMethodCustomization, property):
     """Descriptor representing the most basic instrument property.
 
     Features should not be used outside the definition of a class to avoid
@@ -542,6 +542,9 @@ class Feature(SupportMethodCustomization, AbstractFeature):
 
         """
         cache[name] = value
+
+
+AbstractFeature.register(Feature)
 
 
 def get_chain(feat: Feature, driver: AbstractHasFeatures) -> Any:

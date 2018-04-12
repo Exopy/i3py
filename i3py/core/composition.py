@@ -406,7 +406,7 @@ class customize(AbstractMethodCustomizer):
                              self.modif_id)
 
 
-class SupportMethodCustomization(AbstractSupportMethodCustomization):
+class SupportMethodCustomization:
     """Abstract class for objects supporting to have their method customized.
 
     """
@@ -414,7 +414,7 @@ class SupportMethodCustomization(AbstractSupportMethodCustomization):
     name: str
 
     def __init__(self, *args, **kwargs):
-        super(SupportMethodCustomization, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.name = ''
         self._customs: Dict[str, Dict[str, tuple]] = OrderedDict()
         # Ids to use to refer to the old method when replacing it with a
@@ -668,3 +668,6 @@ class SupportMethodCustomization(AbstractSupportMethodCustomization):
                         if shift != 0:
                             op = ('prepend' if shift == -1 else 'append',)
                             self.modify_behavior(meth_name, func, op, custom)
+
+
+AbstractSupportMethodCustomization.register(SupportMethodCustomization)

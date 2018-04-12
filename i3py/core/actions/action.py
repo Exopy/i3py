@@ -95,7 +95,7 @@ class ActionCall(object):
         action_call_cls: Type[ActionCall] = glob[name]
 
         # Set the lineno to point to the string source.
-        update_function_lineno(cls.__call__, LINENO + 3)
+        update_function_lineno(action_call_cls.__call__, LINENO + 3)
 
         return action_call_cls
 
@@ -105,7 +105,7 @@ class ActionCall(object):
         self.driver = driver
 
 
-class BaseAction(AbstractAction, SupportMethodCustomization):
+class BaseAction(SupportMethodCustomization):
     """Wraps a method with pre and post processing operations.
 
     """
@@ -352,6 +352,9 @@ class BaseAction(AbstractAction, SupportMethodCustomization):
 
         """
         return 'driver'
+
+
+AbstractAction.register(BaseAction)
 
 
 class Action(BaseAction):

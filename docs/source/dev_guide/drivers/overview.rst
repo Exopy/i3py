@@ -167,6 +167,13 @@ Just like  features several classes of actions exist and are describe in the
 API. Actions support advanced customization just like features which are
 described in section :ref:`dev-driv-advanced`
 
+.. note::
+
+    To improve readability and allow third-party tool to improve the
+    integration of I3py drivers, it recommended to provide type annotations
+    for Action and in particular for their return values.
+
+
 Using subsystem and channels
 ----------------------------
 
@@ -329,23 +336,23 @@ to handle it in a different fashion.
     messages when one connect to the instrument through its serial interface
     (and only then). The header to use can be specified as a BYTE string using
     the `RS232_HEADER` class variable.
-    
+
 Making the driver accessible from the top level manufacturer package
 --------------------------------------------------------------------
 
-Drivers in I3py are organized by manufacturers (inside each manufacturer 
+Drivers in I3py are organized by manufacturers (inside each manufacturer
 package, they can be organized by instrument type). However because building,
 the driver class is more expensive than regular Python classes, I3py provides
 a way to make drivers visible from the top level manufacturer package that
-does not lead to their automatic import when the manufacturer package is 
+does not lead to their automatic import when the manufacturer package is
 imported. In particular this means that to import just one instrument from one
 manufacturer you do not import all the drivers for the manufacturer instrument.
 
-To achieve this, I3py replace the manufacturer package module by a custom one 
-providing lazy import capabilities. For each manufacturer, the top level 
+To achieve this, I3py replace the manufacturer package module by a custom one
+providing lazy import capabilities. For each manufacturer, the top level
 package should look like:
 
-.. code-block:: python 
+.. code-block:: python
 
     # -*- coding: utf-8 -*-
     # -------------------------------------------------------------------------
@@ -364,12 +371,12 @@ package should look like:
     DRIVERS = {'BN100': 'bn100.BN100'}
 
     sys.modules[__name__] = LazyPackage(DRIVERS, __name__, __doc__, locals())
-    
-The `DRIVERS` dictionary contains a mapping between the name of the drivers 
-that should be accessible and their import path (typically 
-module_name.class_name). To make your driver visible simply add it to this 
-dictionary. If you driver is defined in a sub-package and this package is 
-itself lazy, your driver will be visible as soon as it is visible in the 
+
+The `DRIVERS` dictionary contains a mapping between the name of the drivers
+that should be accessible and their import path (typically
+module_name.class_name). To make your driver visible simply add it to this
+dictionary. If you driver is defined in a sub-package and this package is
+itself lazy, your driver will be visible as soon as it is visible in the
 sub-package and that the sub-package is imported in the manufacturer package.
 
 

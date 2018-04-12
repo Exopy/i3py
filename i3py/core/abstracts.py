@@ -9,7 +9,7 @@
 """Abstract classes used in I3py.
 
 """
-from abc import ABC, abstractmethod, abstractproperty
+from abc import ABC, abstractclassmethod, abstractmethod, abstractproperty
 from inspect import Signature
 from types import MethodType
 from typing import (Any, Callable, ClassVar, Dict, Hashable, Iterable, Mapping,
@@ -217,8 +217,7 @@ class AbstractBaseDriver(AbstractHasFeatures):
     def __init__(self, *args, **kwargs):
         pass
 
-    @abstractmethod
-    @classmethod
+    @abstractclassmethod
     def compute_id(cls, args: tuple, kwargs: dict) -> Hashable:
         """Use the arguments to compute a unique id for the instrument.
 

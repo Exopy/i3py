@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 # -----------------------------------------------------------------------------
-# Copyright 2016-2017 by I3py Authors, see AUTHORS for more details.
+# Copyright 2016-2018 by I3py Authors, see AUTHORS for more details.
 #
 # Distributed under the terms of the BSD license.
 #
 # The full license is in the file LICENCE, distributed with this software.
 # -----------------------------------------------------------------------------
-"""Base class for VISA INstrument relying on text messages.
+"""Base class for VISA Instrument relying on text messages.
 
 """
 from inspect import cleandoc
@@ -14,6 +14,7 @@ from inspect import cleandoc
 from pyvisa import errors
 from pyvisa.rname import ASRLInstr, GPIBInstr, TCPIPInstr, TCPIPSocket
 
+from ...core import subsystem
 from ...core.actions import RegisterAction
 from .base import (BaseVisaDriver, VisaAction, VisaFeature,
                    get_visa_resource_manager)
@@ -42,7 +43,7 @@ class VisaMessageDriver(BaseVisaDriver):
         return self._resource.query(cmd.format(*args, **kwargs))
 
     def default_set_feature(self, feat, cmd, *args, **kwargs):
-        """Set the iproperty value of the instrument.
+        """Set the feature value of the instrument.
 
         The command is formatted using the provided args and kwargs before
         being passed on to the instrument.
@@ -321,104 +322,127 @@ class VisaMessageDriver(BaseVisaDriver):
 
     # --- Pyvisa wrappers -----------------------------------------------------
 
-    #: Encoding used for read and write operations.
-    encoding = VisaFeature()
+    #: Direct access to the visa resource.
+    visa_resource = subsystem()
 
-    #: Read termination character.
-    read_termination = VisaFeature()
+    with visa_resource as vr:
 
-    #: Write termination character.
-    write_termination = VisaFeature()
+        #: Encoding used for read and write operations.
+        vr.encoding = VisaFeature()
 
-    @VisaAction()
-    def write_raw(self, message):
-        """See Pyvisa docs.
+        #: Read termination character.
+        vr.read_termination = VisaFeature()
 
-        """
-        return self._resource.write_raw(message)
+        #: Write termination character.
+        vr.write_termination = VisaFeature()
 
-    @VisaAction()
-    def write(self, message, termination=None, encoding=None):
-        """See Pyvisa docs.
+        @vr
+        @VisaAction()
+        def write_raw(self, message):
+            """See Pyvisa docs.
 
-        """
-        return self._resource.write(message, termination, encoding)
+            """
+            return self.parent._resource.write_raw(message)
 
-    @VisaAction()
-    def write_ascii_values(self, message, values, converter='f', separator=',',
-                           termination=None, encoding=None):
-        """See Pyvisa docs.
+        @vr
+        @VisaAction()
+        def write(self, message, termination=None, encoding=None):
+            """See Pyvisa docs.
 
-        """
-        return self._resource.write_ascii_values(message, values, converter,
-                                                 separator, termination,
-                                                 encoding)
+            """
+            return self.parent._resource.write(message, termination, encoding)
 
-    @VisaAction()
-    def write_binary_values(self, message, values, datatype='f',
-                            is_big_endian=False, termination=None,
-                            encoding=None):
-        """See Pyvisa docs.
+        @vr
+        @VisaAction()
+        def write_ascii_values(self, message, values, converter='f',
+                               separator=',', termination=None, encoding=None):
+            """See Pyvisa docs.
 
-        """
-        return self._resource.write_binary_values(message, values, datatype,
-                                                  is_big_endian, termination,
-                                                  encoding)
+            """
+            return self.parent._resource.write_ascii_values(
+                message, values, converter, separator, termination, encoding)
 
-    @VisaAction()
-    def read_raw(self, size=None):
-        """See Pyvisa docs.
+        @vr
+        @VisaAction()
+        def write_binary_values(self, message, values, datatype='f',
+                                is_big_endian=False, termination=None,
+                                encoding=None):
+            """See Pyvisa docs.
 
-        """
-        return self._resource.read_raw(size)
+            """
+            return self.parent._resource.write_binary_values(
+                message, values, datatype, is_big_endian, termination,
+                encoding)
 
-    @VisaAction()
-    def read(self, termination=None, encoding=None):
-        """See Pyvisa docs.
+        @vr
+        @VisaAction()
+        def read_bytes(self, size=None):
+            """See Pyvisa docs.
 
-        """
-        return self._resource.read(termination, encoding)
+            """
+            return self.parent._resource.read_raw(size)
 
-    @VisaAction()
-    def read_values(self, fmt=None, container=list):
-        """See Pyvisa docs.
+        @vr
+        @VisaAction()
+        def read_raw(self, size=None):
+            """See Pyvisa docs.
 
-        """
-        return self._resource.read_values(fmt, container)
+            """
+            return self.parent._resource.read_raw(size)
 
-    @VisaAction()
-    def query(self, message, delay=None):
-        """See Pyvisa docs.
+        @vr
+        @VisaAction()
+        def read(self, termination=None, encoding=None):
+            """See Pyvisa docs.
 
-        """
-        with self.lock:
-            return self._resource.query(message, delay)
+            """
+            return self.parent._resource.read(termination, encoding)
 
-    @VisaAction()
-    def query_ascii_values(self, message, converter='f', separator=',',
-                           container=list, delay=None):
-        """See Pyvisa docs.
+        @vr
+        @VisaAction()
+        def read_values(self, fmt=None, container=list):
+            """See Pyvisa docs.
 
-        """
-        with self.lock:
-            return self._resource.query_ascii_values(message, converter,
-                                                     separator, container,
-                                                     delay)
+            """
+            return self.parent._resource.read_values(fmt, container)
 
-    @VisaAction()
-    def query_binary_values(self, message, datatype='f', is_big_endian=False,
-                            container=list, delay=None, header_fmt='ieee'):
-        """See Pyvisa docs.
+        @vr
+        @VisaAction()
+        def query(self, message, delay=None):
+            """See Pyvisa docs.
 
-        """
-        with self.lock:
-            return self._resource.query_binary_values(message, datatype,
-                                                      is_big_endian, container,
-                                                      delay, header_fmt)
+            """
+            with self.parent.lock:
+                return self.parent._resource.query(message, delay)
 
-    @VisaAction()
-    def assert_trigger(self):
-        """Sends a software trigger to the device.
+        @vr
+        @VisaAction()
+        def query_ascii_values(self, message, converter='f', separator=',',
+                               container=list, delay=None):
+            """See Pyvisa docs.
 
-        """
-        self._resource.assert_trigger()
+            """
+            with self.parent.lock:
+                return self.parent._resource.query_ascii_values(
+                    message, converter, separator, container, delay)
+
+        @vr
+        @VisaAction()
+        def query_binary_values(self, message, datatype='f',
+                                is_big_endian=False, container=list,
+                                delay=None, header_fmt='ieee'):
+            """See Pyvisa docs.
+
+            """
+            with self.parent.lock:
+                return self.parent._resource.query_binary_values(
+                    message, datatype, is_big_endian, container, delay,
+                    header_fmt)
+
+        @vr
+        @VisaAction()
+        def fire_trigger(self):
+            """Sends a software trigger to the device.
+
+            """
+            self.parent._resource.assert_trigger()

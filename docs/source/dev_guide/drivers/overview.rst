@@ -149,7 +149,7 @@ one, you only have to declare a method:
 .. code-block:: python
 
     class MyDriver(VisaMessageDriver):
-        """My driver (suppporting *IDN?) docstring.
+        """My driver (supporting *IDN?) docstring.
 
         """
 
@@ -268,8 +268,13 @@ Special class variables for VISA based driver
 In the case of VISA based drivers, it is desirable to specify which
 communication interfaces are supported by the instrument, along which the
 parameters to use (such as termination characters, which may differ between
-interfaces). All those informations can be specified to I3py drivers through
-the use of the class level variables listed below:
+interfaces). All those information can be specified to I3py drivers through
+the use of the class level variables listed below.
+
+..note::
+
+    To avoid polluting the driver namespace, VISA specific method are grouped
+    in the visa_resource subsystem, accessible from the top level driver.
 
 INTERFACES
 ^^^^^^^^^^

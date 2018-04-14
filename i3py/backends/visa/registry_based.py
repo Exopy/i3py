@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # -----------------------------------------------------------------------------
-# Copyright 2016-2017 by I3py Authors, see AUTHORS for more details.
+# Copyright 2016-2018 by I3py Authors, see AUTHORS for more details.
 #
 # Distributed under the terms of the BSD license.
 #
@@ -9,7 +9,8 @@
 """Base class for instrument using a binary registry.
 
 """
-from .base import BaseVisaDriver
+from ...core import subsystem
+from .base import BaseVisaDriver, VisaAction
 
 
 class VisaRegistryDriver(BaseVisaDriver):
@@ -18,28 +19,43 @@ class VisaRegistryDriver(BaseVisaDriver):
     This covers among others PXI, ...
 
     """
-    def read_memory(self, space, offset, width, extended=False):
-        """See Pyvisa docs.
+    #: Direct access to the visa resource.
+    visa_resource = subsystem()
 
-        """
-        return self._resource.read_memory(space, offset, width, extended)
+    with visa_resource as vr:
 
-    def write_memory(self, space, offset, data, width, extended=False):
-        """See Pyvisa docs.
+        @vr
+        @VisaAction()
+        def read_memory(self, space, offset, width, extended=False):
+            """See Pyvisa docs.
 
-        """
-        return self._resource.write_memory(space, offset, data, width,
-                                           extended)
+            """
+            return self.parent._resource.read_memory(space, offset, width,
+                                                     extended)
 
-    def move_in(self, space, offset, length, width, extended=False):
-        """See Pyvisa docs.
+        @vr
+        @VisaAction()
+        def write_memory(self, space, offset, data, width, extended=False):
+            """See Pyvisa docs.
 
-        """
-        return self._resource.move_in(space, offset, length, width, extended)
+            """
+            return self.parent._resource.write_memory(space, offset, data,
+                                                      width, extended)
 
-    def move_out(self, space, offset, length, data, width, extended=False):
-        """See Pyvisa docs.
+        @vr
+        @VisaAction()
+        def move_in(self, space, offset, length, width, extended=False):
+            """See Pyvisa docs.
 
-        """
-        return self._resource.move_out(space, offset, length, data, width,
-                                       extended)
+            """
+            return self.parent._resource.move_in(space, offset, length, width,
+                                                 extended)
+
+        @vr
+        @VisaAction()
+        def move_out(self, space, offset, length, data, width, extended=False):
+            """See Pyvisa docs.
+
+            """
+            return self.parent._resource.move_out(space, offset, length, data,
+                                                  width, extended)

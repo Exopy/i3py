@@ -8,6 +8,7 @@
 """A lazy module implementation based on a mapping of accessible classes.
 
 """
+import sys
 from importlib import import_module
 from itertools import chain
 from types import ModuleType
@@ -24,7 +25,7 @@ class LazyPackage(ModuleType):
     Parameters
     ----------
     lazy_imports : dict
-        Dictionnary mapping the name accessible through lazy loading to their
+        Dictionary mapping the name accessible through lazy loading to their
         relative location as package.module.name
 
     name : str
@@ -59,6 +60,7 @@ class LazyPackage(ModuleType):
                  local_vars: dict) -> None:
 
         super().__init__(name, doc)
+        self.__package__ = sys.modules[name].__package__
         self._lazy_imports = lazy_imports
         self._local_vars = local_vars
         lazy_modules = {}
@@ -74,7 +76,7 @@ class LazyPackage(ModuleType):
         self._lazy_modules = lazy_modules
 
     def __getattr__(self, attr_name: str) -> Any:
-        """When an attr is not found fall back to looking in the lazy imports.
+        """When an attribute is not found look in the lazy imports.
 
         """
         if attr_name in self._lazy_imports:

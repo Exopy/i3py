@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # -----------------------------------------------------------------------------
-# Copyright 2016-2017 by I3py Authors, see AUTHORS for more details.
+# Copyright 2016-2018 by I3py Authors, see AUTHORS for more details.
 #
 # Distributed under the terms of the BSD license.
 #
@@ -19,6 +19,7 @@ from pyvisa import errors
 from pyvisa.highlevel import ResourceManager
 from pyvisa.rname import assemble_canonical_name, to_canonical_name
 
+from ...core import subsystem
 from ...core.actions import BaseAction
 from ...core.base_driver import BaseDriver
 from ...core.composition import SupportMethodCustomization
@@ -29,7 +30,7 @@ _RESOURCE_MANAGERS = None
 
 
 def get_visa_resource_manager(backend='default'):
-    """Access a VISA ressource manager in use by I3py.
+    """Access a VISA resource manager in use by I3py.
 
     """
     global _RESOURCE_MANAGERS
@@ -52,7 +53,7 @@ def get_visa_resource_manager(backend='default'):
 
 
 def set_visa_resource_manager(rm, backend='default'):
-    """Set a VISA ressource manager in use by I3py.
+    """Set a VISA resource manager in use by I3py.
 
     This operation can only be performed once per backend id, and should be
     performed before any driver relying on this backend is created..
@@ -80,6 +81,8 @@ def set_visa_resource_manager(rm, backend='default'):
 
 class VisaFeature(SupportMethodCustomization, property):
     """Special property used to wrap a property present in a Pyvisa resource.
+
+    Visa properties are expected to be defined on the visa_resource subsystem.
 
     """
 
@@ -123,15 +126,15 @@ class VisaFeature(SupportMethodCustomization, property):
         raise RuntimeError('VisaFeatures do not support customization.')
 
     def _get(self, obj):
-        if obj._resource:
-            return getattr(obj._resource, self.name)
+        if obj.parent._resource:
+            return getattr(obj.parent._resource, self.name)
         else:
-            return obj.resource_kwargs.get(self.name)
+            return obj.parent.resource_kwargs.get(self.name)
 
     def _set(self, obj, value):
-        obj.resource_kwargs[self.name] = value
-        if obj._resource:
-            setattr(obj._resource, self.name, value)
+        obj.parent.resource_kwargs[self.name] = value
+        if obj.parent._resource:
+            setattr(obj.parent._resource, self.name, value)
 
 
 AbstractFeature.register(VisaFeature)
@@ -163,11 +166,11 @@ class BaseVisaDriver(BaseDriver):
         Name of the visa resource. can be specified as positional argument.
 
     backend : str, optional
-        The pyvisa backend to use. This can either be a backend alias declared
+        The PyVISA backend to use. This can either be a backend alias declared
         using set_visa_resource_manager or a valid string to create a pyvisa
-        resource maanger.
+        resource manager.
 
-    parameters : dict, optionalm
+    parameters : dict, optional
         A dict to alter the driver attributes.
 
     caching_allowed : bool, optional
@@ -216,7 +219,7 @@ class BaseVisaDriver(BaseDriver):
         super(BaseVisaDriver, self).__init__(*args, **kwargs)
 
         # This entry is populated by the compute_id class method (called by the
-        # the metaclass) from the provided informations.
+        # the metaclass) from the provided information.
         r_name = kwargs['resource_name']
 
         rm = get_visa_resource_manager(kwargs.get('backend', 'default'))
@@ -245,7 +248,7 @@ class BaseVisaDriver(BaseDriver):
 
     @classmethod
     def compute_id(cls, args, kwargs):
-        """Assemble the resource name from the provided infos.
+        """Assemble the resource name from the provided info.
 
         """
         rname = None
@@ -306,7 +309,7 @@ class BaseVisaDriver(BaseDriver):
             Type of interface.
 
         resource_class : str|None, {'INSTR', 'SOCKET', 'RAW'}
-            Class of ressource.
+            Class of resource.
 
         Returns
         -------
@@ -362,37 +365,45 @@ class BaseVisaDriver(BaseDriver):
 
     # --- Pyvisa wrappers
 
-    #: The timeout in milliseconds for all resource I/O operations.
-    #:
-    #: None is mapped to VI_TMO_INFINITE.
-    #: A value less than 1 is mapped to VI_TMO_IMMEDIATE.
-    timeout = VisaFeature(True, timeout_deleter)
+    #: Direct access to the visa resource.
+    visa_resource = subsystem()
 
-    #: Pyvisa resource infos.
-    resource_info = VisaFeature(settable=False)
+    with visa_resource as vr:
 
-    #: Pyvisa interface type
-    interface_type = VisaFeature(settable=False)
+        #: The timeout in milliseconds for all resource I/O operations.
+        #:
+        #: None is mapped to VI_TMO_INFINITE.
+        #: A value less than 1 is mapped to VI_TMO_IMMEDIATE.
+        vr.timeout = VisaFeature(True, timeout_deleter)
 
-    @VisaAction()
-    def clear(self):
-        """Clears this resource.
+        #: Pyvisa resource info.
+        vr.resource_info = VisaFeature(settable=False)
 
-        """
-        self._resource.clear()
+        #: Pyvisa interface type
+        vr.interface_type = VisaFeature(settable=False)
 
-    @VisaAction()
-    def install_handler(self, event_type, handler, user_handle=None):
-        """See Pyvisa docs.
+        @vr
+        @VisaAction()
+        def clear(self):
+            """Clears this resource.
 
-        """
-        return self._resource.install_handler(event_type, handler,
-                                              user_handle)
+            """
+            self.parent._resource.clear()
 
-    @VisaAction()
-    def uninstall_handler(self, event_type, handler, user_handle=None):
-        """See Pyvisa docs.
+        @vr
+        @VisaAction()
+        def install_handler(self, event_type, handler, user_handle=None):
+            """See Pyvisa docs.
 
-        """
-        self._resource.uninstall_handler(event_type, handler,
-                                         user_handle)
+            """
+            return self.parent._resource.install_handler(event_type, handler,
+                                                         user_handle)
+
+        @vr
+        @VisaAction()
+        def uninstall_handler(self, event_type, handler, user_handle=None):
+            """See Pyvisa docs.
+
+            """
+            self.parent._resource.uninstall_handler(event_type, handler,
+                                                    user_handle)

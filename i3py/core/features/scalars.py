@@ -9,21 +9,18 @@
 """Features for scalars values such float, int, string, etc...
 
 """
-from typing import Any, Union, Optional, Dict, Tuple
+from typing import Any, Dict, Optional, Tuple, Union
 
+from ..abstracts import AbstractHasFeatures, AbstractLimitsValidator
+from ..limits import FloatLimitsValidator, IntLimitsValidator
+from ..unit import FLOAT_QUANTITY, UNIT_RETURN, UNIT_SUPPORT, get_unit_registry
+from ..utils import raise_limits_error
 from .enumerable import Enumerable
 from .limits_validated import LimitsValidated
 from .mapping import Mapping
-from ..unit import get_unit_registry, UNIT_SUPPORT, UNIT_RETURN
-from ..utils import raise_limits_error
-from ..limits import IntLimitsValidator, FloatLimitsValidator
-from ..abstracts import AbstractHasFeatures, AbstractLimitsValidator
 
 if UNIT_SUPPORT:
     from pint.quantity import _Quantity
-    FLOAT_QUANTITY = Union[float, _Quantity]
-else:
-    FLOAT_QUANTITY = float  # type: ignore
 
 
 class Str(Mapping, Enumerable):
@@ -65,7 +62,8 @@ class Int(LimitsValidated, Mapping, Enumerable):
                  setter: Any=None,
                  values: Tuple[int, ...]=(),
                  mapping: Optional[dict]=None,
-                 limits: Optional[Union[str, AbstractLimitsValidator]]=None,
+                 limits: Optional[Union[str, AbstractLimitsValidator,
+                                        Tuple]]=None,
                  extract: str='',
                  retries: int=0,
                  checks: Optional[str]=None,
@@ -107,7 +105,8 @@ class Float(LimitsValidated, Mapping, Enumerable):
                  setter: Any=None,
                  values: Tuple[float, ...]=(),
                  mapping: Optional[dict]=None,
-                 limits: Optional[Union[str, AbstractLimitsValidator]]=None,
+                 limits: Optional[Union[str, AbstractLimitsValidator,
+                                        Tuple]]=None,
                  unit: Optional[str]=None,
                  extract: str='',
                  retries: int=0,
@@ -213,7 +212,7 @@ class Float(LimitsValidated, Mapping, Enumerable):
 
     def _fill_cache(self, driver: AbstractHasFeatures, cache: Dict[str, Any],
                     name: str, value: FLOAT_QUANTITY):
-        """Set both magntitude and quantity in cache.
+        """Set both magnitude and quantity in cache.
 
         """
         if UNIT_SUPPORT and self.unit is not None:

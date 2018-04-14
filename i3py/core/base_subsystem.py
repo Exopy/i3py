@@ -11,8 +11,9 @@
 """
 from typing import Any, Optional, Tuple, Type, Union
 
-from .abstracts import (AbstractFeature, AbstractHasFeatures,
-                        AbstractSubSystem, AbstractSubSystemDescriptor)
+from .abstracts import (AbstractBaseDriver, AbstractFeature,
+                        AbstractHasFeatures, AbstractSubSystem,
+                        AbstractSubSystemDescriptor)
 from .has_features import HasFeatures
 from .utils import check_options
 
@@ -26,18 +27,30 @@ class SubSystem(HasFeatures):
 
     Attributes
     ----------
-    parent : HasFeatures
+    parent : AbstractHasFeatures
         Parent object of the subsystem.
 
     """
     def __init__(self, parent: AbstractHasFeatures, **kwargs) -> None:
         super(SubSystem, self).__init__(**kwargs)
         self.parent = parent
+        self.root = (parent if isinstance(parent, AbstractBaseDriver)
+                     else parent.root)
 
     @property
     def lock(self) -> Any:
         """Access to parent lock."""
         return self.parent.lock
+
+    @property
+    def root(self) -> AbstractBaseDriver:
+        """Access the root component.
+
+        """
+        if isinstance(self.parent, AbstractBaseDriver):
+            return self.parent
+        else:
+            return self.parent.root
 
     def reopen_connection(self) -> None:
         """Subsystems simply pipes the call to their parent.

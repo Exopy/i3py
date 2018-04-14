@@ -11,7 +11,7 @@
 """
 from abc import abstractmethod, abstractproperty
 from collections import Mapping, OrderedDict
-from inspect import Signature, signature
+from inspect import Signature, signature, Parameter
 from types import MethodType
 from typing import (Any, Callable, ClassVar, Dict, List, Optional, Sequence,
                     Tuple, Type)
@@ -40,17 +40,23 @@ def normalize_signature(sig: Signature,
         will have their * preceding.
 
     """
-    def norm_arg(arg, alias):
+    norm_sig = []
+    seen_star = False
+    for arg in sig.parameters.values():
         if alias and arg.name == 'self':
-            return alias
+            norm_sig.append(alias)
         elif arg.kind == arg.VAR_POSITIONAL:
-            return '*' + arg.name
+            seen_star = True
+            norm_sig.append('*' + arg.name)
         elif arg.kind == arg.VAR_KEYWORD:
-            return '**' + arg.name
+            norm_sig.append('**' + arg.name)
         else:
-            return arg.name
+            if arg.kind == arg.KEYWORD_ONLY and not seen_star:
+                norm_sig.append('*')
+            norm_sig.append(arg.name if arg.default is Parameter.empty else
+                            arg.name + '=' + str(arg.default))
 
-    return tuple(norm_arg(p, alias) for p in sig.parameters.values())
+    return tuple(norm_sig)
 
 
 class MethodComposer(object):

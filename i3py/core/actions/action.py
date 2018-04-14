@@ -337,7 +337,7 @@ class BaseAction(SupportMethodCustomization):
                 specifiers = ()
 
         else:
-            msg = ('Cannot cutomize method {}, only pre_call, call and '
+            msg = ('Cannot customize method {}, only pre_call, call and '
                    'post_call can be.')
             raise ValueError(msg)
 
@@ -369,7 +369,7 @@ class Action(BaseAction):
     All parameters must be passed as keyword arguments.
 
     All public driver methods should be decorated as an Action to make them
-    easy to identify and hence make instrospection easier.
+    easy to identify and hence make introspection easier.
 
     Parameters
     ----------
@@ -379,7 +379,7 @@ class Action(BaseAction):
         by ;
 
     checks : str, optional
-        Booelan tests to execute before calling the function. Multiple
+        Boolean tests to execute before calling the function. Multiple
         assertions can be separated with ';'. All the method arguments are
         available in the assertion execution namespace so one can access to the
         driver using self and to the arguments using their name (the signature

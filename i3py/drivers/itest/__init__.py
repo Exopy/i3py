@@ -12,6 +12,7 @@
 import sys
 from i3py.core.lazy_package import LazyPackage
 
-DRIVERS = {'BN100': 'bn100.BN100'}
+DRIVERS = {'BN100': 'racks.BN100', 'BN101': 'racks.BN101',
+           'BN103': 'racks.BN103', 'BN105': 'racks.BN105'}
 
 sys.modules[__name__] = LazyPackage(DRIVERS, __name__, __doc__, locals())

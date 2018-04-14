@@ -148,9 +148,9 @@ class VisaAction(BaseAction):
 
 
 def timeout_deleter(obj):
-    del obj.resource_kwargs['timeout']
-    if obj._resource:
-        del obj._resource.timeout
+    del obj.parent.resource_kwargs['timeout']
+    if obj.parent._resource:
+        del obj.parent._resource.timeout
 
 
 class BaseVisaDriver(BaseDriver):

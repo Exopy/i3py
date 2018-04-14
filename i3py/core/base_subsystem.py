@@ -34,8 +34,6 @@ class SubSystem(HasFeatures):
     def __init__(self, parent: AbstractHasFeatures, **kwargs) -> None:
         super(SubSystem, self).__init__(**kwargs)
         self.parent = parent
-        self.root = (parent if isinstance(parent, AbstractBaseDriver)
-                     else parent.root)
 
     @property
     def lock(self) -> Any:

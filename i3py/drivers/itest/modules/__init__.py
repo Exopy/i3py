@@ -11,6 +11,7 @@
 """
 import sys
 from i3py.core.lazy_package import LazyPackage
+from .common import make_card_detector
 
 DRIVERS = {}
 

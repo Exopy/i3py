@@ -155,8 +155,7 @@ class BaseDriver(HasFeatures, metaclass=InstrumentSigleton):
         """
         return False
 
-    @property
-    def connected(self) -> bool:
+    def is_connected(self) -> bool:
         """Return whether or not commands can be sent to the instrument.
 
         """

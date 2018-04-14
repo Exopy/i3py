@@ -8,7 +8,7 @@
 """HasFeatures is the most basic object in I3py.
 
 It handles the use of Features, Actions, Subsystem, and Channel and the
-possibility to customize Feature and Action behaviours.
+possibility to customize Feature and Action behaviors.
 
 """
 import logging
@@ -78,7 +78,7 @@ class HasFeatures(object):
         super().__init_subclass__(**kwargs)
 
         # Pass over the class dict and collect the information
-        # necessary to implement the various behaviours.
+        # necessary to implement the various behaviors.
         feats = {}                       # Feature declarations
         actions = {}                     # Action declarations
         subsystems = {}                  # Subsystem declarations
@@ -92,7 +92,7 @@ class HasFeatures(object):
         # Get the class dictionary
         namespace = cls.__dict__
 
-        # Identify whether the class can be disbaled at runtime
+        # Identify whether the class can be disabled at runtime
         rt_enabling = '_enabled_' in namespace
 
         if '_docs_' in namespace:
@@ -102,7 +102,7 @@ class HasFeatures(object):
             docs = None
 
         # First we identify all subparts and keep only keys which are not
-        # knwown aliases.
+        # known aliases.
         subparts = {k: v for k, v in namespace.items()
                     if (isinstance(v, AbstractSubpartDeclarator) and
                         k not in v._aliases_)}
@@ -174,9 +174,9 @@ class HasFeatures(object):
                     not (issubclass(base_cls, bases))):
                 bases += (base_cls,)
 
-        # Analyse the source code to find the doc for the defined Features.
+        # Analyze the source code to find the doc for the defined Features.
         # This will work as long as two subpart are not aliased in the same
-        # way which is probabbly good enough.
+        # way which is probably good enough.
         if docs is None:
             docs = {}
             try:
@@ -199,7 +199,7 @@ class HasFeatures(object):
         for f in [f for f in feats if f in docs]:
             feats[f].make_doc(docs[f])
 
-        # Collect the subsystems and channels in reversed order to preseve
+        # Collect the subsystems and channels in reversed order to preserve
         # the mro overriding
         inherited_ss = dict([(k, v) for b in reversed(bases)
                              for k, v in b.__subsystems__.items()])
@@ -272,7 +272,7 @@ class HasFeatures(object):
                 owned[k] = clone
                 setattr(cls, k, clone)
 
-        # Add the special statically defined behaviours for the
+        # Add the special statically defined behaviors for the
         # features/actions.
         for key, cust in m_customizers.items():
             cust.customize(cls, key)
@@ -284,7 +284,7 @@ class HasFeatures(object):
         cls.__actions__ = actions
 
         # Put a reference to the subsystems in the class.
-        # This is used at initialisation to create the appropriate subsystems
+        # This is used at initialization to create the appropriate subsystems
         cls.__subsystems__ = subsystems
 
         # Put a reference to the (channel, part) pairs in the class
@@ -327,7 +327,7 @@ class HasFeatures(object):
         self._use_cache = caching_allowed
 
     def get_feat(self, name: str) -> AbstractFeature:
-        """ Acces the feature matching the given name.
+        """ Access the feature matching the given name.
 
         Parameters
         ----------

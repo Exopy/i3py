@@ -15,6 +15,7 @@ and exposes some useful Pint features.
 
 """
 import logging
+from typing import Any, Union
 
 UNIT_SUPPORT = True
 UNIT_RETURN = True
@@ -22,9 +23,12 @@ UNIT_RETURN = True
 try:
     from pint import UnitRegistry
 except ImportError:
-    from typing import Any
     UnitRegistry = Any
     UNIT_SUPPORT = False
+    FLOAT_QUANTITY = float  # type: ignore
+else:
+    from pint.quantity import _Quantity
+    FLOAT_QUANTITY = Union[float, _Quantity] # type: ignore
 
 
 UNIT_REGISTRY = None

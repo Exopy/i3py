@@ -68,6 +68,11 @@ class SSChecksParent(DummyDriver):
             return type(driver)._test_
 
 
+def test_root():
+
+    a = SSParent()
+    assert a.ss.root is a
+
 def test_ss_d_get():
 
     a = SSParent()

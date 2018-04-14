@@ -208,7 +208,7 @@ def create_register_flag(register_name: str,
 
     Returns
     -------
-    register_flag : enum.IntFlag
+    register_flag : IntFlag
         IntFlag subclass whose fields match the register fields. If some of the
         names are not provided, the associated fields are named 'BIT_n' with n
         the bit number.
@@ -220,7 +220,7 @@ def create_register_flag(register_name: str,
         for n, i in names.items():
             register_names[n] = 2**i
 
-    else:
+    elif names:
         if len(names) != length:
             raise ValueError('Register necessitates %d names' % length)
 

@@ -299,8 +299,11 @@ class AbstractSubSystem(AbstractHasFeatures):
     """Sentinel for subsystem identification.
 
     """
+    #: Root component (AbstractBaseDriver) to which this subsystem is linked.
+    root: AbstractBaseDriver
+
     #: Parent component (AbstractHasFeature) to which this subsystem is linked.
-    parent: AbstractHasFeatures
+    parent: Union[AbstractBaseDriver, 'AbstractSubSystem']
 
 
 class AbstractSubSystemDescriptor(property, ABC):
@@ -478,7 +481,7 @@ class AbstractSupportMethodCustomization(ABC):
 
         specifiers : tuple, optional
             Tuple used to determine how the function should be used. If
-            ommitted the function will simply replace the existing behavior
+            omitted the function will simply replace the existing behavior
             otherwise it will be used to update the MethodComposer in the
             adequate fashion.
             The tuple content should be :
@@ -735,7 +738,7 @@ class AbstractMethodCustomizer(ABC):
             Class owning the descriptor to customize.
 
         decorate_name : str
-            Name uder which the customization function appear in the class
+            Name under which the customization function appear in the class
             declaration.
 
         """

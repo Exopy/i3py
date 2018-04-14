@@ -19,7 +19,7 @@ from i3py.core.composition import (normalize_signature, MethodComposer,
 
 
 def test_normalize_signature():
-    """Test that the signature normailzation provide the expected results.
+    """Test that the signature normalization provide the expected results.
 
     """
     n_sig = lambda f, alias=None: normalize_signature(signature(f), alias)
@@ -27,6 +27,8 @@ def test_normalize_signature():
     assert n_sig(lambda a, b: 0, 'c') == ('a', 'b')
     assert n_sig(lambda self, b: 0, 'a') == ('a', 'b')
     assert n_sig(lambda self, *args: 0, 'a') == ('a', '*args')
+    assert n_sig(lambda self, *args, b=1: 0, 'a') == ('a', '*args', 'b=1')
+    assert n_sig(lambda self, *, b=1: 0, 'a') == ('a', '*', 'b=1')
     assert n_sig(lambda self, **kwargs: 0, 'a') == ('a', '**kwargs')
     assert (n_sig(lambda self, *args, **kwargs: 0, 'b') ==
             ('b', '*args', '**kwargs'))

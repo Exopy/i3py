@@ -29,7 +29,8 @@ class LimitsValidated(Feature):
     """
     def __init__(self, getter: Any=None,
                  setter: Any=None,
-                 limits: Optional[Union[str, AbstractLimitsValidator]]=None,
+                 limits: Optional[Union[str, Tuple,
+                                        AbstractLimitsValidator]]=None,
                  extract: str='',
                  retries: int=0,
                  checks: Optional[str]=None,

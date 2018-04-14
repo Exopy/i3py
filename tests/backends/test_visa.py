@@ -103,8 +103,8 @@ class TestBaseVisaDriver(object):
         assert driver.resource_name == 'visa_alias'
 
     def test_filling_infos_from_INTERFACES(self):
-        """Test that infos provided in the INTERFACES class attribute are correctly
-        picked
+        """Test that info provided in the INTERFACES class attribute are
+        correctly picked
 
         """
         class TestVisaDriver(BaseVisaDriver):
@@ -181,7 +181,8 @@ class TestBaseVisaDriver(object):
                                'parameters': {'timeout': 5}})
 
     def test_filtering_kwargs(self):
-        """
+        """Test filtering keyword arguments.
+
         """
         class SpecialKwargsVisa(BaseVisaDriver):
 
@@ -200,31 +201,31 @@ class TestBaseVisaDriver(object):
         """
         visa_driver.initialize()
         with pytest.raises(NotImplementedError):
-            visa_driver.clear()
+            visa_driver.visa_resource.clear()
 
     def test_resource_info(self, visa_driver):
-        """Test querying the underlying resource infos.
+        """Test querying the underlying resource info.
 
         """
         visa_driver.initialize()
-        assert visa_driver.resource_info
+        assert visa_driver.visa_resource.resource_info
 
     def test_interface_type(self, visa_driver):
         """Test querying the underlying resource interface type.
 
         """
         visa_driver.initialize()
-        assert visa_driver.interface_type
+        assert visa_driver.visa_resource.interface_type
 
     def test_timeout(self, visa_driver):
         """Test the timeout descriptor.
 
         """
-        visa_driver.timeout = 10
+        visa_driver.visa_resource.timeout = 10
         visa_driver.initialize()
-        assert visa_driver.timeout == 10
-        del visa_driver.timeout
-        assert visa_driver.timeout == float('+inf')
+        assert visa_driver.visa_resource.timeout == 10
+        del visa_driver.visa_resource.timeout
+        assert visa_driver.visa_resource.timeout == float('+inf')
 
     def test_reopen_connection(self, visa_driver, monkeypatch):
         """Test reopening a connections.
@@ -239,14 +240,14 @@ class TestBaseVisaDriver(object):
                 self.called += 1
 
         visa_driver.initialize()
-        visa_driver.timeout = 20
+        visa_driver.visa_resource.timeout = 20
         w = Witness()
         monkeypatch.setattr(type(visa_driver._resource), 'clear',  w)
 
         visa_driver.reopen_connection()
         assert visa_driver._resource
         assert w.called == 1
-        assert visa_driver.timeout == 20
+        assert visa_driver.visa_resource.timeout == 20
 
     @pytest.mark.xfail
     def test_install_handler(self, visa_driver):
@@ -255,7 +256,7 @@ class TestBaseVisaDriver(object):
         """
         visa_driver.initialize()
         with pytest.raises(NotImplementedError):
-            visa_driver.install_handler(None, None)
+            visa_driver.visa_resource.install_handler(None, None)
 
     @pytest.mark.xfail
     def test_uninstall_handler(self, visa_driver):
@@ -264,7 +265,7 @@ class TestBaseVisaDriver(object):
         """
         visa_driver.initialize()
         with pytest.raises(errors.UnknownHandler):
-            visa_driver.uninstall_handler(None, None)
+            visa_driver.visa_resource.uninstall_handler(None, None)
 
 
 # --- Test message driver specific methods ------------------------------------

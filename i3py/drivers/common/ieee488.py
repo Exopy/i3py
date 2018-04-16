@@ -207,7 +207,7 @@ class IEEEIdentity(VisaMessageDriver):
             """Get the identity info from the *IDN?.
 
             """
-            infos = Parser(self.IEEE_IDN_FORMAT)(value)
+            infos = Parser(driver.IEEE_IDN_FORMAT)(value)
             driver._cache.update(infos)
             return infos.get(feat.name, '')
 

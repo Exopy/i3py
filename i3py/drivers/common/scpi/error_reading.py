@@ -24,11 +24,11 @@ class SCPIErrorReading(VisaMessageDriver):
     def read_error(self) -> Tuple[int, str]:
         """Read the first error in the error queue.
 
-        If an unhandle error occurs, the error queue should be polled till it
+        If an unhandled error occurs, the error queue should be polled till it
         is empty.
 
         """
-        code, msg = self.query('SYST:ERR?').split(',')  # type: ignore
+        code, msg = self.visa_resource.query('SYST:ERR?').split(',')
         return int(code), msg
 
     def default_check_operation(self, feat, value, i_value, response):

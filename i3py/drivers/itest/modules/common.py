@@ -36,9 +36,9 @@ def make_card_detector(model_id: Union[str, List[str]]
         """Query all the cards fitted on the rack and filter based on the model
 
         """
+        card_list = driver.visa_resource.query('I:L?').split(';')
         cards = {int(i): id
-                 for i, id in [card.split(',')
-                               for card in driver.query('I:L?').split(';')]}
+                 for i, id in [card.split(',') for card in card_list]}
 
         return [index for index in cards if cards[index] in model_id]
 
@@ -59,11 +59,11 @@ class BiltModule(Channel):
 
         """
         cmd = 'I{ch_id};'+cmd
-        super().default_get_feature(feat, cmd, *args, **kwargs)
+        return super().default_get_feature(feat, cmd, *args, **kwargs)
 
     def default_set_feature(self, feat, cmd, *args, **kwargs):
         """Prepend module selection to command.
 
         """
         cmd = 'I{ch_id};'+cmd
-        super().default_set_feature(feat, cmd, *args, **kwargs)
+        return super().default_set_feature(feat, cmd, *args, **kwargs)

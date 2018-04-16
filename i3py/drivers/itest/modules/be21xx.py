@@ -9,37 +9,68 @@
 """Package for the Itest BE21xx voltage source card.
 
 """
-from typing import Optional, Callable
+from typing import Callable, Optional
 
-from i3py.core import FloatLimitsValidator, channel, set_feat, subsystem
+from i3py.core import (FloatLimitsValidator, channel, customize, set_feat,
+                       subsystem)
 from i3py.core.actions import Action
 from i3py.core.features import Float, Str, constant
 from i3py.core.job import InstrJob
-from i3py.core.unit import to_float, FLOAT_QUANTITY
+from i3py.core.unit import FLOAT_QUANTITY, to_float
+from stringparser import Parser
 
-from ...common.ieee488 import IEEEIdentity
 from ...base.dc_sources import (DCPowerSourceWithMeasure,
                                 DCSourceTriggerSubsystem)
+from ...base.identity import Identity
 from .common import BiltModule
 
 
-class BE21xx(BiltModule, DCPowerSourceWithMeasure, IEEEIdentity):
+class BE21xx(BiltModule, DCPowerSourceWithMeasure):
     """Driver for the Bilt BE2100 high precision dc voltage source.
 
     """
     __version__ = '0.1.0'
 
-    # Identity support.
-    identity = subsystem()
-    with identity as i:
-        i.IEEE_IDN_FORMAT = ('{_:d}, "{manufacturer:s} {model:s}BB/{_:s}'
-                             '\\{serial:s} LC{_:s} VL{firmware:s}\\{_:d}')
+    #: Identity support (we do not use IEEEIdentity because we are not on the
+    #: root level).
+    identity = subsystem(Identity)
 
-    # DC outputs
+    with identity as i:
+
+        #: Format string specifying the format of the IDN query answer and
+        #: allowing to extract the following information:
+        #: - manufacturer: name of the instrument manufacturer
+        #: - model: name of the instrument model
+        #: - serial: serial number of the instrument
+        #: - firmware: firmware revision
+        #: ex {manufacturer},<{model}>,SN{serial}, Firmware revision {firmware}
+        i.IEEE_IDN_FORMAT = ('{_:d},"{manufacturer:s} {model:s}BB/{_:s}'
+                             '/SN{serial:s}\\{_:s} LC{_:s} VL{firmware:s}'
+                             '\\{_:d}"')
+
+        i.manufacturer = set_feat(getter='*IDN?')
+        i.model = set_feat(getter='*IDN?')
+        i.serial = set_feat(getter='*IDN?')
+        i.firmware = set_feat(getter='*IDN?')
+
+        def _post_getter(feat, driver, value):
+            """Get the identity info from the *IDN?.
+
+            """
+            infos = Parser(driver.IEEE_IDN_FORMAT)(value)
+            driver._cache.update(infos)
+            return infos.get(feat.name, '')
+
+        for f in ('manufacturer', 'model', 'serial', 'firmware'):
+            setattr(i, '_post_get_' + f,
+                    customize(f, 'post_get')(_post_getter))
+
+    #: DC outputs
     output = channel((0,))
 
     with output as o:
-        o.enabled = set_feat(getter='OUT?', setter='OUT {}')
+        o.enabled = set_feat(getter='OUTP?', setter='OUTP {}',
+                             mapping={False: '0', True: '1'})
 
         o.voltage = set_feat(getter='VOLT?', setter='VOLT {:E}',
                              limits='voltage')
@@ -54,6 +85,7 @@ class BE21xx(BiltModule, DCPowerSourceWithMeasure, IEEEIdentity):
         #: range.
         o.voltage_saturation = subsystem()
         with o.voltage_saturation as vs:
+
             #: Lowest allowed voltage.
             vs.low = Float('VOLT:SAT:NEG?', 'VOLT:SAT:NEG {}', unit='V',
                            limits=(-12, 0), discard={'limits': ('voltage',)})
@@ -61,6 +93,20 @@ class BE21xx(BiltModule, DCPowerSourceWithMeasure, IEEEIdentity):
             #: Highest allowed voltage.
             vs.high = Float('VOLT:SAT:POS?', 'VOLT:SAT:POS {}', unit='V',
                             limits=(0, 12), discard={'limits': ('voltage',)})
+
+            @vs
+            @customize('low', 'post_get', ('prepend',))
+            def _convert_min(feat, driver, value):
+                if value == 'MIN':
+                    value = '-12'
+                return value
+
+            @vs
+            @customize('high', 'post_get', ('prepend',))
+            def _convert_min(feat, driver, value):
+                if value == 'MAX':
+                    value = '12'
+                return value
 
         o.current = set_feat(getter=constant(0.2))
 
@@ -203,7 +249,7 @@ class BE21xx(BiltModule, DCPowerSourceWithMeasure, IEEEIdentity):
             return FloatLimitsValidator(low, high, step, 'V')
 
 
-class BE210x(BiltModule, DCPowerSourceWithMeasure, IEEEIdentity):
+class BE210x(BE21xx):
     """Driver for the Bilt BE2100 high precision dc voltage source.
 
     """
@@ -213,11 +259,11 @@ class BE210x(BiltModule, DCPowerSourceWithMeasure, IEEEIdentity):
 
     with output as o:
         #: Set the voltage settling filter. Slow 100 ms, Fast 10 ms
-        o.voltage_filter = Str('VOLT:FILT?', 'VOLT:FILT {}',
-                               mapping={'Slow': 0, 'Fast': 1})
+        o.voltage_filter = Str('VOLT:FIL?', 'VOLT:FIL {}',
+                               mapping={'Slow': '0', 'Fast': '1'})
 
 
-class BE2101(BiltModule, DCPowerSourceWithMeasure, IEEEIdentity):
+class BE2101(BE210x):
     """Driver for the Bilt BE2100 high precision dc voltage source.
 
     """

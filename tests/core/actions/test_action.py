@@ -347,4 +347,4 @@ def test_analyse_function():
     # Wrong method name
     with raises(ValueError) as e:
         act.analyse_function('test', lambda x: 1, ())
-    assert 'Cannot cutomize method' in e.exconly()
+    assert 'Cannot customize method' in e.exconly()

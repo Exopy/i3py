@@ -72,6 +72,11 @@ value:
 - a tuple of argument and a dictionary of keyword arguments for
   |BaseAction.pre_call|
 
+Finally because of the way customization is handled, the function will not live
+as a method on the final class and hence one cannot simply modify the
+customization by simply overriding the method using the same name. One must
+explicitly requires a replacement.
+
 
 Composing custom behavior and existing ones
 -------------------------------------------
@@ -92,7 +97,7 @@ possible values are the following:
 - ('add_after', existing_id)
 - ('append',)
 - ('replace', existing_id)
-- ('remove', exising_id)
+- ('remove', existing_id)
 
 The existing_id is a string allowing to identify the function with respect to
 which 'position' the customization. For built-in functionalities, it matches
@@ -100,7 +105,7 @@ the keywords argument that was used to create it ('checks' for example).
 
 .. note::
 
-    When a feature use multiple builtin mechanisms, those are composed using
+    When a feature use multiple built-in mechanisms, those are composed using
     the same principle.
 
 .. note::
@@ -108,6 +113,6 @@ the keywords argument that was used to create it ('checks' for example).
     Customization are also given an id. By default, it is simply custom, but
     one can specify a different value as the fourth argument to |customize|.
 
-The way to chain the calls depends on the builtin function already present and
+The way to chain the calls depends on the built-in function already present and
 the goal of the customization. For example, a custom conversion in a get may
 need to occur after the value was extracted from the instrument answer.

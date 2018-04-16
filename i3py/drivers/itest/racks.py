@@ -44,6 +44,8 @@ class BiltMainframe(IEEEReset, SCPIErrorReading):
         """
         super().initialize()
         self.visa_resource.write('SYST:VERB 0')
+        while self.read_error()[0]:
+            pass
 
     _list_be2101 = make_card_detector(['BE2101'])
     _list_be2141 = make_card_detector(['BE2141'])

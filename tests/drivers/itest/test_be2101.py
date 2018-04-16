@@ -25,12 +25,14 @@ with BN100(VISA_RESOURCE_NAME) as rack:
     print(rack.be2101.available)
 
     module = rack.be2101[MODULE_INDEX]
-    print(module.manufacturer)
+    print(module.identity.manufacturer)
 
     output = module.output[0]
     for f_name in output.__feats__:
-        print(getattr(output, f_name))
+        print(f_name, getattr(output, f_name))
 
-    for sub in output.__subsystems__:
+    for sub_name in output.__subsystems__:
+        print('testing ', sub_name)
+        sub = getattr(output, sub_name)
         for f_name in sub.__feats__:
-            print(getattr(output, f_name))
+            print(getattr(sub, f_name))

@@ -41,10 +41,11 @@ class InstrumentSigleton(type):
         if ('__version__' not in non_new and
                 any(cls.__version__ is getattr(ancestor, '__version__', '')
                     for ancestor in cls.mro()[1:])):
-            raise AttributeError('All drivers must have a version string of '
+            raise AttributeError('%s does not have a version attr. All drivers'
+                                 ' must have a version string of '
                                  'the form "{major}.{minor}.{micro}" set '
                                  'in the __version__ attribute. It cannot be '
-                                 'simply inherited.')
+                                 'simply inherited.' % cls.__name__)
 
         # This is done on first call rather than init to avoid useless memory
         # allocation.

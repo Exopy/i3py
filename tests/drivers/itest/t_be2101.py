@@ -26,8 +26,11 @@ with BN100(VISA_RESOURCE_NAME) as rack:
 
     module = rack.be2101[MODULE_INDEX]
     print(module.identity.manufacturer)
+    print(module.identity.model)
+    print(module.identity.serial)
+    print(module.identity.firmware)
 
-    output = module.output[0]
+    output = module.output[1]
     for f_name in output.__feats__:
         print(f_name, getattr(output, f_name))
 

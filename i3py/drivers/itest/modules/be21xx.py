@@ -66,11 +66,14 @@ class BE21xx(BiltModule, DCPowerSourceWithMeasure):
                     customize(f, 'post_get')(_post_getter))
 
     #: DC outputs
-    output = channel((0,))
+    output = channel((1,))
 
     with output as o:
         o.enabled = set_feat(getter='OUTP?', setter='OUTP {}',
-                             mapping={False: '0', True: '1'})
+                             mapping={False: '0', True: '1'},
+                             checks=(None,
+                                     'driver.read_output_status() == "normal"')
+                             )
 
         o.voltage = set_feat(getter='VOLT?', setter='VOLT {:E}',
                              limits='voltage')
@@ -103,7 +106,7 @@ class BE21xx(BiltModule, DCPowerSourceWithMeasure):
 
             @vs
             @customize('high', 'post_get', ('prepend',))
-            def _convert_min(feat, driver, value):
+            def _convert_max(feat, driver, value):
                 if value == 'MAX':
                     value = '12'
                 return value
@@ -117,7 +120,7 @@ class BE21xx(BiltModule, DCPowerSourceWithMeasure):
         with o.trigger as tr:
             #: Type of response to triggering :
             #: - disabled : immediate update of voltage every time the voltage
-            #:   feature is updated.
+            #:   feature is updated. The update respect the slope.
             #: - slope : update after receiving a trigger based on the slope
             #:   value.
             #: - stair : update after receiving a trigger using step_amplitude
@@ -155,21 +158,47 @@ class BE21xx(BiltModule, DCPowerSourceWithMeasure):
                                        'TRIG:READY:AMPL {}',
                                        unit='V', limits='voltage')
 
+            @tr
             @Action()
             def fire(self):
                 """Send a software trigger.
 
                 """
-                self.root.visa_resource.write(f'I {self.ch_id};TRIG:IN:INIT')
+                msg = f'I {self.parent.parent.id};TRIG:IN:INIT'
+                self.root.visa_resource.write(msg)
 
-        # XXX todo
+        #: Status of the output. Save for the first one, they are all related
+        #: to dire issues that lead to switch off the output.
+        o.OUTPUT_STATES = {0: 'normal',
+                           5: 'main failure',
+                           6: 'system failure',
+                           7: 'temperature failure',
+                           8: 'regulation issue'}
+
         @o
         @Action()
         def read_output_status(self) -> str:
             """Determine the current status of the output.
 
             """
-            answer = self.root.visa_resource.query('LIM:FAIL?')
+            msg = self._header_() + 'LIM:FAIL?'
+            answer = int(self.root.visa_resource.query(msg))
+            if answer != 0:
+                del self.enabled
+            return self.OUTPUT_STATES.get(answer, f'unknown({answer})')
+
+        @o
+        @Action()
+        def clear_output_status(self) -> None:
+            """Clear the error condition of the output.
+
+            This must be called after a failure before switching the output
+            back on
+
+            """
+            self.root.write.query(self._header_() + 'LIM:CLE')
+            if not self.read_output_status() == 'normal':
+                raise RuntimeError('Failed to clear output status.')
 
         @o
         @Action()
@@ -183,7 +212,7 @@ class BE21xx(BiltModule, DCPowerSourceWithMeasure):
                 and 1.
 
             """
-            msg = f'I {self.parent.ch_id};VOLT:STAT?'
+            msg = self._header_() + 'VOLT:STAT?'
             if int(self.root.visa_resource.query(msg)) == 1:
                 return 'settled'
             else:
@@ -198,7 +227,8 @@ class BE21xx(BiltModule, DCPowerSourceWithMeasure):
             if kind != 'voltage':
                 raise ValueError('')
             else:
-                return float(self.query(f'I{self.parent.ch_id};MEAS:VOLT?'))
+                msg = self._header_() + 'MEAS:VOLT?'
+                return float(self.visa_resource.query(msg))
 
         @o
         @Action()
@@ -248,6 +278,10 @@ class BE21xx(BiltModule, DCPowerSourceWithMeasure):
 
             return FloatLimitsValidator(low, high, step, 'V')
 
+        @o
+        def _header_(self):
+            return f'I{self.parent.id};'
+
 
 class BE210x(BE21xx):
     """Driver for the Bilt BE2100 high precision dc voltage source.
@@ -277,6 +311,38 @@ class BE214x(BE21xx):
     __version__ = '0.1.0'
 
     output = channel((0, 1, 2, 3))
+
+    with output as o:
+
+        o.OUTPUT_STATES = {0: 'normal',
+                           11: 'main failure',
+                           12: 'system failure',
+                           17: 'regulation issue',
+                           18: 'over-current'}
+
+        def default_get_feature(self, feat, cmd, *args, **kwargs):
+            """Prepend module selection to command.
+
+            """
+            cmd = f'C{self.id};' + cmd
+            return self.parent.default_get_feature(feat, cmd, *args, **kwargs)
+
+        def default_set_feature(self, feat, cmd, *args, **kwargs):
+            """Prepend module selection to command.
+
+            """
+            cmd = f'C{self.id};' + cmd
+            return self.parent.default_set_feature(feat, cmd, *args, **kwargs)
+
+        o.trigger = subsystem()
+        with o.trigger as tr:
+            #: The BE2141 requires the triggering to be disabled before
+            #: changing the triggering mode when the output is enabled.
+            tr.mode = set_feat(setter='TRIG:IN 0;TRIG:IN {}')
+
+        @o
+        def _header_(self):
+            return f'I{self.parent.id};C{self.id};'
 
 
 class BE2141(BE214x):

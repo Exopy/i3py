@@ -49,6 +49,8 @@ class BiltModule(Channel):
     """Base driver for module used with the Bilt chassis.
 
     """
+    CHANNEL_ID = 'module_id'
+
     identity = subsystem(Identity)
 
     with identity as i:
@@ -58,12 +60,12 @@ class BiltModule(Channel):
         """Prepend module selection to command.
 
         """
-        cmd = 'I{ch_id};'+cmd
-        return super().default_get_feature(feat, cmd, *args, **kwargs)
+        cmd = f'I{self.id};' + cmd
+        return self.parent.default_get_feature(feat, cmd, *args, **kwargs)
 
     def default_set_feature(self, feat, cmd, *args, **kwargs):
         """Prepend module selection to command.
 
         """
-        cmd = 'I{ch_id};'+cmd
-        return super().default_set_feature(feat, cmd, *args, **kwargs)
+        cmd = f'I{self.id};' + cmd
+        return self.parent.default_set_feature(feat, cmd, *args, **kwargs)

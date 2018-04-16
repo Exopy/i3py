@@ -17,6 +17,7 @@ from i3py.core.features import Options, Str
 
 from .testing_tools import DummyParent, DummyDriver
 
+# XXX test non default CHANNEL_ID
 
 class ChParent1(DummyParent):
 
@@ -37,6 +38,7 @@ class CustomDescriptor(ChannelDescriptor):
 class ChParent2(DummyParent):
 
     ch = channel(('a',), container_type=CustomContainer)
+    ch.CHANNEL_ID = 'module_id'
 
 
 class ChParent3(DummyParent):
@@ -98,7 +100,7 @@ def test_ch_default_set():
         assert a.d_set_called == 1
         assert a.d_set_cmd == 'Test'
         assert a.d_set_args == (1,)
-        assert a.d_set_kwargs == {'ch_id': 'a', 'a': 2}
+        assert a.d_set_kwargs == {'module_id': 'a', 'a': 2}
 
 
 def test_custom_container():

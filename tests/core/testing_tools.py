@@ -35,6 +35,7 @@ class DummyParent(HasFeatures):
         self.check_mess = ''
         self.lock = RLock()
         self.retries_exceptions = ()
+        self.root = self
 
     def default_get_feature(self, feat, cmd, *args, **kwargs):
         self.d_get_called += 1

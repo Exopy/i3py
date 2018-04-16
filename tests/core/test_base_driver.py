@@ -49,7 +49,7 @@ def test_bdriver_check():
 
 def test_bdriver_connected():
     with raises(NotImplementedError):
-        BaseDriver(a=1).connected
+        BaseDriver(a=1).is_connected()
 
 
 def test_bdriver_context():

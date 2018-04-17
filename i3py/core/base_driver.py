@@ -9,14 +9,13 @@
 """BaseInstrument defines the common expected interface for all drivers.
 
 """
-from typing import Hashable
-from threading import RLock
-from weakref import WeakKeyDictionary, WeakValueDictionary
-from textwrap import fill
 from inspect import cleandoc
+from textwrap import fill
+from threading import RLock
+from typing import Hashable
+from weakref import WeakKeyDictionary, WeakValueDictionary
 
 from .abstracts import AbstractBaseDriver
-from .errors import I3pyTimeoutError
 from .has_features import HasFeatures
 
 
@@ -83,15 +82,7 @@ class BaseDriver(HasFeatures, metaclass=InstrumentSigleton):
     caching_allowed : bool, optionnal
         Boolean use to determine if instrument properties can be cached
 
-    Attributes
-    ----------
-    secure_com_except : tuple
-        Class attributes used to determine which errors to take into account
-        when securing a communication.
-
     """
-    secure_com_except = (I3pyTimeoutError,)
-
     def __init__(self, *args, **kwargs):
         super(BaseDriver, self).__init__(kwargs.get('caching_allowed', True))
 

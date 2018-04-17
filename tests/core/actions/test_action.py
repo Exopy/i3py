@@ -19,8 +19,6 @@ from i3py.core.errors import I3pyFailedCall
 from i3py.core.features import Options
 from ..testing_tools import DummyParent, DummyDriver
 
-# XXX check that the trick to get a nice traceback does work
-
 
 def test_naked_action():
     """Test defining a simple action.
@@ -68,6 +66,29 @@ def test_handling_double_decoration():
 
     with raises(RuntimeError):
         Dummy.test(lambda x: x)
+
+
+def test_retries_support():
+    """Test the get_chain capacity to iterate in case of driver issue.
+
+    """
+    class Dummy(DummyParent):
+
+        called = 0
+        retries_exceptions = (RuntimeError,)
+
+        @Action(retries=1)
+        def test(self):
+            print(self.retries_exceptions)
+            Dummy.called += 1
+            raise RuntimeError()
+
+    dummy = Dummy()
+    with raises(I3pyFailedCall) as e:
+        dummy.test()
+
+    assert str(e.getrepr()).strip().startswith('def __call__')
+    assert Dummy.called == 2
 
 
 def test_options_action():

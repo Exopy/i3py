@@ -9,7 +9,7 @@
 """Implements the Action class used to wrap public driver methods.
 
 """
-from functools import partial
+from functools import partial, update_wrapper
 from inspect import Signature, currentframe, signature
 from typing import Any, Callable, Dict, List, Optional, Tuple, Type, Union
 
@@ -39,6 +39,27 @@ CALL_TEMPLATE = ("""
                                  kwargs)
             raise I3pyFailedCall(fmt_msg) from e
 """)
+
+
+def add_retries(func, action):
+    """Re-call if the call fail due to a communication issue.
+
+    """
+    def wrapper(driver, *args, **kwargs):
+        i = -1
+        while i < action._retries:
+            try:
+                i += 1
+                return action.func(driver, *args, **kwargs)
+            except driver.retries_exceptions:
+                if i != action._retries:
+                    driver.reopen_connection()
+                    continue
+                else:
+                    raise
+
+    update_wrapper(wrapper, func)
+    return wrapper
 
 
 class ActionCall(object):
@@ -122,6 +143,7 @@ class BaseAction(SupportMethodCustomization):
         self.sig: Optional[Signature] = None
         self.creation_kwargs: dict = kwargs
         self._desc: Optional[ActionCall] = None
+        self._retries: int = kwargs.get('retries', 0)
         self._use_options = bool(kwargs.get('options', False))
 
     def __call__(self, func: Callable) -> 'BaseAction':
@@ -253,6 +275,8 @@ class BaseAction(SupportMethodCustomization):
         """Store the function in call attributes.
 
         """
+        if self._retries:
+            func = add_retries(func, self)
         self.call = func
 
         if 'checks' in kwargs:
@@ -398,6 +422,10 @@ class Action(BaseAction):
         passed argument. None can be used to mark that an argument should not
         be converted. The first argument (self) should always be marked this
         way.
+
+    retries: int, optional
+        Number of times to re-attempt to call the decoarated function if an
+        exception listed in the driver `retries_exception` occurs.
 
     Notes
     -----

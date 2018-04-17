@@ -184,7 +184,8 @@ class BaseVisaDriver(BaseDriver):
     """
     #: Exceptions triggering a new communication attempts for Features with a
     #: non zero retries values.
-    retries_exceptions = (TimeoutError, errors.VisaIOError)  # type: ignore
+    retries_exceptions = (TimeoutError, errors.VisaIOError,  # type: ignore
+                          errors.InvalidSession)
 
     #: Interfaces supported by the instrument.
     #: For each type of interface a dictionary (or a list of dictionary),

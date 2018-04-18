@@ -562,20 +562,44 @@ class HasFeatures(object):
 
         return self._limits_cache[limits_id]
 
-    def discard_limits(self, limits_id: Iterable[str]) -> None:
+    def discard_limits(self, limits_ids: Iterable[str]) -> None:
         """Remove a limits from the cache.
 
         This is called when a Feature declare a limits key in the discard dict.
 
         Parameters
         ----------
-        limits_id : iterable
-            Iterable of the ids of the limits to discard.
+        limits_ids : iterable
+            Iterable of the ids of the limits to discard. The id can contain
+            leading dots to access to the parent limits.
 
         """
-        for lim_id in limits_id:
-            if lim_id in self._limits_cache:
-                del self._limits_cache[lim_id]
+        cache = self._limits_cache
+        par = list()
+        sss: Dict[str, List[str]] = defaultdict(list)
+        chs: Dict[str, List[str]] = defaultdict(list)
+        for name in limits_ids:
+            if '.' in name:
+                aux, n = name.split('.', 1)
+                if not aux:
+                    par.append(n)
+                elif aux in self.__subsystems__:
+                    sss[aux].append(n)
+                else:
+                    chs[aux].append(n)
+            elif name in cache:
+                del cache[name]
+
+        if par:
+            self.parent.discard_limits(par)  # type: ignore
+
+        for ss in sss:
+            getattr(self, ss).discard_limits(sss[ss])
+
+        if self.__channels__:
+            for channel_name in chs:
+                for o in getattr(self, channel_name):
+                    o.discard_limits(chs[channel_name])
 
     def reopen_connection(self):
         """Reopen the connection to the instrument.

@@ -168,7 +168,7 @@ class SubpartDecl(object):
         docs = {k[-1]: v for k, v in s_docs.items()
                 if k[0] in self._aliases_ and len(k) == 2}
         meta = type(bases[0])
-        name = parent_cls.__name__ + self._name_.capitalize()
+        name = parent_cls.__name__ + '_' + self._name_.capitalize()
 
         # Add docs to the class dictionary before creation (the slots are not
         # listed in __dict__)

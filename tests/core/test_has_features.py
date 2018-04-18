@@ -1007,6 +1007,8 @@ def test_limits():
     decl.discard_limits(('test', ))
     assert decl.get_limits('test') is not r
 
+    # XXX test discard limits on parent and subsystems and channels
+
 
 # --- Miscellaneous -----------------------------------------------------------
 

@@ -22,6 +22,10 @@ class I3pyError(Exception):
     pass
 
 
+class I3pyLazyImportFailed(I3pyError):
+    pass
+
+
 class I3pyInvalidCommand(I3pyError):
     pass
 

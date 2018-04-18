@@ -12,9 +12,9 @@
 from typing import Callable, Optional
 
 from i3py.core import (FloatLimitsValidator, channel, customize, set_feat,
-                       subsystem)
+                       subsystem, limit)
 from i3py.core.actions import Action
-from i3py.core.features import Float, Str, constant
+from i3py.core.features import Float, Str, Bool, constant
 from i3py.core.job import InstrJob
 from i3py.core.unit import FLOAT_QUANTITY, to_float
 from stringparser import Parser
@@ -84,10 +84,44 @@ class BE21xx(BiltModule, DCPowerSourceWithMeasure):
                                    discard={'features': ('voltage',),
                                             'limits': ('voltage',)})
 
+        o.current_limit_behavior = set_feat(getter=constant('trip'))
+
         #: Specify stricter voltage limitations than the ones linked to the
         #: range.
         o.voltage_saturation = subsystem()
         with o.voltage_saturation as vs:
+
+            #: Is the low voltage limit enabled.
+            vs.low_enabled = Bool('VOLT:SAT:NEG?', 'VOLT:SAT:NEG {}')
+
+            @vs
+            @customize('low_enabled', 'post_get', ('prepend',))
+            def _convert_low_answer(feat, driver, value):
+                return not value == 'MIN'
+
+            @vs
+            @customize('low_enabled', 'pre_set', ('prepend',))
+            def _prepare_low_answer(feat, driver, value):
+                if value:
+                    return driver.low
+                else:
+                    return 'MIN'
+
+            #: Is the high voltage limit enabled.
+            vs.high_enabled = Bool('VOLT:SAT:POS?', 'VOLT:SAT:POS {}')
+
+            @vs
+            @customize('high_enabled', 'post_get', ('prepend',))
+            def _convert_high_answer(feat, driver, value):
+                return not value == 'MAX'
+
+            @vs
+            @customize('high_enabled', 'pre_set', ('prepend',))
+            def _prepare_high_answer(feat, driver, value):
+                if value:
+                    return driver.high
+                else:
+                    return 'MAX'
 
             #: Lowest allowed voltage.
             vs.low = Float('VOLT:SAT:NEG?', 'VOLT:SAT:NEG {}', unit='V',
@@ -159,7 +193,7 @@ class BE21xx(BiltModule, DCPowerSourceWithMeasure):
                                        unit='V', limits='voltage')
 
             @tr
-            @Action()
+            @Action(retries=1)
             def fire(self):
                 """Send a software trigger.
 
@@ -168,15 +202,15 @@ class BE21xx(BiltModule, DCPowerSourceWithMeasure):
                 self.root.visa_resource.write(msg)
 
         #: Status of the output. Save for the first one, they are all related
-        #: to dire issues that lead to switch off the output.
-        o.OUTPUT_STATES = {0: 'normal',
-                           5: 'main failure',
-                           6: 'system failure',
-                           7: 'temperature failure',
-                           8: 'regulation issue'}
+        #: to dire issues that lead to switching off the output.
+        o.OUTPUT_STATES = {0: 'constant-voltage',
+                           5: 'main-failure',
+                           6: 'system-failure',
+                           7: 'temperature-failure',
+                           8: 'unregulated'}
 
         @o
-        @Action()
+        @Action(retries=1)
         def read_output_status(self) -> str:
             """Determine the current status of the output.
 
@@ -188,7 +222,7 @@ class BE21xx(BiltModule, DCPowerSourceWithMeasure):
             return self.OUTPUT_STATES.get(answer, f'unknown({answer})')
 
         @o
-        @Action()
+        @Action(retries=1)
         def clear_output_status(self) -> None:
             """Clear the error condition of the output.
 
@@ -196,30 +230,32 @@ class BE21xx(BiltModule, DCPowerSourceWithMeasure):
             back on
 
             """
-            self.root.write.query(self._header_() + 'LIM:CLE')
+            self.root.visa_resource.write(self._header_() + 'LIM:CLEAR')
             if not self.read_output_status() == 'normal':
                 raise RuntimeError('Failed to clear output status.')
 
         @o
-        @Action()
+        @Action(retries=1)
         def read_voltage_status(self) -> str:
             """Progression of the current voltage update.
 
             Returns
             -------
-            progression : int
-                Progression of the voltage update. The value is between 0
-                and 1.
+            status: {'waiting', 'settled', 'changing'}
+                Status of the output voltage.
 
             """
             msg = self._header_() + 'VOLT:STAT?'
-            if int(self.root.visa_resource.query(msg)) == 1:
+            status = float(self.root.visa_resource.query(msg))
+            if status == 1:
                 return 'settled'
+            elif status == 0:
+                return 'waiting'
             else:
                 return 'changing'
 
         @o
-        @Action(unit=((None, None, None), 'V'))
+        @Action(unit=((None, None, None), 'V'), retries=1)
         def measure(self, kind, **kwargs) -> FLOAT_QUANTITY:
             """Measure the output voltage.
 
@@ -228,11 +264,12 @@ class BE21xx(BiltModule, DCPowerSourceWithMeasure):
                 raise ValueError('')
             else:
                 msg = self._header_() + 'MEAS:VOLT?'
-                return float(self.visa_resource.query(msg))
+                return float(self.root.visa_resource.query(msg))
 
         @o
         @Action()
         def wait_for_settling(self,
+                              stop_on_break: bool=True,
                               break_condition_callable:
                                   Optional[Callable[[], bool]]=None,
                               timeout: float=15,
@@ -241,6 +278,8 @@ class BE21xx(BiltModule, DCPowerSourceWithMeasure):
 
              Parameters
             ----------
+            cancel_on_break : bool, optional
+
             break_condition_callable : Callable, optional
                 Callable indicating that we should stop waiting.
 
@@ -257,15 +296,25 @@ class BE21xx(BiltModule, DCPowerSourceWithMeasure):
                 Boolean indicating if the wait succeeded of was interrupted.
 
             """
-            job = InstrJob(lambda: self.read_voltage_status() == 'settled', 1)
-            return job.wait_for_completion(break_condition_callable,
-                                           timeout, refresh_time)
+            def stop_ramp():
+                # We round to ensure that we never get any range issue
+                self.voltage = round(self.measure('voltage'), 4)
+                self.trigger.fire()
+
+            job = InstrJob(lambda: self.read_voltage_status() == 'settled', 1,
+                           cancel=stop_ramp)
+            result = job.wait_for_completion(break_condition_callable,
+                                             timeout, refresh_time)
+            if not result and stop_on_break:
+                job.cancel()
+            return result
 
         # =====================================================================
         # --- Private API -----------------------------------------------------
         # =====================================================================
 
         @o
+        @limit('voltage')
         def _limits_voltage(self):
             """Compute the voltage limits based on range and saturation.
 
@@ -289,7 +338,7 @@ class BE210x(BE21xx):
     """
     __version__ = '0.1.0'
 
-    output = channel((0,))
+    output = channel((1,))
 
     with output as o:
         #: Set the voltage settling filter. Slow 100 ms, Fast 10 ms
@@ -310,14 +359,31 @@ class BE214x(BE21xx):
     """
     __version__ = '0.1.0'
 
-    output = channel((0, 1, 2, 3))
+    #: Identity support (we do not use IEEEIdentity because we are not on the
+    #: root level).
+    identity = subsystem()
+
+    with identity as i:
+
+        #: Format string specifying the format of the IDN query answer and
+        #: allowing to extract the following information:
+        #: - manufacturer: name of the instrument manufacturer
+        #: - model: name of the instrument model
+        #: - serial: serial number of the instrument
+        #: - firmware: firmware revision
+        #: ex {manufacturer},<{model}>,SN{serial}, Firmware revision {firmware}
+        i.IEEE_IDN_FORMAT = ('{_:d},"{manufacturer:s} {model:s}B/{_:s}'
+                             '/SN{serial:s} LC{_:s} VL{firmware:s}'
+                             '\\{_:d}"')
+
+    output = channel((1, 2, 3, 4))
 
     with output as o:
 
         o.OUTPUT_STATES = {0: 'normal',
                            11: 'main failure',
                            12: 'system failure',
-                           17: 'regulation issue',
+                           17: 'unregulated',
                            18: 'over-current'}
 
         def default_get_feature(self, feat, cmd, *args, **kwargs):

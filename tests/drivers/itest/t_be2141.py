@@ -22,10 +22,10 @@ from i3py.drivers.itest import BN100
 
 with BN100(VISA_RESOURCE_NAME) as rack:
 
-        # Test reading all features
-    print('Available modules', rack.be2101.available)
+    # Test reading all features
+    print('Available modules', rack.be2141.available)
 
-    module = rack.be2101[MODULE_INDEX]
+    module = rack.be2141[MODULE_INDEX]
     print('Manufacturer', module.identity.manufacturer)
     print('Model', module.identity.model)
     print('Serial number', module.identity.serial)

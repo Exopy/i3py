@@ -15,6 +15,7 @@ from concurrent.futures import ThreadPoolExecutor
 import pytest
 
 from i3py.core.lazy_package import LazyPackage
+from i3py.core.errors import I3pyLazyImportFailed
 
 
 def test_getting_a_local_value():
@@ -57,3 +58,13 @@ def test_handling_missing_attr():
                                              'ctypes', '', {'a': 1})})
     with pytest.raises(AttributeError):
         pack.b
+
+
+def test_handling_broken_import():
+    """Test that we get the proper error in a meaningless case.
+
+    """
+    pack = LazyPackage({'ThreadPoolExecutor': '.ctypes.ThreadPoolExecutor'},
+                       'concurrent', '', {'a': 1})
+    with pytest.raises(I3pyLazyImportFailed):
+        pack.ThreadPoolExecutor

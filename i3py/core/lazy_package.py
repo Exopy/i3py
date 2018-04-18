@@ -14,6 +14,8 @@ from itertools import chain
 from types import ModuleType
 from typing import Any, Dict, List
 
+from .errors import I3pyLazyImportFailed
+
 
 class LazyPackage(ModuleType):
     """A module which differs the import of objects.
@@ -82,7 +84,11 @@ class LazyPackage(ModuleType):
         if attr_name in self._lazy_imports:
             mod, attr = self._lazy_imports[attr_name].rsplit('.', 1)
             mod = mod if mod.startswith('.') else '.' + mod
-            mod_obj = import_module(mod, self.__package__)
+            try:
+                mod_obj = import_module(mod, self.__package__)
+            except Exception as e:
+                msg = f'Failed to import {mod} from {self.__package__}'
+                raise I3pyLazyImportFailed(msg) from e
             return getattr(mod_obj, attr)
 
         if attr_name in self._local_vars:

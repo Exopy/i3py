@@ -21,7 +21,7 @@ class DCPowerSource(HasFeatures):
     """
 
     #: Outputs of the source. By default we declare a single output on index 0.
-    output = channel((0,))
+    output = channel((1,))
 
     with output as o:
 
@@ -68,16 +68,16 @@ class DCPowerSource(HasFeatures):
 
             Returns
             -------
-            status : {'constant_voltage', 'constant_current',
-                      'over_voltage', 'over_current', 'unregulated'}
+            status : {'constant-voltage', 'constant-current',
+                      'over-voltage', 'over-current', 'unregulated'}
                 The possible values for the output status are the following.
                 - 'constant_voltage': the target voltage was reached before the
                   target current and voltage_limit_behavior is 'regulate'.
-                - 'constant_current': the target current was reached before the
+                - 'constant-current': the target current was reached before the
                   target voltage and current_limit_behavior is 'regulate'.
-                - 'over_voltage': the output tripped after reaching the
+                - 'over-voltage': the output tripped after reaching the
                   voltage limit.
-                - 'over_current': the output tripped after reaching the
+                - 'over-current': the output tripped after reaching the
                   current limit.
                 - 'unregulated': The output of the instrument is not stable.
 

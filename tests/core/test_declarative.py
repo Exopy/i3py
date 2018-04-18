@@ -107,7 +107,7 @@ def test_subpart_decl_build_cls(subpart_decl):
     cls = subpart_decl.build_cls(Test, None, {'sub': 'Test docs',
                                               'ss.a': 'A docs'})
     assert cls.__doc__ == 'Test docs'
-    assert cls.__name__ == 'TestSub'
+    assert cls.__name__ == 'Test_Sub'
     assert not hasattr(cls, '_docs_')
     assert cls.a.__doc__.split('\n')[0] == 'A docs'
     assert cls
@@ -118,7 +118,7 @@ def test_subpart_decl_build_cls(subpart_decl):
         pass
 
     cls2 = subpart_decl.build_cls(T, cls, {})
-    assert cls2.__name__ == 'TSub'
+    assert cls2.__name__ == 'T_Sub'
     assert cls2.mro()[1] is cls
 
 

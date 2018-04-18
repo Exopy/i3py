@@ -20,7 +20,6 @@ from .abstracts import (AbstractMethodCustomizer,
                         AbstractSupportMethodCustomization)
 
 
-# XXX rework for keyword only args
 def normalize_signature(sig: Signature,
                         alias: Optional[str]=None) -> Tuple[str, ...]:
     """Normalize a function signature for quick matching.

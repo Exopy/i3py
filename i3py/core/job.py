@@ -74,7 +74,6 @@ class InstrJob(object):
         while True:
             remaining_time = (self.expected_waiting_time -
                               (time.time() - self._start_time))
-            print(remaining_time)
             if remaining_time <= 0:
                 break
             time.sleep(min(refresh_time, remaining_time))

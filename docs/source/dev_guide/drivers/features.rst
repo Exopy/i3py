@@ -138,7 +138,8 @@ utilities. The following list illustrates them:
 - 'discard': available on all |Feature| subclasses
   A list of features whose cache value should be discarded when the feature
   value is set. Alternatively a dict whose keys are 'features' and 'limits'
-  can be used to also specify to discard some cached limits.
+  can be used to also specify to discard some cached limits. One can access to
+  the features and limits defined on the parent component using leading dots.
 
 - 'values': available on |Str|, |Int| and |Float|
   A tuple of acceptable values for the feature.

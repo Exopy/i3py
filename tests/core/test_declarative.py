@@ -213,7 +213,7 @@ def test_set_action_customize():
 
 
 def test_limit_extract_id():
-    """Test decoarting a limit function.
+    """Test decorating a limit function.
 
     """
     l = limit('voltage')
@@ -223,3 +223,18 @@ def test_limit_extract_id():
 
     assert l.name == 'voltage'
     assert l(func).func is func
+
+
+def test_limit_in_subsystem(subpart_decl):
+    """Test decorating a limit function in a subsystem.
+
+    """
+    with subpart_decl as ss:
+        ss.a = 1
+
+        @ss
+        @limit('voltage')
+        def test(self):
+            pass
+
+    assert subpart_decl.test.name == 'voltage'

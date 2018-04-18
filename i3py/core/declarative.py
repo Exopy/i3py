@@ -514,7 +514,7 @@ class limit(object):
     `AbstractLimitsValidator`.
 
     """
-    __slots__ = ('name', 'func')
+    __slots__ = ('name', 'func', '__name__')
 
     def __init__(self, limit_name: Optional[str]=None) -> None:
         self.name = limit_name
@@ -524,6 +524,7 @@ class limit(object):
                                 AbstractLimitsValidator]
                  ) -> 'limit':
         self.func = func
+        self.__name__ = func.__name__
         return self
 
 

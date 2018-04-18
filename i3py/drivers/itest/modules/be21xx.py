@@ -72,7 +72,8 @@ class BE21xx(BiltModule, DCPowerSourceWithMeasure):
         o.enabled = set_feat(getter='OUTP?', setter='OUTP {}',
                              mapping={False: '0', True: '1'},
                              checks=(None,
-                                     'driver.read_output_status() == "normal"')
+                                     'driver.read_output_status() == '
+                                     '"constant-voltage"')
                              )
 
         o.voltage = set_feat(getter='VOLT?', setter='VOLT {:E}',
@@ -80,7 +81,7 @@ class BE21xx(BiltModule, DCPowerSourceWithMeasure):
 
         o.voltage_range = set_feat(getter='VOLT:RANG?', setter='VOLT:RANG {}',
                                    values=(1.2, 12), extract='{},{_}',
-                                   checks=(None, 'not driver.output'),
+                                   checks=(None, 'not driver.enabled'),
                                    discard={'features': ('voltage',),
                                             'limits': ('voltage',)})
 
@@ -91,8 +92,12 @@ class BE21xx(BiltModule, DCPowerSourceWithMeasure):
         o.voltage_saturation = subsystem()
         with o.voltage_saturation as vs:
 
-            #: Is the low voltage limit enabled.
-            vs.low_enabled = Bool('VOLT:SAT:NEG?', 'VOLT:SAT:NEG {}')
+            #: Is the low voltage limit enabled. If this conflict with the
+            #: current voltage, the voltage will clipped to th smallest allowed
+            #: value.
+            vs.low_enabled = Bool('VOLT:SAT:NEG?', 'VOLT:SAT:NEG {}',
+                                  discard={'features': ('.voltage',),
+                                           'limits': ('.voltage',)})
 
             @vs
             @customize('low_enabled', 'post_get', ('prepend',))
@@ -100,15 +105,19 @@ class BE21xx(BiltModule, DCPowerSourceWithMeasure):
                 return not value == 'MIN'
 
             @vs
-            @customize('low_enabled', 'pre_set', ('prepend',))
+            @customize('low_enabled', 'pre_set', ('append',))
             def _prepare_low_answer(feat, driver, value):
                 if value:
                     return driver.low
                 else:
                     return 'MIN'
 
-            #: Is the high voltage limit enabled.
-            vs.high_enabled = Bool('VOLT:SAT:POS?', 'VOLT:SAT:POS {}')
+            #: Is the high voltage limit enabled. If this conflict with the
+            #: current voltage, the voltage will clipped to th largest allowed
+            #: value.
+            vs.high_enabled = Bool('VOLT:SAT:POS?', 'VOLT:SAT:POS {}',
+                                   discard={'features': ('.voltage',),
+                                            'limits': ('.voltage',)})
 
             @vs
             @customize('high_enabled', 'post_get', ('prepend',))
@@ -116,20 +125,28 @@ class BE21xx(BiltModule, DCPowerSourceWithMeasure):
                 return not value == 'MAX'
 
             @vs
-            @customize('high_enabled', 'pre_set', ('prepend',))
+            @customize('high_enabled', 'pre_set', ('append',))
             def _prepare_high_answer(feat, driver, value):
                 if value:
                     return driver.high
                 else:
                     return 'MAX'
 
-            #: Lowest allowed voltage.
+            #: Lowest allowed voltage. If this conflict with the current
+            #: voltage, the voltage will clipped to th smallest allowed
+            #: value.
             vs.low = Float('VOLT:SAT:NEG?', 'VOLT:SAT:NEG {}', unit='V',
-                           limits=(-12, 0), discard={'limits': ('voltage',)})
+                           limits=(-12, 0),
+                           discard={'features': ('.voltage',),
+                                    'limits': ('.voltage',)})
 
-            #: Highest allowed voltage.
+            #: Highest allowed voltage. If this conflict with the current
+            #: voltage, the voltage will clipped to th smallest allowed
+            #: value.
             vs.high = Float('VOLT:SAT:POS?', 'VOLT:SAT:POS {}', unit='V',
-                            limits=(0, 12), discard={'limits': ('voltage',)})
+                            limits=(0, 12),
+                            discard={'features': ('.voltage',),
+                                    'limits': ('.voltage',)})
 
             @vs
             @customize('low', 'post_get', ('prepend',))
@@ -190,7 +207,7 @@ class BE21xx(BiltModule, DCPowerSourceWithMeasure):
             #: Absolute threshold value of the settling tracking comparator.
             tr.ready_amplitude = Float('TRIG:READY:AMPL?',
                                        'TRIG:READY:AMPL {}',
-                                       unit='V', limits='voltage')
+                                       unit='V', limits=(1.2e-6, 1))
 
             @tr
             @Action(retries=1)
@@ -198,8 +215,18 @@ class BE21xx(BiltModule, DCPowerSourceWithMeasure):
                 """Send a software trigger.
 
                 """
-                msg = f'I {self.parent.parent.id};TRIG:IN:INIT'
+                msg = self.parent._header_() + 'TRIG:IN:INIT'
                 self.root.visa_resource.write(msg)
+
+            @tr
+            @Action(retries=1)
+            def is_trigger_ready(self) -> bool:
+                """Check if the output is within ready_amplitude of the target
+                value.
+
+                """
+                msg = self.parent._header_() + 'TRIG:READY?'
+                return bool(int(self.root.visa_resource.query(msg)))
 
         #: Status of the output. Save for the first one, they are all related
         #: to dire issues that lead to switching off the output.
@@ -235,9 +262,12 @@ class BE21xx(BiltModule, DCPowerSourceWithMeasure):
                 raise RuntimeError('Failed to clear output status.')
 
         @o
-        @Action(retries=1)
+        @Action(retries=1, checks='driver.trigger.mode != "disabled"')
         def read_voltage_status(self) -> str:
             """Progression of the current voltage update.
+
+            This action return meaningful values if we use a triggered setting
+            of the output.
 
             Returns
             -------
@@ -267,7 +297,7 @@ class BE21xx(BiltModule, DCPowerSourceWithMeasure):
                 return float(self.root.visa_resource.query(msg))
 
         @o
-        @Action()
+        @Action(checks='driver.trigger.mode != "disabled"')
         def wait_for_settling(self,
                               stop_on_break: bool=True,
                               break_condition_callable:
@@ -276,7 +306,10 @@ class BE21xx(BiltModule, DCPowerSourceWithMeasure):
                               refresh_time: float=1) -> bool:
             """Wait for the output to settle.
 
-             Parameters
+            This action should only be used in conjunction with a triggered
+            setting.
+
+            Parameters
             ----------
             cancel_on_break : bool, optional
 
@@ -320,12 +353,13 @@ class BE21xx(BiltModule, DCPowerSourceWithMeasure):
 
             """
             rng = to_float(self.voltage_range)
-            low = max(-rng, float(self.voltage_saturation.low))
-            high = min(rng, float(self.voltage_saturation.high))
+            low = max(-rng,
+                      float(self.voltage_saturation.low)
+                      if self.voltage_saturation.low_enabled else -15)
+            high = min(rng, float(self.voltage_saturation.high)
+                       if self.voltage_saturation.high_enabled else 15)
 
-            step = 1.2e-6 if rng == 1.2 else 1.2e-5
-
-            return FloatLimitsValidator(low, high, step, 'V')
+            return FloatLimitsValidator(low, high, unit='V')
 
         @o
         def _header_(self):
@@ -404,7 +438,7 @@ class BE214x(BE21xx):
         with o.trigger as tr:
             #: The BE2141 requires the triggering to be disabled before
             #: changing the triggering mode when the output is enabled.
-            tr.mode = set_feat(setter='TRIG:IN 0;TRIG:IN {}')
+            tr.mode = set_feat(setter='TRIG:IN 0\nTRIG:IN {}')
 
         @o
         def _header_(self):

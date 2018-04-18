@@ -30,7 +30,7 @@ class Bool(Mapping):
     def __init__(self,
                  getter: Any=None,
                  setter: Any=None,
-                 mapping: Optional[dict]=None,
+                 mapping: dict={True: True, False:False},
                  aliases: Optional[Dict[bool, Sequence]]=None,
                  extract: str='',
                  retries: int=0,

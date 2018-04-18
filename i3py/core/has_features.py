@@ -260,9 +260,11 @@ class HasFeatures(object):
         # reverse update preserves the mro of overridden features and actions.
         base_feats = {}
         base_actions = {}
+        base_limits = {}
         for base in reversed(bases):
             base_feats.update(base.__feats__)
             base_actions.update(base.__actions__)
+            base_limits.update(base.__limits__)
 
         # Clone all features/actions not owned at this stage and keep a
         # reference to it in the proper dict.
@@ -276,6 +278,10 @@ class HasFeatures(object):
         # features/actions.
         for key, cust in m_customizers.items():
             cust.customize(cls, key)
+
+        # Add the limits defined on the class to the inherited ones
+        base_limits.update(limits)
+        limits = base_limits
 
         # Put a reference to the features dict on the class.
         cls.__feats__ = feats

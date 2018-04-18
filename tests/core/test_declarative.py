@@ -229,6 +229,9 @@ def test_limit_in_subsystem(subpart_decl):
     """Test decorating a limit function in a subsystem.
 
     """
+    class Test:
+        pass
+
     with subpart_decl as ss:
         ss.a = 1
 
@@ -238,3 +241,6 @@ def test_limit_in_subsystem(subpart_decl):
             pass
 
     assert subpart_decl.test.name == 'voltage'
+    cls = subpart_decl.build_cls(Test, None, {'sub': 'Test docs',
+                                              'ss.a': 'A docs'})
+    assert 'voltage' in cls.__limits__

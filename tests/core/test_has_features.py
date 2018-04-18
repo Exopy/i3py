@@ -997,7 +997,10 @@ def test_limits():
         def _limits_test(self):
             return object()
 
-    decl = LimitsDecl()
+    class InheritedLimits(LimitsDecl):
+        pass
+
+    decl = InheritedLimits()
     assert set(decl.declared_limits) == set(['test'])
     r = decl.get_limits('test')
     assert decl.get_limits('test') is r

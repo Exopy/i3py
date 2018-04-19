@@ -17,7 +17,6 @@ from i3py.core.features import Options, Str
 
 from .testing_tools import DummyParent, DummyDriver
 
-# XXX test non default CHANNEL_ID
 
 class ChParent1(DummyParent):
 

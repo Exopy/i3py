@@ -997,17 +997,36 @@ def test_limits():
         def _limits_test(self):
             return object()
 
+        ss = subsystem()
+        with ss:
+
+            @ss
+            @limit('test')
+            def _ss_limits_test(self):
+                return object()
+
+        ch = channel((1, 2))
+        with ch:
+
+            @ch
+            @limit('test')
+            def _ch_limits_test(self):
+                return object()
+
     class InheritedLimits(LimitsDecl):
         pass
 
     decl = InheritedLimits()
-    assert set(decl.declared_limits) == set(['test'])
-    r = decl.get_limits('test')
-    assert decl.get_limits('test') is r
-    decl.discard_limits(('test', ))
-    assert decl.get_limits('test') is not r
+    lims = {}
+    for obj in (decl, decl.ss, decl.ch[1], decl.ch[2]):
+        assert set(obj.declared_limits) == set(['test'])
+        r = obj.get_limits('test')
+        assert obj.get_limits('test') is r
+        lims[obj] = r
 
-    # XXX test discard limits on parent and subsystems and channels
+    decl.ss.discard_limits(('test', '.test', '.ch.test'))
+    for obj in (decl, decl.ss, decl.ch[1], decl.ch[2]):
+        assert decl.get_limits('test') is not lims[obj]
 
 
 # --- Miscellaneous -----------------------------------------------------------

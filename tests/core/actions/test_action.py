@@ -39,16 +39,20 @@ def test_naked_action():
 def test_erroring_action():
     """Ensure that an action erroring generate a readable traceback.
 
+    We also check that we properly acquire release the driver lock if needed.
+
     """
     class Dummy(DummyParent):
 
-        @Action()
+        @Action(lock=True)
         def test(self):
+            assert self.lock._is_owned()
             raise RuntimeError()
 
     dummy = Dummy()
     with raises(I3pyFailedCall) as e:
         dummy.test()
+    assert not dummy.lock._is_owned()
 
     print(e.getrepr())
     assert str(e.getrepr()).strip().startswith('def __call__')

@@ -143,8 +143,13 @@ AbstractFeature.register(VisaFeature)
 class VisaAction(BaseAction):
     """Action used for method modifying the VISA resource state.
 
+    By default all calls to visa actions acquie the instrument lock to protect
+    the instrument.
+
     """
-    pass
+    def __init__(self, **kwargs):
+        kwargs.setdefault('lock', True)
+        super().__init__(**kwargs)
 
 
 def timeout_deleter(obj):

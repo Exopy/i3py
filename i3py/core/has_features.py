@@ -195,10 +195,6 @@ class HasFeatures(object):
                         docs[attr_name] = doc.strip()
                         doc = ''
 
-        # Make the feature build their docs from the provided docstrings.
-        for f in [f for f in feats if f in docs]:
-            feats[f].make_doc(docs[f])
-
         # Collect the subsystems and channels in reversed order to preserve
         # the mro overriding
         inherited_ss = dict([(k, v) for b in reversed(bases)
@@ -278,6 +274,11 @@ class HasFeatures(object):
         # features/actions.
         for key, cust in m_customizers.items():
             cust.customize(cls, key)
+
+        # Make the features build/update their docs from the provided
+        # docstrings.
+        for f in feats:
+            feats[f].make_doc(docs.get(f))
 
         # Add the limits defined on the class to the inherited ones
         base_limits.update(limits)

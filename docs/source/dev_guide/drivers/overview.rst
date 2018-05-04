@@ -100,7 +100,7 @@ does not change in a spontaneous way. This restriction comes from the fact that
 the values of features are cached. They can and should be discarded when some
 other setting of the driver is modified, but not in a spontaneous manner.
 
-To a add a Feature to your instrument you have nothing else to do that assign
+To add a Feature to your instrument you have nothing else to do that assign
 a Feature subclass to an identifier. As illustrated in the example below :
 
 .. code-block:: python
@@ -136,7 +136,7 @@ arguments values.
 The detailed working of Features is detailed in :ref:`dev-driv-features`, and
 all the existing  features are described in the API. Finally, as instruments
 can be often quite surprising in their behaviors, the default behaviors of the
-provided features  may prove insufficient. More complex customization are
+provided features may prove insufficient. More complex customization are
 possible and detailed in the section :ref:`dev-driv-advanced` of this manual.
 
 Adding an Action

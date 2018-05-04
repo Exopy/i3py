@@ -535,7 +535,10 @@ class AbstractFeature(property, AbstractSupportMethodCustomization):
     #: initialized. This is used when customizing.
     creation_kwargs: Dict[str, Any]
 
-    __slots__ = ('creation_kwargs', 'name')
+    #: Documentation provided by comments above the declaration of the Feature.
+    raw_doc : str
+
+    __slots__ = ('creation_kwargs', 'name', 'raw_doc')
 
     @abstractmethod
     def make_doc(self, doc: str) -> str:

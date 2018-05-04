@@ -464,6 +464,7 @@ class set_feat(object):
         new = cls(**kwargs)
         new.copy_custom_behaviors(feat)
         new.name = feat.name
+        new.raw_doc = feat.raw_doc
         new.__doc__ = feat.__doc__
 
         return new

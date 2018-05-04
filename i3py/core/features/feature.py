@@ -102,6 +102,7 @@ class Feature(SupportMethodCustomization, property):
         self._setter = setter
         self._retries = retries
         self._customs = {}
+        self.raw_doc = ''
         self.__doc__ = ''
         self.name = ''
 
@@ -139,10 +140,15 @@ class Feature(SupportMethodCustomization, property):
 
         self._use_options = bool(options)
 
-    def make_doc(self, doc: str):
+    def make_doc(self, doc: Optional[str]):
         """Build the doc of the feature based on the passed string and kwargs.
 
         """
+        if doc:
+            self.raw_doc = doc
+        else:
+            doc = self.raw_doc
+
         ftype = ('read/write ' if (self.creation_kwargs['getter'] and
                                    self.creation_kwargs['setter'])
                  else ('read only' if self.creation_kwargs['getter'] else
@@ -382,6 +388,7 @@ class Feature(SupportMethodCustomization, property):
         new = type(self)(**self.creation_kwargs)
         new.copy_custom_behaviors(self)
         new.name = self.name
+        new.raw_doc = self.raw_doc
         new.__doc__ = self.__doc__
 
         return new

@@ -37,6 +37,30 @@ def test_documenting_feature():
         'This is the docstring for the Feature test.'
 
 
+def test_updating_feature_documentation():
+    """Test that we properly update the documentation of a Feature when using
+    set_feat.
+
+    """
+    class DocTester(DummyParent):
+
+        #: This is the docstring for
+        #: the Feature test.
+        test = Feature(True)
+
+    assert DocTester.test.__doc__.split('\n')[0] ==\
+        'This is the docstring for the Feature test.'
+    assert 'read only' in DocTester.test.__doc__.split('\n')[1]
+
+    class DocTester2(DocTester):
+
+        test = set_feat(setter=True)
+
+    assert DocTester2.test.__doc__.split('\n')[0] ==\
+        'This is the docstring for the Feature test.'
+    assert 'read/write' in DocTester2.test.__doc__.split('\n')[1]
+
+
 source =\
 """
 class DocTester(DummyParent):

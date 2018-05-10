@@ -21,11 +21,14 @@ class DCPowerSource(HasFeatures):
     """
 
     #: Outputs of the source. By default we declare a single output on index 0.
-    output = channel((1,))
+    output = channel((0,))
 
     with output as o:
 
-        #: Is the output on or off. Note that this value does not
+        #: Is the output on or off.
+        #: Care should be taken that this value may not be up to date if a
+        #: failure occured. To know the current status of the output use
+        #: read_output_status, this feature only store the target setting.
         o.enabled = Bool(aliases={True: ['On', 'ON', 'On'],
                                   False: ['Off', 'OFF', 'off']})
 
@@ -66,24 +69,31 @@ class DCPowerSource(HasFeatures):
         def read_output_status(self) -> str:
             """Determine the status of the output.
 
+            The generic format of the status is status:reason, if the reason is
+            not known used 'unknown'. The following values correspond to usual
+            situations.
+
             Returns
             -------
-            status : {'constant-voltage', 'constant-current',
-                      'over-voltage', 'over-current', 'unregulated'}
+            status : {'disabled',
+                      'enabled:constant-voltage',
+                      'enabled:constant-current',
+                      'tripped:over-voltage',
+                      'tripped:over-current',
+                      'unregulated'}
                 The possible values for the output status are the following.
-                - 'constant_voltage': the target voltage was reached before the
-                  target current and voltage_limit_behavior is 'regulate'.
-                - 'constant-current': the target current was reached before the
-                  target voltage and current_limit_behavior is 'regulate'.
-                - 'over-voltage': the output tripped after reaching the
+                - 'disabled': the output is currently disabled
+                - 'enabled:constant-voltage': the target voltage was reached
+                  before the target current and voltage_limit_behavior is
+                  'regulate'.
+                - 'enabled:constant-current': the target current was reached
+                   before the target voltage and current_limit_behavior is
+                   'regulate'.
+                - 'tripped:over-voltage': the output tripped after reaching the
                   voltage limit.
-                - 'over-current': the output tripped after reaching the
+                - 'tripped:over-current': the output tripped after reaching the
                   current limit.
                 - 'unregulated': The output of the instrument is not stable.
-
-            Notes
-            -----
-            Calling this function is meaningful only if the output is enabled.
 
             """
             raise NotImplementedError()
@@ -122,7 +132,6 @@ class DCPowerSourceWithMeasure(DCPowerSource):
             raise NotImplementedError()
 
 
-# TODO complete once we have a real use for it
 class DCSourceTriggerSubsystem(SubSystem):
     """Subsystem handing the usual triggering mechanism of DC sources.
 
@@ -143,6 +152,42 @@ class DCSourceTriggerSubsystem(SubSystem):
     @Action()
     def arm(self):
         """Make the system ready to receive a trigger event.
+
+        """
+        pass
+
+
+class DCSourceProtectionSubsystem(SubSystem):
+    """Interface for DC source protection.
+
+    """
+    #: Is the protection enabled.
+    enabled = Bool(aliases={True: ['On', 'ON', 'On'],
+                            False: ['Off', 'OFF', 'off']})
+
+    #: How the output behaves when the low/limit is reached.
+    behavior = Str(constant('trip'))
+
+    #: Lower limit below which the setting is not allowed to go.
+    low_level = Float()
+
+    #: Higher limit above which the setting is not allowed to go.
+    high_level = Float()
+
+    @Action()
+    def read_status(self) -> str:
+        """Read the current status of the protection.
+
+        Returns
+        -------
+        status : {'working', 'tripped'}
+
+        """
+        pass
+
+    @Action()
+    def reset(self) -> None:
+        """Reset the protection after an issue.
 
         """
         pass

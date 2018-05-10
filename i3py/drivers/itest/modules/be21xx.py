@@ -66,9 +66,10 @@ class BE21xx(BiltModule, DCPowerSourceWithMeasure):
                     customize(f, 'post_get')(_post_getter))
 
     #: DC outputs
-    output = channel((1,))
+    output = channel((0,))
 
     with output as o:
+
         o.enabled = set_feat(getter='OUTP?', setter='OUTP {}',
                              mapping={False: '0', True: '1'},
                              checks=(None,
@@ -84,8 +85,6 @@ class BE21xx(BiltModule, DCPowerSourceWithMeasure):
                                    checks=(None, 'not driver.enabled'),
                                    discard={'features': ('voltage',),
                                             'limits': ('voltage',)})
-
-        o.current_limit_behavior = set_feat(getter=constant('trip'))
 
         #: Specify stricter voltage limitations than the ones linked to the
         #: range.
@@ -146,7 +145,7 @@ class BE21xx(BiltModule, DCPowerSourceWithMeasure):
             vs.high = Float('VOLT:SAT:POS?', 'VOLT:SAT:POS {}', unit='V',
                             limits=(0, 12),
                             discard={'features': ('.voltage',),
-                                    'limits': ('.voltage',)})
+                                     'limits': ('.voltage',)})
 
             @vs
             @customize('low', 'post_get', ('prepend',))
@@ -171,7 +170,7 @@ class BE21xx(BiltModule, DCPowerSourceWithMeasure):
         with o.trigger as tr:
             #: Type of response to triggering :
             #: - disabled : immediate update of voltage every time the voltage
-            #:   feature is updated. The update respect the slope.
+            #:   feature is updated.
             #: - slope : update after receiving a trigger based on the slope
             #:   value.
             #: - stair : update after receiving a trigger using step_amplitude
@@ -230,10 +229,10 @@ class BE21xx(BiltModule, DCPowerSourceWithMeasure):
 
         #: Status of the output. Save for the first one, they are all related
         #: to dire issues that lead to switching off the output.
-        o.OUTPUT_STATES = {0: 'constant-voltage',
-                           5: 'main-failure',
-                           6: 'system-failure',
-                           7: 'temperature-failure',
+        o.OUTPUT_STATES = {0: 'enabled:constant-voltage',
+                           5: 'tripped:main-failure',
+                           6: 'tripped:system-failure',
+                           7: 'tripped:temperature-failure',
                            8: 'unregulated'}
 
         @o
@@ -242,10 +241,14 @@ class BE21xx(BiltModule, DCPowerSourceWithMeasure):
             """Determine the current status of the output.
 
             """
+            if not self.enabled:
+                return 'disabled'
             msg = self._header_() + 'LIM:FAIL?'
             answer = int(self.root.visa_resource.query(msg))
+            # If a failure occured the whole card switches off.
             if answer != 0:
-                del self.enabled
+                for o in self.parent.output:
+                    del self.enabled
             return self.OUTPUT_STATES.get(answer, f'unknown({answer})')
 
         @o
@@ -285,33 +288,45 @@ class BE21xx(BiltModule, DCPowerSourceWithMeasure):
                 return 'changing'
 
         @o
-        @Action(unit=((None, None, None), 'V'), retries=1)
-        def measure(self, kind, **kwargs) -> FLOAT_QUANTITY:
+        @Action(unit=((None, None, None), 'V'),
+                values={'quantity': ('voltage',)}, retries=1)
+        def measure(self, quantity, **kwargs) -> FLOAT_QUANTITY:
             """Measure the output voltage.
 
             """
-            if kind != 'voltage':
-                raise ValueError('')
-            else:
-                msg = self._header_() + 'MEAS:VOLT?'
-                return float(self.root.visa_resource.query(msg))
+            msg = self._header_() + 'MEAS:VOLT?'
+            return float(self.root.visa_resource.query(msg))
 
         @o
-        @Action(checks='driver.trigger.mode != "disabled"')
+        @Action(checks=('not (method == "voltage_status" and'
+                        ' self.trigger.mode == "disabled")'),
+                values={'method': ('measure', 'trigger_ready',
+                                   'voltage_status')}
+                )
         def wait_for_settling(self,
+                              method: str='measure',
                               stop_on_break: bool=True,
                               break_condition_callable:
                                   Optional[Callable[[], bool]]=None,
                               timeout: float=15,
-                              refresh_time: float=1) -> bool:
+                              refresh_time: float=1,
+                              tolerance: float=1e-5) -> bool:
             """Wait for the output to settle.
-
-            This action should only be used in conjunction with a triggered
-            setting.
 
             Parameters
             ----------
-            cancel_on_break : bool, optional
+            method : {'measure', 'trigger_ready', 'voltage_status'}
+                Method used to estimate that the target voltage was reached.
+                - 'measure': measure the output voltage and compare to target
+                  within tolerance (see tolerance)
+                - 'trigger_ready': rely on the trigger ready status.
+                - 'voltage_status': rely on the voltage status reading, this
+                  does work only for triggered settings.
+
+            stop_on_break : bool, optional
+                Should the ramp be stopped if the break condition is met. This
+                is achieved through a quick measurement of the output followed
+                by a setting and a trigger.
 
             break_condition_callable : Callable, optional
                 Callable indicating that we should stop waiting.
@@ -322,6 +337,10 @@ class BE21xx(BiltModule, DCPowerSourceWithMeasure):
 
             refresh_time : float, optional
                 Time interval at which to check the break condition.
+
+            tolerance : float, optional
+                Tolerance used to determine that the target was reached when
+                using the measure method.
 
             Returns
             -------
@@ -334,8 +353,23 @@ class BE21xx(BiltModule, DCPowerSourceWithMeasure):
                 self.voltage = round(self.measure('voltage'), 4)
                 self.trigger.fire()
 
-            job = InstrJob(lambda: self.read_voltage_status() == 'settled', 1,
-                           cancel=stop_ramp)
+            if method == "measure":
+                def has_reached_target():
+                    if 'tripped' in self.read_output_status():
+                        raise RuntimeError(f'Output {self.ch_id} tripped')
+                    return abs(self.voltage - self.measure('voltage'))
+            elif method == "trigger_ready":
+                def has_reached_target():
+                    if 'tripped' in self.read_output_status():
+                        raise RuntimeError(f'Output {self.ch_id} tripped')
+                    return self.trigger.is_trigger_ready()
+            else:
+                def has_reached_target():
+                    if 'tripped' in self.read_output_status():
+                        raise RuntimeError(f'Output {self.ch_id} tripped')
+                    return self.read_voltage_status() == 'settled'
+
+            job = InstrJob(has_reached_target, 1, cancel=stop_ramp)
             result = job.wait_for_completion(break_condition_callable,
                                              timeout, refresh_time)
             if not result and stop_on_break:
@@ -372,12 +406,17 @@ class BE210x(BE21xx):
     """
     __version__ = '0.1.0'
 
-    output = channel((1,))
+    output = channel((0,))
 
     with output as o:
         #: Set the voltage settling filter. Slow 100 ms, Fast 10 ms
         o.voltage_filter = Str('VOLT:FIL?', 'VOLT:FIL {}',
                                mapping={'Slow': '0', 'Fast': '1'})
+
+        #: Is the remote sensing of the voltage enabled.
+        o.remote_sensing = Bool('VOLT:REM?', 'VOLT:REM {:d}',
+                                aliases={True: ('ON', 'On', 'on'),
+                                         False: ('OFF', 'Off', 'off')})
 
 
 class BE2101(BE210x):
@@ -410,34 +449,36 @@ class BE214x(BE21xx):
                              '/SN{serial:s} LC{_:s} VL{firmware:s}'
                              '\\{_:d}"')
 
-    output = channel((1, 2, 3, 4))
+    output = channel((0, 1, 2, 3))
 
     with output as o:
 
-        o.OUTPUT_STATES = {0: 'normal',
-                           11: 'main failure',
-                           12: 'system failure',
+        o.OUTPUT_STATES = {0: 'enabled',
+                           11: 'tripped:main-failure',
+                           12: 'tripped:system-failure',
                            17: 'unregulated',
-                           18: 'over-current'}
+                           18: 'tripped:over-current'}
+
+        o.current_limit_behavior = set_feat(getter=constant('trip'))
 
         def default_get_feature(self, feat, cmd, *args, **kwargs):
-            """Prepend module selection to command.
+            """Prepend output selection to command.
 
             """
-            cmd = f'C{self.id};' + cmd
+            cmd = f'C{self.id + 1};' + cmd
             return self.parent.default_get_feature(feat, cmd, *args, **kwargs)
 
         def default_set_feature(self, feat, cmd, *args, **kwargs):
-            """Prepend module selection to command.
+            """Prepend output selection to command.
 
             """
-            cmd = f'C{self.id};' + cmd
+            cmd = f'C{self.id + 1};' + cmd
             return self.parent.default_set_feature(feat, cmd, *args, **kwargs)
 
         o.trigger = subsystem()
         with o.trigger as tr:
-            #: The BE2141 requires the triggering to be disabled before
-            #: changing the triggering mode when the output is enabled.
+            # HINT The BE2141 requires the triggering to be disabled before
+            # changing the triggering mode when the output is enabled.
             tr.mode = set_feat(setter='TRIG:IN 0\nTRIG:IN {}')
 
         @o

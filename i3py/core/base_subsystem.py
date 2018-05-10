@@ -45,10 +45,11 @@ class SubSystem(HasFeatures):
         """Access the root component.
 
         """
-        if isinstance(self.parent, AbstractBaseDriver):
-            return self.parent
-        else:
-            return self.parent.root
+        parent = self.parent
+        while not isinstance(parent, AbstractBaseDriver):
+            parent = parent.parent
+
+        return parent
 
     def reopen_connection(self) -> None:
         """Subsystems simply pipes the call to their parent.

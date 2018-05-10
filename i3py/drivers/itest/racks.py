@@ -59,21 +59,21 @@ class BN100(BiltMainframe):
 
 
 class BN101(BiltMainframe):
-    """Driver for the BN100 Bilt rack.
+    """Driver for the BN101 Bilt rack.
 
     """
     __version__ = '0.1.0'
 
 
 class BN103(BiltMainframe):
-    """Driver for the BN100 Bilt rack.
+    """Driver for the BN103 Bilt rack.
 
     """
     __version__ = '0.1.0'
 
 
 class BN105(BiltMainframe):
-    """Driver for the BN100 Bilt rack.
+    """Driver for the BN105 Bilt rack.
 
     """
     __version__ = '0.1.0'

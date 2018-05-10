@@ -18,7 +18,7 @@ from i3py.core.unit import to_float, to_quantity
 from ..base.dc_sources import (DCPowerSourceWithMeasure,
                                DCSourceTriggerSubsystem,
                                DCSourceProtectionSubsystem)
-from ..common.ieee488 import (IEEEInternalOperations, IEEEOperationComplete,
+from ..common.ieee488 import (IEEEInternalOperations,
                               IEEEOptionsIdentification, IEEEPowerOn,
                               IEEEStatusReporting, IEEEStoredSettings,
                               IEEESynchronisation, IEEETrigger)
@@ -27,10 +27,9 @@ from ..common.scpi.rs232 import SCPIRS232
 
 
 class KeysightE363xA(DCPowerSourceWithMeasure, IEEEInternalOperations,
-                     IEEEStatusReporting, IEEEOperationComplete,
-                     IEEEOptionsIdentification, IEEEStoredSettings,
-                     IEEETrigger, IEEESynchronisation, IEEEPowerOn,
-                     SCPIErrorReading, SCPIRS232):
+                     IEEEStatusReporting, IEEEOptionsIdentification,
+                     IEEEStoredSettings, IEEETrigger, IEEESynchronisation,
+                     IEEEPowerOn, SCPIErrorReading, SCPIRS232):
     """Driver for the Keysight E3631A DC power source.
 
     """

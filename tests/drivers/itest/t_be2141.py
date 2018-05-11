@@ -6,7 +6,7 @@
 #
 # The full license is in the file LICENCE, distributed with this software.
 # -----------------------------------------------------------------------------
-"""This file is meant to check the working of the driver for the BE2101.
+"""This file is meant to check the working of the driver for the BE2141.
 
 The rack is expected to have a BE2101 in one slot, whose output can be safely
 switched on and off and whose output value can vary (and has a large impedance)
@@ -33,7 +33,7 @@ with BN100(VISA_RESOURCE_NAME) as rack:
     print('Firmware', module.identity.firmware)
 
     print('Testing output')
-    output = module.output[1]
+    output = module.output[0]
     for f_name in output.__feats__:
         print('    ', f_name, getattr(output, f_name))
 

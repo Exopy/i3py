@@ -12,6 +12,7 @@
 import sys
 from i3py.core.lazy_package import LazyPackage
 
-DRIVERS = {}
+DRIVERS = {'E3631A': 'E363XA.E3631A', 'E3633A': 'E363XA.E3633A',
+           'E3634A': 'E363XA.E3634A'}
 
 sys.modules[__name__] = LazyPackage(DRIVERS, __name__, __doc__, locals())

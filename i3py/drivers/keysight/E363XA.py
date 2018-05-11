@@ -32,6 +32,8 @@ class KeysightE363xA(DCPowerSourceWithMeasure, IEEEInternalOperations,
                      IEEEPowerOn, SCPIErrorReading, SCPIRS232):
     """Driver for the Keysight E3631A DC power source.
 
+    XXX proper format for IDN
+
     """
     __version__ = '0.1.0'
 
@@ -41,6 +43,19 @@ class KeysightE363xA(DCPowerSourceWithMeasure, IEEEInternalOperations,
 
     DEFAULTS = {'COMMON': {'write_termination': '\n',
                            'read_termination': '\n'}}
+
+    identity = subsystem()
+
+    with identity as i:
+
+        #: Format string specifying the format of the IDN query answer and
+        #: allowing to extract the following information:
+        #: - manufacturer: name of the instrument manufacturer
+        #: - model: name of the instrument model
+        #: - serial: serial number of the instrument
+        #: - firmware: firmware revision
+        #: ex {manufacturer},<{model}>,SN{serial}, Firmware revision {firmware}
+        i.IEEE_IDN_FORMAT = ''
 
     output = channel((0,))
 
@@ -178,7 +193,7 @@ class KeysightE3631A(KeysightE363xA):
                            aliases={True: ['On', 'ON', 'On'],
                                     False: ['Off', 'OFF', 'off']})
 
-    #: Whether to couple together teh output triggers, causing a trigger
+    #: Whether to couple together the output triggers, causing a trigger
     #: received on one to update the other values.
     coupled_triggers = Feature(getter=True, setter=True,
                                checks=(None, ('value is False or '

@@ -12,6 +12,6 @@
 import sys
 from i3py.core.lazy_package import LazyPackage
 
-DRIVERS = {}
+DRIVERS = {'GS200': 'gs200.GS200', 'Model7651': 'model_7651.Model7651'}
 
 sys.modules[__name__] = LazyPackage(DRIVERS, __name__, __doc__, locals())

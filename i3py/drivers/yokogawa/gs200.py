@@ -47,6 +47,7 @@ class GS200(DCPowerSource, IEEEInternalOperations,
 
     XXX add motivation for use of limits (basically always enabled and behave
     just like a target value)
+    XXX proper format for IDN
 
     """
     __version__ = '0.1.0'
@@ -60,6 +61,19 @@ class GS200(DCPowerSource, IEEEInternalOperations,
 
     DEFAULTS = {'COMMON': {'read_termination': '\n',
                            'write_termination': '\n'}}
+
+    identity = subsystem()
+
+    with identity as i:
+
+        #: Format string specifying the format of the IDN query answer and
+        #: allowing to extract the following information:
+        #: - manufacturer: name of the instrument manufacturer
+        #: - model: name of the instrument model
+        #: - serial: serial number of the instrument
+        #: - firmware: firmware revision
+        #: ex {manufacturer},<{model}>,SN{serial}, Firmware revision {firmware}
+        i.IEEE_IDN_FORMAT = ''
 
     output = channel((0,))
 
@@ -125,14 +139,14 @@ class GS200(DCPowerSource, IEEEInternalOperations,
                 return 'tripped:unknown'
             elif (event & 2**11) or (event & 2**10):
                 if self.mode == 'voltage':
-                    return 'constant current'
+                    return 'enabled:constant-current'
                 else:
-                    return 'constant voltage'
+                    return 'enabled:constant-voltage'
             else:
                 if self.mode == 'voltage':
-                    return 'constant voltage'
+                    return 'enabled:constant-voltage'
                 else:
-                    return 'constant current'
+                    return 'enabled:constant-current'
 
         # TODO add support for options and measuring subsystem (change
         # inheritance)

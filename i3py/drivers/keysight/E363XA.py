@@ -183,11 +183,6 @@ class KeysightE3631A(KeysightE363xA):
     """Driver for the Keysight E3631A DC power source.
 
     """
-    PROTOCOLS = {'GPIB': 'INSTR', 'ASRL': 'INSTR'}
-
-    DEFAULTS = {'COMMON': {'write_termination': '\n',
-                           'read_termination': '\n'}}
-
     #: In this model, outputs are always enabled together.
     outputs_enabled = Bool('OUTP?', 'OUTP {:d}',
                            aliases={True: ['On', 'ON', 'On'],
@@ -224,7 +219,7 @@ class KeysightE3631A(KeysightE363xA):
         o.current_range = set_feat(getter=True)
 
         @o
-        @Action()
+        @Action(lock=True, values={'quantity': ('voltage', 'current')})
         def measure(self, quantity, **kwargs):
             """Measure the output voltage/current.
 
@@ -243,19 +238,17 @@ class KeysightE3631A(KeysightE363xA):
                 object.
 
             """
-            with self.lock:
-                self.parent.write('INSTR:SELECT %s' % self.id)
-                super().measure(quantity, **kwargs)
+            self.parent.write('INSTR:SELECT %s' % self.id)
+            super().measure(quantity, **kwargs)
 
         @o
-        @Action()
+        @Action(lock=True)
         def apply(self, voltage, current):
             """Set both the voltage and current limit.
 
             """
-            with self.lock:
-                self.parent.write('INSTR:SELECT %s' % self.id)
-                super().apply(voltage, current)
+            self.parent.write('INSTR:SELECT %s' % self.id)
+            super().apply(voltage, current)
 
         @o
         @Action()
@@ -287,7 +280,7 @@ class KeysightE3631A(KeysightE363xA):
         with o.trigger as t:
 
             @o
-            @Action()
+            @Action(lock=True)
             def arm(self):
                 """Prepare the channel to receive a trigger.
 
@@ -295,9 +288,8 @@ class KeysightE3631A(KeysightE363xA):
                 the command is processed.
 
                 """
-                with self.lock:
-                    self.root.visa_resource.write(f'INSTR:NSEL {self.id + 1}')
-                    super().arm()
+                self.root.visa_resource.write(f'INSTR:NSEL {self.id + 1}')
+                super().arm()
 
         @o
         def default_get_feature(self, feat, cmd, *args, **kwargs):

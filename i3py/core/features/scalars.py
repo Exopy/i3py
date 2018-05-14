@@ -33,7 +33,8 @@ class Str(Mapping, Enumerable):
                  mapping: Optional[dict]=None,
                  extract: str='',
                  retries: int=0,
-                 checks: Optional[str]=None,
+                 checks: Union[Optional[str],
+                               Tuple[Optional[str], Optional[str]]]=None,
                  discard: Optional[Union[Tuple[str, ...],
                                          Dict[str, Tuple[str, ...]]]]=None,
                  options: Optional[str]=None) -> None:
@@ -66,7 +67,8 @@ class Int(LimitsValidated, Mapping, Enumerable):
                                         Tuple]]=None,
                  extract: str='',
                  retries: int=0,
-                 checks: Optional[str]=None,
+                 checks: Union[Optional[str],
+                               Tuple[Optional[str], Optional[str]]]=None,
                  discard: Optional[Union[Tuple[str, ...],
                                          Dict[str, Tuple[str, ...]]]]=None,
                  options: Optional[str]=None) -> None:
@@ -110,7 +112,8 @@ class Float(LimitsValidated, Mapping, Enumerable):
                  unit: Optional[str]=None,
                  extract: str='',
                  retries: int=0,
-                 checks: Optional[str]=None,
+                 checks: Union[Optional[str],
+                               Tuple[Optional[str], Optional[str]]]=None,
                  discard: Optional[Union[Tuple[str, ...],
                                          Dict[str, Tuple[str, ...]]]]=None,
                  options: Optional[str]=None) -> None:

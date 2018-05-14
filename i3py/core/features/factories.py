@@ -83,7 +83,7 @@ class conditional(AbstractGetSetFactory):
         accessible as value.
 
     default : bool
-        Pass the result of the conditional evalutation to the
+        Pass the result of the conditional evaluation to the
         default_get/set_feature method of the driver if True, otherwise
         directly return the result.
         When building a setter this MUST be true.

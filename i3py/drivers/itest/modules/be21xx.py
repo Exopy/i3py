@@ -71,10 +71,7 @@ class BE21xx(BiltModule, DCPowerSourceWithMeasure):
     with output as o:
 
         o.enabled = set_feat(getter='OUTP?', setter='OUTP {}',
-                             mapping={False: '0', True: '1'},
-                             checks=(None,
-                                     'driver.read_output_status() == '
-                                     '"constant-voltage"')
+                             mapping={False: '0', True: '1'}
                              )
 
         o.voltage = set_feat(getter='VOLT?', setter='VOLT {:E}',
@@ -245,7 +242,7 @@ class BE21xx(BiltModule, DCPowerSourceWithMeasure):
                 return 'disabled'
             msg = self._header_() + 'LIM:FAIL?'
             answer = int(self.root.visa_resource.query(msg))
-            # If a failure occured the whole card switches off.
+            # If a failure occurred the whole card switches off.
             if answer != 0:
                 for o in self.parent.output:
                     del self.enabled
@@ -261,8 +258,12 @@ class BE21xx(BiltModule, DCPowerSourceWithMeasure):
 
             """
             self.root.visa_resource.write(self._header_() + 'LIM:CLEAR')
-            if not self.read_output_status() == 'normal':
-                raise RuntimeError('Failed to clear output status.')
+            new_status = self.read_output_status()
+            if 'tripped' in new_status or 'unregulated' in new_status:
+                _, err = self.root.read_error()
+                raise RuntimeError('Failed to clear output status. '
+                                   f'Current status is {new_status}, '
+                                   f'the error message is {err}.')
 
         @o
         @Action(retries=1, checks='driver.trigger.mode != "disabled"')
@@ -356,17 +357,17 @@ class BE21xx(BiltModule, DCPowerSourceWithMeasure):
             if method == "measure":
                 def has_reached_target():
                     if 'tripped' in self.read_output_status():
-                        raise RuntimeError(f'Output {self.ch_id} tripped')
+                        raise RuntimeError(f'Output {self.id} tripped')
                     return abs(self.voltage - self.measure('voltage'))
             elif method == "trigger_ready":
                 def has_reached_target():
                     if 'tripped' in self.read_output_status():
-                        raise RuntimeError(f'Output {self.ch_id} tripped')
+                        raise RuntimeError(f'Output {self.id} tripped')
                     return self.trigger.is_trigger_ready()
             else:
                 def has_reached_target():
                     if 'tripped' in self.read_output_status():
-                        raise RuntimeError(f'Output {self.ch_id} tripped')
+                        raise RuntimeError(f'Output {self.id} tripped')
                     return self.read_voltage_status() == 'settled'
 
             job = InstrJob(has_reached_target, 1, cancel=stop_ramp)
@@ -411,10 +412,12 @@ class BE210x(BE21xx):
     with output as o:
         #: Set the voltage settling filter. Slow 100 ms, Fast 10 ms
         o.voltage_filter = Str('VOLT:FIL?', 'VOLT:FIL {}',
-                               mapping={'Slow': '0', 'Fast': '1'})
+                               mapping={'Slow': '0', 'Fast': '1'},
+                               checks=(None, 'driver.enabled == False'))
 
         #: Is the remote sensing of the voltage enabled.
-        o.remote_sensing = Bool('VOLT:REM?', 'VOLT:REM {:d}',
+        o.remote_sensing = Bool('VOLT:REM?', 'VOLT:REM {}',
+                                mapping={True: '1', False: '0'},
                                 aliases={True: ('ON', 'On', 'on'),
                                          False: ('OFF', 'Off', 'off')})
 
@@ -453,7 +456,7 @@ class BE214x(BE21xx):
 
     with output as o:
 
-        o.OUTPUT_STATES = {0: 'enabled',
+        o.OUTPUT_STATES = {0: 'enabled:constant-voltage',
                            11: 'tripped:main-failure',
                            12: 'tripped:system-failure',
                            17: 'unregulated',
@@ -483,7 +486,7 @@ class BE214x(BE21xx):
 
         @o
         def _header_(self):
-            return f'I{self.parent.id};C{self.id};'
+            return f'I{self.parent.id};C{self.id + 1};'
 
 
 class BE2141(BE214x):

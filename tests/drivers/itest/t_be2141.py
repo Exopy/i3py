@@ -36,12 +36,14 @@ with BN100(VISA_RESOURCE_NAME) as rack:
     output = module.output[0]
     for f_name in output.__feats__:
         print('    ', f_name, getattr(output, f_name))
+        delattr(output, f_name)
 
     for sub_name in output.__subsystems__:
         print('  Testing ', sub_name)
         sub = getattr(output, sub_name)
         for f_name in sub.__feats__:
             print('      ', f_name, getattr(sub, f_name))
+            delattr(sub, f_name)
 
     # Test action reading basic status
     print('Output status', output.read_output_status())
@@ -49,7 +51,7 @@ with BN100(VISA_RESOURCE_NAME) as rack:
     print('Measured output voltage', output.measure('voltage'))
 
     # Test settings and general behavior
-    print('Setting ouputs')
+    print('Setting outputs')
     output.voltage_saturation.low_enabled = False
     output.voltage_saturation.high_enabled = False
     print('Known limits', output.declared_limits)
@@ -61,18 +63,16 @@ with BN100(VISA_RESOURCE_NAME) as rack:
         output.read_voltage_status()
     except I3pyFailedCall:
         print('Cannot read voltage status in non-triggered mode')
-    try:
-        output.wait_for_settling()
-    except I3pyFailedCall:
-        print('Cannot wait for settling in non-triggered mode')
+    output.wait_for_settling()
 
-    # XXX test the other trigger modes
+    # TODO test the other trigger modes and other sync methods
     output.trigger.mode = 'slope'
     output.trigger.slope = 0.01
     output.voltage = 0.5
     output.trigger.fire()
     output.wait_for_settling()
-    print(output.measure('voltage'))
+    print(f'Measured output is {output.measure("voltage")}, '
+          f'target is {output.voltage}')
 
     output.voltage_saturation.low_enabled = True
     output.voltage_saturation.high_enabled = True

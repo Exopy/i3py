@@ -94,7 +94,8 @@ class Feature(SupportMethodCustomization, property):
                  setter: Any=None,
                  extract: str='',
                  retries: int=0,
-                 checks: Optional[str]=None,
+                 checks: Union[Optional[str],
+                               Tuple[Optional[str], Optional[str]]]=None,
                  discard: Optional[Union[Tuple[str, ...],
                                          Dict[str, Tuple[str, ...]]]]=None,
                  options: Optional[str]=None) -> None:

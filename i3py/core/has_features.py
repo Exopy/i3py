@@ -428,8 +428,8 @@ class HasFeatures(object):
         Returns
         -------
         cache : dict
-            Dict containing the cached value, if the properties arg is given
-            None will be returned for the field with no cached value.
+            Dict containing the cached value. If a required feature has no
+            cached value None will be returned instead.
 
         """
         cache = {}
@@ -444,7 +444,7 @@ class HasFeatures(object):
                     else:
                         chs[aux].append(n)
                 elif name in self._cache:
-                    cache[name] = self._cache[name]
+                    cache[name] = self._cache.get(name)
 
             for ss in sss:
                 cache[ss] = getattr(self, ss).check_cache(features=sss[ss])

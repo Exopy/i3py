@@ -24,6 +24,7 @@ def test_normalize_signature():
     """
     n_sig = lambda f, alias=None: normalize_signature(signature(f), alias)
     assert n_sig(lambda a, b: 0) == ('a', 'b')
+    assert n_sig(lambda a, b="e": 0) == ('a', "b='e'")
     assert n_sig(lambda a, b: 0, 'c') == ('a', 'b')
     assert n_sig(lambda self, b: 0, 'a') == ('a', 'b')
     assert n_sig(lambda self, *args: 0, 'a') == ('a', '*args')

@@ -53,7 +53,7 @@ def normalize_signature(sig: Signature,
             if arg.kind == arg.KEYWORD_ONLY and not seen_star:
                 norm_sig.append('*')
             norm_sig.append(arg.name if arg.default is Parameter.empty else
-                            arg.name + '=' + str(arg.default))
+                            arg.name + '=' + repr(arg.default))
 
     return tuple(norm_sig)
 

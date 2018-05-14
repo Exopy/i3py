@@ -13,7 +13,7 @@ switched on and off and whose output value can vary (and has a large impedance)
 
 """
 # Visa connection info
-VISA_RESOURCE_NAME = 'USB::::INSTR'
+VISA_RESOURCE_NAME = 'USB::0x0B21::0x0039::91N326145::INSTR'
 
 from i3py.core.errors import I3pyFailedCall, I3pyFailedSet
 from i3py.drivers.yokogawa import GS200
@@ -39,14 +39,12 @@ with GS200(VISA_RESOURCE_NAME) as driver:
 
     # Test action reading basic status
     print('Output status', output.read_output_status())
-    output.clear_output_status()
-    print('Measured output voltage', output.measure('voltage'))
-    print('Measured output current', output.measure('current'))
 
     # Test voltage mode
     print('Voltage mode')
     output.enabled = False
     output.mode = 'voltage'
+    print(output.check_cache())
     print('Known limits', output.declared_limits)
     output.voltage_range = 1
     output.enabled = True
@@ -57,9 +55,14 @@ with GS200(VISA_RESOURCE_NAME) as driver:
     # Test current mode
     print('Current mode')
     output.mode = 'current'
+    print(output.check_cache())
+    # del output.enabled
     assert not output.enabled
     output.enabled = True
     output.current_range = 0.2
     output.voltage = 10
     output.current = 0.1
     assert output.read_output_status() == 'enabled:constant-voltage'
+
+    driver.visa_resource.write('x_x')
+    driver.read_error()

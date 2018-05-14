@@ -9,7 +9,7 @@
 """Driver for the Yokogawa GS200 DC power source.
 
 """
-from i3py.core import (set_feat, channel, limit, customize,
+from i3py.core import (set_feat, subsystem, channel, limit, customize,
                        FloatLimitsValidator)
 from i3py.core.actions import Action
 from i3py.core.features import Str, conditional, constant
@@ -47,7 +47,6 @@ class GS200(DCPowerSource, IEEEInternalOperations,
 
     XXX add motivation for use of limits (basically always enabled and behave
     just like a target value)
-    XXX proper format for IDN
 
     """
     __version__ = '0.1.0'
@@ -56,7 +55,7 @@ class GS200(DCPowerSource, IEEEInternalOperations,
                  'USB': [{'resource_class': 'INSTR',
                           'manufacturer_id': '0xB21',
                           'model_code': '0x39'}],
-                 'TCPIP': [{'reource_class': 'INSTR'}]
+                 'TCPIP': [{'resource_class': 'INSTR'}]
                  }
 
     DEFAULTS = {'COMMON': {'read_termination': '\n',
@@ -73,7 +72,7 @@ class GS200(DCPowerSource, IEEEInternalOperations,
         #: - serial: serial number of the instrument
         #: - firmware: firmware revision
         #: ex {manufacturer},<{model}>,SN{serial}, Firmware revision {firmware}
-        i.IEEE_IDN_FORMAT = ''
+        i.IEEE_IDN_FORMAT = '{manufacturer},{model},{serial},{firmware}'
 
     output = channel((0,))
 
@@ -85,15 +84,18 @@ class GS200(DCPowerSource, IEEEInternalOperations,
         o.mode = Str(getter=':SOUR:FUNC?',
                      setter=':SOUR:FUNC {}',
                      mapping={'voltage': 'VOLT', 'current': 'CURR'},
-                     discard={'feature': ('enabled',
-                                          'voltage', 'voltage_range',
-                                          'current', 'current_range'),
+                     discard={'features': ('enabled',
+                                           'voltage', 'voltage_range',
+                                           'current', 'current_range'),
                               'limits': ('voltage', 'current')})
+
+        o.enabled = set_feat(getter=':OUTP?', setter=':OUTP {}',
+                             mapping={False: '0', True: '1'})
 
         o.voltage = set_feat(
             getter=conditional('":SOUR:LEV?" if driver.mode == "voltage" '
                                'else ":SOUR:PROT:VOLT?"', default=True),
-            setter=conditional('":SOUR:LEV {}" if self.mode == "voltage" '
+            setter=conditional('":SOUR:LEV {}" if driver.mode == "voltage" '
                                'else ":SOUR:PROT:VOLT {}"', default=True),
             limits='voltage')
 
@@ -101,11 +103,9 @@ class GS200(DCPowerSource, IEEEInternalOperations,
                                    setter=':SOUR:RANG {}',
                                    checks=(None, 'driver.mode == "voltage"'),
                                    values=(10e-3, 100e-3, 1.0, 10.0, 30.0),
-                                   discard={'features': ('ocp.enabled',
-                                                         'ocp.high_level'),
-                                            'limits': ('voltage',)})
+                                   discard={'limits': ('voltage',)})
 
-        o.voltage_limit_behavior = set_feat(getter=constant("regulate"))
+        o.current_limit_behavior = set_feat(getter=constant("regulate"))
 
         o.current = set_feat(getter=True,
                              setter=True,
@@ -133,7 +133,7 @@ class GS200(DCPowerSource, IEEEInternalOperations,
             """
             if not self.enabled:
                 return 'disabled'
-            event = int(self.root.visa_resource.query(':STAT:EVENT?:'))
+            event = int(self.root.visa_resource.query(':STAT:EVENT?'))
             if event & 2**12:
                 del self.enabled
                 return 'tripped:unknown'
@@ -157,33 +157,54 @@ class GS200(DCPowerSource, IEEEInternalOperations,
 
         @o
         @customize('current', 'get')
-        def _get_current(self, feat):
+        def _get_current(feat, driver):
             """Get the target/limit current.
 
             """
-            if self.mode != 'current':
-                if to_float(self.voltage_range) in (10e-3, 100e-3):
+            if driver.mode != 'current':
+                if to_float(driver.voltage_range) in (10e-3, 100e-3):
                     return 0.2
                 else:
-                    return self.default_get_feature(':SOUR:PROT:CURR?')
-            return self.default_get_feature(':SOUR:LEV?')
+                    return driver.default_get_feature(feat, ':SOUR:PROT:CURR?')
+            return driver.default_get_feature(feat, ':SOUR:LEV?')
 
         @o
         @customize('current', 'set')
-        def _set_current(self, feat, value):
+        def _set_current(feat, driver, value):
             """Set the target/limit current.
 
             In voltage mode this is only possible if the range is 1V or greater
 
             """
-            if self.mode != 'current':
-                if to_float(self.voltage_range) in (10e-3, 100e-3):
+            if driver.mode != 'current':
+                if to_float(driver.voltage_range) in (10e-3, 100e-3):
                     raise ValueError('Cannot set the current limit for ranges '
                                      '10mV and 100mV')
                 else:
-                    return self.default_set_feature(':SOUR:PROT:CURR {}',
-                                                    value)
-            return self.default_set_feature(':SOUR:LEV {}', value)
+                    return driver.default_set_feature(feat,
+                                                      ':SOUR:PROT:CURR {}',
+                                                      value)
+            return driver.default_set_feature(feat, ':SOUR:LEV {}', value)
+
+        @o
+        @customize('voltage_range', 'get')
+        def _get_voltage_range(feat, driver):
+            """Get the voltage range depending on the mode.
+
+            """
+            if driver.mode == 'voltage':
+                return driver.default_get_feature(feat, ':SOUR:RANG?')
+            return '30'
+
+        @o
+        @customize('current_range', 'get')
+        def _get_current_range(feat, driver):
+            """Get the current range depending on the mode.
+
+            """
+            if driver.mode == 'current':
+                return driver.default_get_feature(feat, ':SOUR:RANG?')
+            return '0.2'
 
         @o
         @limit('voltage')

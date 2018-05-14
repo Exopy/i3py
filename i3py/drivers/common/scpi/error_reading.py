@@ -28,7 +28,7 @@ class SCPIErrorReading(VisaMessageDriver):
         is empty.
 
         """
-        code, msg = self.visa_resource.query('SYST:ERR?').split(',')
+        code, msg = self.visa_resource.query('SYST:ERR?').split(',', 1)
         return int(code), msg
 
     def default_check_operation(self, feat, value, i_value, response):

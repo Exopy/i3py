@@ -41,7 +41,7 @@ def update_function_lineno(func: Callable, lineno: int) -> Callable:
 def report_on_assertion_error(assertion: str, namespace: dict) -> str:
     """Build a string explaining why an assertion failed.
 
-    The explanantion is built from the string representing the assertion and
+    The explanation is built from the string representing the assertion and
     the namespace in which the assertion was evaluated.
 
     """
@@ -91,7 +91,14 @@ def build_checker(checks: str,
     loc: Dict[str, Any] = {'assertions': assertions}
     glob = globals().copy()
     glob.update(loc)
-    exec(compile(func_def, __file__, 'exec'), glob, loc)
+    try:
+        exec(compile(func_def, __file__, 'exec'), glob, loc)
+    except Exception as e:
+        raise Exception('An exception occurred while trying to compile:\n'
+                        + func_def +
+                        '\n with the following local variables:\n'
+                        + pformat(loc) +
+                        '\n The exception was ' + pformat(e))
 
     return update_function_lineno(loc['check'], LINENO + 3)
 

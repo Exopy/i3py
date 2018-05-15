@@ -9,15 +9,14 @@
 """Driver for the Yokogawa GS200 DC power source.
 
 """
-from i3py.core import (set_feat, subsystem, channel, limit, customize,
-                       FloatLimitsValidator)
+from i3py.core import FloatLimitsValidator, channel, customize, limit, set_feat
 from i3py.core.actions import Action
 from i3py.core.features import Str, conditional, constant
 from i3py.core.unit import to_float
 
 from ..base.dc_sources import DCPowerSource
-from ..common.ieee488 import (IEEEInternalOperations, IEEEStatusReporting,
-                              IEEEOperationComplete, IEEEOptionsIdentification,
+from ..common.ieee488 import (IEEEInternalOperations, IEEEOperationComplete,
+                              IEEEOptionsIdentification, IEEEStatusReporting,
                               IEEEStoredSettings)
 from ..common.scpi.error_reading import SCPIErrorReading
 
@@ -60,19 +59,6 @@ class GS200(DCPowerSource, IEEEInternalOperations,
 
     DEFAULTS = {'COMMON': {'read_termination': '\n',
                            'write_termination': '\n'}}
-
-    identity = subsystem()
-
-    with identity as i:
-
-        #: Format string specifying the format of the IDN query answer and
-        #: allowing to extract the following information:
-        #: - manufacturer: name of the instrument manufacturer
-        #: - model: name of the instrument model
-        #: - serial: serial number of the instrument
-        #: - firmware: firmware revision
-        #: ex {manufacturer},<{model}>,SN{serial}, Firmware revision {firmware}
-        i.IEEE_IDN_FORMAT = '{manufacturer},{model},{serial},{firmware}'
 
     output = channel((0,))
 

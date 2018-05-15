@@ -266,7 +266,7 @@ class subsystem(SubpartDecl):
 
     checks : str, optional
         Booelan tests to execute before anything else when attempting use a
-        Feature or an Action of the subsytem. Multiple assertion can be
+        Feature or an Action of the subsystem. Multiple assertion can be
         separated with ';'. The subsystem can be accessed through the name
         driver just like in features.
 
@@ -276,7 +276,7 @@ class subsystem(SubpartDecl):
         by ;
 
     descriptor_type : type
-        Class to use as descriptor for this subsystem. Should be a sunclass of
+        Class to use as descriptor for this subsystem. Should be a subclass of
         AbstractSubSystemDescriptor.
 
     """
@@ -343,7 +343,7 @@ class channel(SubpartDecl):
 
     checks : str, optional
         Booelan tests to execute before anything else when attempting use a
-        Feature or an Action of the chnnel. Multiple assertion can be separated
+        Feature or an Action of the channel. Multiple assertion can be separated
         with ';'. The channel can be accessed through the name driver just like
         in features.
 
@@ -353,7 +353,7 @@ class channel(SubpartDecl):
         accessed under their name directly:
 
     descriptor_type : type
-        Class to use as descriptor for this subpart. Should be a sunclass of
+        Class to use as descriptor for this subpart. Should be a subclass of
         AbstractSubSystemDescriptor.
 
     """
@@ -453,6 +453,7 @@ class set_feat(object):
     """
     def __init__(self, **kwargs):
         self.custom_attrs = kwargs
+        self._owner = None
 
     def customize(self, feat: AbstractFeature) -> AbstractFeature:
         """Customize a feature using the given kwargs.
@@ -466,8 +467,13 @@ class set_feat(object):
         new.name = feat.name
         new.raw_doc = feat.raw_doc
         new.__doc__ = feat.__doc__
+        if hasattr(new, '__set_name__'):
+            new.__set_name__(self._owner, feat.name)
 
         return new
+
+    def __set_name__(self, owner: AbstractHasFeatures, name: str):
+        self._owner = owner
 
 
 AbstractFeatureModifier.register(set_feat)
@@ -486,6 +492,7 @@ class set_action(object):
     """
     def __init__(self, **kwargs):
         self.custom_attrs = kwargs
+        self._owner = None
 
     def customize(self, action: AbstractAction) -> AbstractAction:
         """Customize an action using the given kwargs.
@@ -500,8 +507,13 @@ class set_action(object):
         new.copy_custom_behaviors(action)
         new.name = action.name
         new.__doc__ = action.__doc__
+        if hasattr(new, '__set_name__'):
+            new.__set_name__(self._owner, action.name)
 
         return new
+
+    def __set_name__(self, owner: AbstractHasFeatures, name: str):
+        self._owner = owner
 
 
 AbstractActionModifier.register(set_action)

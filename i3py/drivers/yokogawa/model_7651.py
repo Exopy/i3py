@@ -9,11 +9,9 @@
 """Driver for the Yokogawa 7651 DC power source.
 
 """
-from functools import partial
-
 from i3py.core import (set_feat, set_action, channel, subsystem,
-                       limit, customize, FloatLimitsValidator)
-from i3py.core.features import conditional
+                       limit, customize, FloatLimitsValidator, I3pyError)
+from i3py.core.features import Str, conditional, constant
 from i3py.core.unit import to_float
 from i3py.core.actions import Action, RegisterAction
 from i3py.backends.visa import VisaMessageDriver
@@ -43,7 +41,7 @@ class Model7651(VisaMessageDriver, DCPowerSource):
 
     Notes
     -----
-    - we should check the mode on startup
+    - we should check the mode on startup (is it only possible ?)
     - ideally we should not keep the VisaSession opened on GPIB
     - add support for programs
     - add RS232 support
@@ -60,39 +58,50 @@ class Model7651(VisaMessageDriver, DCPowerSource):
         """Set the data termination.
 
         """
-        super().initialize()
-        self.visa_resource.write('DL0')  # Choose the termination character
-        self.visa_resource.write('MS31')  # Unmask the status byte by default.
+        print(self.resource_name)
+        try:
+            super().initialize()
+            # Choose the termination character
+            self.visa_resource.write('DL0')
+            # Unmask the status byte by default.
+            self.visa_resource.write('MS31')
+            # Clear the status byte
+            self.read_status_byte()
+        except Exception as e:
+            raise I3pyError('Connection failed to open. One possible reason '
+                            'is because the instrument is configured to write '
+                            'on the memory card.') from e
 
-    @RegisterAction(('Program setting',  # Program is currently edited
-                     'Program execution',  # Program under execution
-                     'Error',  # Previous command error
-                     'Output unustable',
-                     'Output on',
-                     'Calibration mode',
-                     'IC memory card',
-                     'CAL switch'))
+    @RegisterAction(('program_setting',  # Program is currently edited
+                     'program_execution',  # Program under execution
+                     'error',  # Previous command error
+                     'output_unstable',
+                     'output_on',
+                     'calibration mode',
+                     'ic_memory_card',
+                     'cal_switch'))
     def read_status_code(self):  # Should this live in a subsystem ?
         """Read the status code.
 
         """
-        return int(self.visa_resource.query('OC'))
+        # The return format is STS1={value}
+        return int(self.visa_resource.query('OC')[5:])
 
-    read_status_byte = set_action(names=('End of output change',
-                                         'SRQ key on',
-                                         'Syntax error',
-                                         'Limit error',
-                                         'Program end',
-                                         'Error',
-                                         'Request',
-                                         7))
+    read_status_byte = set_action(names=('end_of_output_change',
+                                         'srq_key_on',
+                                         'syntax_error',
+                                         'limit_error',
+                                         'program_end',
+                                         'error',
+                                         'request',
+                                         None))
 
     def is_connected(self):
         """Check whether or not the connection is opened.
 
         """
         try:
-            self.visa.resource.query('OC')
+            self.visa_resource.query('OC')
         except Exception:
             return False
 
@@ -102,51 +111,66 @@ class Model7651(VisaMessageDriver, DCPowerSource):
 
     with identity as i:
 
+        i.manufacturer = set_feat(getter=constant('Yokogawa'))
+
         i.model = set_feat(getter=True)
+
+        i.serial = set_feat(getter=constant('xxx'))
 
         i.firmware = set_feat(getter=True)
 
-        def _get_from_os(index, self):
+        @i
+        def _get_from_os(driver, index):
             """Read the requested info from OS command.
 
             """
-            visa_rsc = self.parent.visa_resource
+            parser = Parser('MDL{}REV{}')
+            visa_rsc = driver.parent.visa_resource
             mes = visa_rsc.query('OS')
             visa_rsc.read()
             visa_rsc.read()
             visa_rsc.read()
             visa_rsc.read()
-            return mes.split(',')[index]
+            return parser(mes)[index]
 
-        i._get_model = customize('model', 'get')(partial(0, i._get_from_os))
+        @i
+        @customize('model', 'get')
+        def _get_model(feat, driver):
+            return driver._get_from_os(0)
 
-        i._get_firmware = customize('model', 'get')(partial(1, i._get_from_os))
+        @i
+        @customize('firmware', 'get')
+        def _get_firmware(feat, driver):
+            return driver._get_from_os(1)
 
-    output = channel((1,))
+    output = channel((0,))
 
     with output as o:
-        o.function = set_feat(getter='OD',
-                              setter='F{}E',
-                              mapping=({'Voltage': '1', 'Current': '5'},
-                                       {'V': 'Voltage', 'A': 'Current'}),
-                              extract='{_}DC{}{_:+E}')
+        o.mode = Str('OD', 'F{}E',
+                     mapping=({'voltage': '1', 'current': '5'},
+                              {'V': 'voltage', 'A': 'current'}),
+                     extract='{_}DC{}{_:+E}',
+                     discard={'features': ('enabled', 'voltage', 'current',
+                                           'voltage_range', 'current_range'),
+                              'limits': ('current', 'voltage')})
 
         o.enabled = set_feat(getter=True,
                              setter='O{}E',
-                             mapping={True: 1, False: 0})
+                             mapping=({True: 1, False: 0}, None))
 
         o.voltage = set_feat(
             getter=True,
-            setter=conditional('"S{+E}E" if driver.mode == "voltage" '
-                               'else "LV{}E"', default=True),
+            setter=conditional('"S{:+E}E" if driver.mode == "voltage" '
+                               'else "LV{:.0f}"', default=True),
             limits='voltage')
 
         o.voltage_range = set_feat(getter=True,
                                    setter='R{}E',
-                                   extract='F1R{}S{_}',
+                                   extract='F1R{:d}S{_}',
+                                   checks=(None, 'driver.mode == "voltage"'),
                                    mapping={10e-3: 2, 100e-3: 3, 1.0: 4,
                                             10.0: 5, 30.0: 6},
-                                   discard={'features': ('current'),
+                                   discard={'features': ('current',),
                                             'limits': ('voltage',)})
 
         o.current = set_feat(getter=True,
@@ -155,7 +179,8 @@ class Model7651(VisaMessageDriver, DCPowerSource):
 
         o.current_range = set_feat(getter=True,
                                    setter='R{}E',
-                                   extract='F5R{}S{_}',
+                                   extract='F5R{:d}S{_}',
+                                   checks=(None, 'driver.mode == "current"'),
                                    mapping={1e-3: 4, 10e-3: 5, 100e-3: 6},
                                    discard={'limits': ('current',)})
 
@@ -166,17 +191,20 @@ class Model7651(VisaMessageDriver, DCPowerSource):
 
             Returns
             -------
-            status : unicode, {'disabled',
-                               'enabled:constant-voltage',
-                               'enabled:constant-voltage',
-                               'tripped:unknown', 'unregulated'}
+            status : str, {'disabled',
+                           'enabled:constant-voltage',
+                           'enabled:constant-voltage',
+                           'tripped:unknown', 'unregulated'}
 
             """
             if not self.enabled:
                 return 'disabled'
-            if 'Output on' not in self.parent.read_status_code():
+            sc = self.parent.read_status_code()
+            if sc & sc.output_unstable:
+                return 'unregulated'
+            elif not (sc & sc.output_on):
                 return 'tripped:unknown'
-            if self.parent.query('OD')[0] == 'E':
+            if self.parent.visa_resource.query('OD')[0] == 'E':
                 if self.mode == 'voltage':
                     return 'enabled:constant-current'
                 else:
@@ -195,10 +223,10 @@ class Model7651(VisaMessageDriver, DCPowerSource):
             """Check that the operation did not result in any error.
 
             """
-            stb = self.parent.visa_resource.read_status_byte()
-            if stb['Syntax error']:
-                msg = 'Syntax error' if stb['Limit error'] else 'Overload'
-                return False, msg
+            stb = self.parent.read_status_byte()
+            if stb & stb.error:
+                return False, ('Syntax error' if stb & stb.syntax_error else
+                               'Limit error')
 
             return True, None
 
@@ -227,7 +255,7 @@ class Model7651(VisaMessageDriver, DCPowerSource):
             range.
 
             """
-            if self.mode == 'voltage':
+            if self.mode == 'current':
                 ran = float(self.current_range)  # Casting handling Quantity
                 res = CURRENT_RESOLUTION[ran]
                 if ran != 200e-3:
@@ -240,11 +268,12 @@ class Model7651(VisaMessageDriver, DCPowerSource):
 
         @o
         @customize('enabled', 'get')
-        def _get_enabled(self):
+        def _get_enabled(feat, driver):
             """Read the output current status byte and extract the output state
 
             """
-            return 'Output' in self.parent.read_status_code()
+            sc = driver.parent.read_status_code()
+            return bool(sc & sc.output_on)
 
         o._OD_PARSER = Parser('{_}DC{_}{:E+}')
 
@@ -254,43 +283,45 @@ class Model7651(VisaMessageDriver, DCPowerSource):
 
         @o
         @customize('voltage', 'get')
-        def _get_voltage(self, feat):
+        def _get_voltage(feat, driver):
             """Get the voltage in voltage mode and return the maximum voltage
             in current mode.
 
             """
-            if self.mode != 'voltage':
-                return self._VOLT_LIM_PARSER(self._get_limiter_value())
-            return self._OD_PARSER(self.default_get_feature('OD'))
+            if driver.mode != 'voltage':
+                return driver._VOLT_LIM_PARSER(driver._get_limiter_value())
+            return driver._OD_PARSER(driver.default_get_feature(feat, 'OD'))
 
         @o
         @customize('current', 'get')
-        def _get_current(self, feat):
+        def _get_current(feat, driver):
             """Get the current in current mode and return the maximum current
             in voltage mode.
 
             """
-            if self.mode != 'voltage':
-                if to_float(self.voltage_range) in (10e-3, 100e-3):
+            if driver.mode != 'voltage':
+                if to_float(driver.voltage_range) in (10e-3, 100e-3):
                     return 0.12
-                return self._CURR_LIM_PARSER(self._get_limiter_value())*1e3
-            return self._OD_PARSER(self.default_get_feature('OD'))
+                answer = driver._get_limiter_value()
+                return float(driver._CURR_LIM_PARSER(answer))*1e3
+            return driver._OD_PARSER(driver.default_get_feature(feat, 'OD'))
 
         @o
         @customize('current', 'set')
-        def _set_current(self, feat, value):
+        def _set_current(feat, driver, value):
             """Set the target/limit current.
 
             In voltage mode this is only possible if the range is 1V or greater
 
             """
-            if self.mode != 'current':
-                if to_float(self.voltage_range) in (10e-3, 100e-3):
+            if driver.mode != 'current':
+                if to_float(driver.voltage_range) in (10e-3, 100e-3):
                     raise ValueError('Cannot set the current limit for ranges '
                                      '10mV and 100mV')
                 else:
-                    return self.default_set_feature('LA{}E', value)
-            return self.default_set_feature('S{+E}E', value)
+                    return driver.default_set_feature(feat, 'LA{:d}',
+                                                      int(round(value*1e3)))
+            return driver.default_set_feature(feat, 'S{:+E}E', value)
 
         @o
         def _get_limiter_value(self):
@@ -306,12 +337,13 @@ class Model7651(VisaMessageDriver, DCPowerSource):
             visa_rsc.read()  # Program parameters
             return visa_rsc.read()  # Limits
 
-        def _get_range(kind, self):
+        @o
+        def _get_range(driver, kind):
             """Read the range.
 
             """
-            visa_rsc = self.parent.visa_resource
-            if self.mode == kind:
+            visa_rsc = driver.parent.visa_resource
+            if driver.mode == kind:
                 visa_rsc.write('OS')
                 visa_rsc.read()  # Model and software version
                 msg = visa_rsc.read()  # Function, range, output data
@@ -321,8 +353,12 @@ class Model7651(VisaMessageDriver, DCPowerSource):
             else:
                 return 'F{}R6S1E+0'.format(1 if kind == 'voltage' else 5)
 
-        o._get_voltage_range = customize('voltage_range',
-                                         'get')(partial(_get_range, 'voltage'))
+        @o
+        @customize('voltage_range', 'get')
+        def _get_voltage_range(feat, driver):
+            return driver._get_range('voltage')
 
-        o._get_current_range = customize('current_range',
-                                         'get')(partial(_get_range, 'current'))
+        @o
+        @customize('current_range', 'get')
+        def _get_current_range(feat, driver):
+            return driver._get_range('current')

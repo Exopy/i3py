@@ -196,7 +196,7 @@ class IEEEIdentity(VisaMessageDriver):
         #: - serial: serial number of the instrument
         #: - firmware: firmware revision
         #: ex {manufacturer},<{model}>,SN{serial}, Firmware revision {firmware}
-        i.IEEE_IDN_FORMAT = ''
+        i.IEEE_IDN_FORMAT = '{manufacturer},{model},{serial},{firmware}'
 
         i.manufacturer = set_feat(getter='*IDN?')
         i.model = set_feat(getter='*IDN?')

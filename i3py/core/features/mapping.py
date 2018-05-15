@@ -25,7 +25,8 @@ class Mapping(Feature):
         provided the first element should be the mapping between user values
         and instrument input, the second between instrument output and user
         values. This allows to handle asymetric case in which the instrument
-        expect a command (ex: CMD ON) but when queried return 1.
+        expect a command (ex: CMD ON) but when queried return 1. None can be
+        used to mark that the mapping should only occur in one direction.
 
     """
 
@@ -52,11 +53,13 @@ class Mapping(Feature):
             self._imap: Dict = {v: k for k, v in mapping.items()}
         self.creation_kwargs['mapping'] = mapping
 
-        self.modify_behavior('post_get', self.reverse_map_value.__func__,
-                             ('append',), 'reverse_map',  True)
+        if self._imap:
+            self.modify_behavior('post_get', self.reverse_map_value.__func__,
+                                ('append',), 'reverse_map',  True)
 
-        self.modify_behavior('pre_set', self.map_value.__func__,
-                             ('append',), 'map', True)
+        if self._map:
+            self.modify_behavior('pre_set', self.map_value.__func__,
+                                ('append',), 'map', True)
 
     def reverse_map_value(self, driver: AbstractHasFeatures, value: Any
                           ) -> Any:

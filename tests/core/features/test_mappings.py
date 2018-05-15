@@ -14,7 +14,6 @@ from i3py.core.features.bool import Bool
 
 from .test_feature import TestFeatureInit
 
-
 class TestMappingInit(TestFeatureInit):
 
     cls = Mapping
@@ -38,6 +37,24 @@ def test_mapping_asymetric():
 
     assert m.pre_set(None, 'On') == 'ON'
     assert m.pre_set(None, 'Off') == 'OFF'
+
+
+def test_mapping_asymetric_no_get():
+    m = Mapping(mapping=(None, {'1': 'On', '0': 'Off'}))
+    assert m.post_get(None, '1') == '1'
+    assert m.post_get(None, '0') == '0'
+
+    assert m.pre_set(None, 'On') == 'ON'
+    assert m.pre_set(None, 'Off') == 'OFF'
+
+
+def test_mapping_asymetric_no_set():
+    m = Mapping(mapping=({'On': 'ON', 'Off': 'OFF'}, None))
+    assert m.post_get(None, '1') == 'On'
+    assert m.post_get(None, '0') == 'Off'
+
+    assert m.pre_set(None, 'On') == 'On'
+    assert m.pre_set(None, 'Off') == 'Off'
 
 
 class TestBoolInit(TestFeatureInit):

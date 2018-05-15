@@ -173,7 +173,12 @@ def test_set_feat_customize():
     """Test customizing a Feature.
 
     """
-    f = Feature(getter=True, checks='driver.enabled')
+    class MyFeature(Feature):
+
+        def __set_name__(self, owner, name):
+            self._called = True
+
+    f = MyFeature(getter=True, checks='driver.enabled')
 
     def custom_pre_get(feat, driver):
         return 1
@@ -186,13 +191,19 @@ def test_set_feat_customize():
     assert f.creation_kwargs['checks'] == 'driver.enabled'
     assert new.creation_kwargs['checks'] == 'driver.disabled'
     assert new._customs == f._customs
+    assert hasattr(new, '_called')
 
 
 def test_set_action_customize():
     """Test customizing an Action.
 
     """
-    a = Action(checks='driver.enabled')
+    class MyAction(Action):
+
+        def __set_name__(self, owner, name):
+            self._called = None
+
+    a = MyAction(checks='driver.enabled')
 
     @a
     def func(self, *args, **kwargs):
@@ -210,6 +221,7 @@ def test_set_action_customize():
     assert new.creation_kwargs['checks'] == 'driver.disabled'
     assert new._customs == a._customs
     assert new.func is a.func
+    assert hasattr(new, '_called')
 
 
 def test_limit_extract_id():

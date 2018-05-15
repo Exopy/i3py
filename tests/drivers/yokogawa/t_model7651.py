@@ -13,14 +13,16 @@ switched on and off and whose output value can vary (and has a large impedance)
 
 """
 # Visa connection info
-VISA_RESOURCE_NAME = 'GPIB::10::INSTR'
+VISA_RESOURCE_NAME = 'GPIB0::5::INSTR'
 
+from time import sleep
 from i3py.core.errors import I3pyFailedCall, I3pyFailedSet
 from i3py.drivers.yokogawa import Model7651
 
 with Model7651(VISA_RESOURCE_NAME) as driver:
 
     # Test reading all features
+    assert driver.is_connected()
     print('Manufacturer', driver.identity.manufacturer)
     print('Model', driver.identity.model)
     print('Serial number', driver.identity.serial)
@@ -39,27 +41,29 @@ with Model7651(VISA_RESOURCE_NAME) as driver:
 
     # Test action reading basic status
     print('Output status', output.read_output_status())
-    output.clear_output_status()
-    print('Measured output voltage', output.measure('voltage'))
-    print('Measured output current', output.measure('current'))
 
     # Test voltage mode
     print('Voltage mode')
     output.enabled = False
     output.mode = 'voltage'
+    print(output.check_cache())
     print('Known limits', output.declared_limits)
     output.voltage_range = 1
     output.enabled = True
     output.voltage = 1.0
-    output.current = 0.2
+    output.current = 0.1
+    sleep(1)
     assert output.read_output_status() == 'enabled:constant-voltage'
 
     # Test current mode
     print('Current mode')
     output.mode = 'current'
+    print(output.check_cache())
     assert not output.enabled
+    output.current = 0
     output.enabled = True
-    output.current_range = 0.2
+    output.current_range = 0.1
     output.voltage = 10
-    output.current = 0.1
+    output.current = 0.05
+    sleep(1)
     assert output.read_output_status() == 'enabled:constant-voltage'

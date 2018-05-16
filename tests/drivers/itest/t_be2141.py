@@ -33,7 +33,7 @@ with BN100(VISA_RESOURCE_NAME) as rack:
     print('Firmware', module.identity.firmware)
 
     print('Testing output')
-    output = module.output[0]
+    output = module.outputs[0]
     for f_name in output.__feats__:
         print('    ', f_name, getattr(output, f_name))
         delattr(output, f_name)

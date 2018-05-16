@@ -6,7 +6,7 @@
 #
 # The full license is in the file LICENCE, distributed with this software.
 # -----------------------------------------------------------------------------
-"""Driver for the keysight E3633A and E3634A DC power source.
+"""Driver for the Keysight E3631A, E3633A and E3634A DC power source.
 
 """
 from i3py.core import (FloatLimitsValidator, I3pyError, channel, customize,
@@ -16,23 +16,18 @@ from i3py.core.features import Alias, Bool, Feature, conditional
 from i3py.core.unit import to_float, to_quantity
 
 from ..base.dc_sources import (DCPowerSourceWithMeasure,
-                               DCSourceTriggerSubsystem,
-                               DCSourceProtectionSubsystem)
-from ..common.ieee488 import (IEEEInternalOperations,
-                              IEEEOptionsIdentification, IEEEPowerOn,
+                               DCSourceProtectionSubsystem,
+                               DCSourceTriggerSubsystem)
+from ..common.ieee488 import (IEEEInternalOperations, IEEEPowerOn,
                               IEEEStatusReporting, IEEEStoredSettings,
                               IEEESynchronisation, IEEETrigger)
 from ..common.scpi.error_reading import SCPIErrorReading
-from ..common.scpi.rs232 import SCPIRS232
 
 
-class KeysightE363xA(DCPowerSourceWithMeasure, IEEEInternalOperations,
-                     IEEEStatusReporting, IEEEOptionsIdentification,
-                     IEEEStoredSettings, IEEETrigger, IEEESynchronisation,
-                     IEEEPowerOn, SCPIErrorReading, SCPIRS232):
+class E363xA(DCPowerSourceWithMeasure, IEEEInternalOperations,
+             IEEEStatusReporting, IEEEStoredSettings, IEEETrigger,
+             IEEESynchronisation, IEEEPowerOn, SCPIErrorReading):
     """Driver for the Keysight E3631A DC power source.
-
-    XXX proper format for IDN
 
     """
     __version__ = '0.1.0'
@@ -44,22 +39,9 @@ class KeysightE363xA(DCPowerSourceWithMeasure, IEEEInternalOperations,
     DEFAULTS = {'COMMON': {'write_termination': '\n',
                            'read_termination': '\n'}}
 
-    identity = subsystem()
+    outputs = channel((0,))
 
-    with identity as i:
-
-        #: Format string specifying the format of the IDN query answer and
-        #: allowing to extract the following information:
-        #: - manufacturer: name of the instrument manufacturer
-        #: - model: name of the instrument model
-        #: - serial: serial number of the instrument
-        #: - firmware: firmware revision
-        #: ex {manufacturer},<{model}>,SN{serial}, Firmware revision {firmware}
-        i.IEEE_IDN_FORMAT = ''
-
-    output = channel((0,))
-
-    with output as o:
+    with outputs as o:
 
         o.enabled = set_feat(getter='OUTP?', setter='OUTP {:d}')
 
@@ -84,13 +66,14 @@ class KeysightE363xA(DCPowerSourceWithMeasure, IEEEInternalOperations,
                                    setter='CURR:RANGE {}')
 
         @o
-        @Action(values={'quantity': ("voltage", "current")})
+        @Action(values={'quantity': ("voltage", "current")},
+                lock=True)
         def measure(self, quantity, **kwargs):
             """Measure the output voltage/current.
 
             Parameters
             ----------
-            quantity : unicode, {'voltage', 'current'}
+            quantity : str, {'voltage', 'current'}
                 Quantity to measure.
 
             **kwargs :
@@ -103,7 +86,7 @@ class KeysightE363xA(DCPowerSourceWithMeasure, IEEEInternalOperations,
                 object.
 
             """
-            cmd = 'MEAS:' + ('VOLT' if quantity != 'current' else 'CURR')
+            cmd = 'MEAS:' + ('VOLT?' if quantity != 'current' else 'CURR?')
             value = float(self.parent.visa_resource.query(cmd))
             value = to_quantity(value, 'V' if quantity != 'current' else 'A')
 
@@ -111,14 +94,15 @@ class KeysightE363xA(DCPowerSourceWithMeasure, IEEEInternalOperations,
 
         @o
         @Action(unit=(None, (None, 'V', 'A')),
-                limits={'voltage': 'voltage', 'current': 'current'})
+                limits={'voltage': 'voltage', 'current': 'current'},
+                discard=('voltage', 'current'),
+                lock=True)
         def apply(self, voltage, current):
             """Set both the voltage and current limit.
 
             """
-            with self.lock:
-                self.parent.visa_resource.write(f'APPLY {voltage}, {current}')
-                res, msg = self.parent.read_error()
+            self.parent.visa_resource.write(f'APPLY {voltage}, {current}')
+            res, msg = self.parent.read_error()
             if res != 0:
                 err = 'Failed to apply {}V, {}A to output {} :\n{}'
                 raise I3pyError(err.format(voltage, current, self.id, msg))
@@ -131,10 +115,10 @@ class KeysightE363xA(DCPowerSourceWithMeasure, IEEEInternalOperations,
             t.mode = set_feat(getter=True, setter=True,
                               values=('disabled', 'enabled'))
 
-            t.source = set_feat('TRIG:SOUR?', 'TRIG:SOUR {}',
+            t.source = set_feat(getter='TRIG:SOUR?', setter='TRIG:SOUR {}',
                                 mapping={'immediate': 'IMM', 'bus': 'BUS'})
 
-            t.delay = set_feat('TRIG:DEL?', 'TRIG:DEL {}',
+            t.delay = set_feat(getter='TRIG:DEL?', setter='TRIG:DEL {}',
                                limits=(1, 3600, 1))
 
             @o
@@ -167,50 +151,91 @@ class KeysightE363xA(DCPowerSourceWithMeasure, IEEEInternalOperations,
                 vrsc = driver.root.visa_resource
                 vrsc.write(f'VOLT:TRIG {driver.parent.voltage}')
                 vrsc.write(f'CURR:TRIG {driver.parent.current}')
-                res, msg = self.root.read_error()
+                res, msg = driver.root.read_error()
                 if res:
                     err = ('Failed to set the triggered values for voltage '
                            'and current {}:\n{}')
-                    raise I3pyError(err.format(self.id, msg))
+                    raise I3pyError(err.format(driver.id, msg))
 
 
-VOLTAGE_RANGES = {'P6V': 6, 'P25V': 25, 'N25V': -25}
+VOLTAGE_RANGES = {0: 6, 1: 25, 2: -25}
 
-CURRENT_RANGES = {'P6V': 5, 'P25V': 1, 'N25V': 1}
+CURRENT_RANGES = {0: 5, 1: 1, 2: 1}
 
 
-class KeysightE3631A(KeysightE363xA):
+class E3631A(E363xA):
     """Driver for the Keysight E3631A DC power source.
 
     """
+    __version__ = '0.1.0'
+
     #: In this model, outputs are always enabled together.
-    outputs_enabled = Bool('OUTP?', 'OUTP {:d}',
+    outputs_enabled = Bool('OUTP?', 'OUTP {}',
+                           mapping={True: '1', False: '0'},
                            aliases={True: ['On', 'ON', 'On'],
                                     False: ['Off', 'OFF', 'off']})
 
     #: Whether to couple together the output triggers, causing a trigger
     #: received on one to update the other values.
-    coupled_triggers = Feature(getter=True, setter=True,
+    #: The value is a tuple containing the indexes of the outputs for which the
+    #: triggers are coupled.
+    coupled_triggers = Feature('INST:COUP?', 'INST:COUP {}',
                                checks=(None, ('value is False or '
                                               'not driver.outputs_tracking'))
                                )
+
+    @customize('coupled_triggers', 'post_get', ('append',))
+    def _post_get_coupled_triggers(feat, driver, value):
+        """Get the currently coupled triggers.
+
+        """
+        if value == 'NONE':
+            return ()
+        elif value == 'ALL':
+            return (0, 1, 2)
+        else:
+            return tuple(i for i, id in enumerate(('P6V', 'P25V', 'N25V'))
+                         if id in value)
+
+    @customize('coupled_triggers', 'pre_set', ('append',))
+    def _pre_set_coupled_triggers(feat, driver, value):
+        """Properly format the value for setting the coupled triggers.
+
+        """
+        aliases = driver.outputs.aliases
+        names = []
+        if len(value) != len(set(value)):
+            raise ValueError('Impossible to couple to identical outputs '
+                             f'({value})')
+        for index in value:
+            if index not in aliases:
+                raise ValueError(f'Invalid output index: {index}')
+            names.append(aliases[index])
+
+        if not names:
+            return 'NONE'
+        elif len(names) == 3:
+            return 'ALL'
+        else:
+            return ','.join(names)
 
     #: Activate tracking between the P25V and the N25V output. In tracking
     #: one have P25V.voltage = - N25V
     outputs_tracking = Bool('OUTP:TRAC?',
                             'OUTP:TRAC {}',
+                            mapping={True: '1', False: '0'},
                             aliases={True: ['On', 'ON', 'On'],
                                      False: ['Off', 'OFF', 'off']},
                             checks=(None,
-                                    ('value is False or'
+                                    ('value is False or '
                                      'driver.coupled_triggers is None or '
                                      '1 not in driver.coupled_triggers or '
                                      '2 not in driver.coupled_triggers')))
 
-    output = channel((0, 1, 2),
-                     aliases={'P6V': 0, 'P25V': 1, 'N25V': 2})
+    outputs = channel((0, 1, 2),
+                      aliases={0: 'P6V', 1: 'P25V', 2: 'N25V'})
 
-    with output as o:
+    with outputs as o:
 
         o.enabled = Alias('.outputs_enabled')  # should this be settable ?
 
@@ -225,7 +250,7 @@ class KeysightE3631A(KeysightE363xA):
 
             Parameters
             ----------
-            quantity : unicode, {'voltage', 'current'}
+            quantity : str, {'voltage', 'current'}
                 Quantity to measure.
 
             **kwargs :
@@ -238,17 +263,20 @@ class KeysightE3631A(KeysightE363xA):
                 object.
 
             """
-            self.parent.write('INSTR:SELECT %s' % self.id)
-            super().measure(quantity, **kwargs)
+            self.parent.visa_resource.write(f'INST:NSEL {self.id + 1}')
+            return super(E3631A.outputs, self).measure(quantity, **kwargs)
 
         @o
-        @Action(lock=True)
+        @Action(unit=(None, (None, 'V', 'A')),
+                limits={'voltage': 'voltage', 'current': 'current'},
+                discard=('voltage', 'current'),
+                lock=True)
         def apply(self, voltage, current):
             """Set both the voltage and current limit.
 
             """
-            self.parent.write('INSTR:SELECT %s' % self.id)
-            super().apply(voltage, current)
+            self.parent.visa_resource.write(f'INST:NSEL {self.id + 1}')
+            super(E3631A.outputs, self).apply(voltage, current)
 
         @o
         @Action()
@@ -257,12 +285,12 @@ class KeysightE3631A(KeysightE363xA):
 
             Returns
             -------
-            status : unicode, {'disabled',
-                               'enabled:constant-voltage',
-                               'enabled:constant-current',
-                               'tripped:over-voltage',
-                               'tripped:over-current',
-                               'unregulated'}
+            status : str, {'disabled',
+                           'enabled:constant-voltage',
+                           'enabled:constant-current',
+                           'tripped:over-voltage',
+                           'tripped:over-current',
+                           'unregulated'}
 
             """
             if not self.enabled:
@@ -289,49 +317,51 @@ class KeysightE3631A(KeysightE363xA):
 
                 """
                 self.root.visa_resource.write(f'INSTR:NSEL {self.id + 1}')
-                super().arm()
+                super(E3631A.outputs.trigger).arm()
 
         @o
         def default_get_feature(self, feat, cmd, *args, **kwargs):
             """Always select the channel before getting.
 
             """
-            cmd = f'INSTR:NSEL {self.id + 1};' + cmd
-            return super().default_get_feature(feat, cmd, *args, **kwargs)
+            self.root.visa_resource.write(f'INST:NSEL {self.id + 1}')
+            return super(E3631A.outputs,
+                         self).default_get_feature(feat, cmd, *args, **kwargs)
 
         @o
         def default_set_feature(self, feat, cmd, *args, **kwargs):
             """Always select the channel before getting.
 
             """
-            cmd = f'INSTR:NSEL {self.id + 1};' + cmd
-            return super().default_set_feature(feat, cmd, *args, **kwargs)
+            self.root.visa_resource.write(f'INST:NSEL {self.id + 1}')
+            return super(E3631A.outputs,
+                         self).default_set_feature(feat, cmd, *args, **kwargs)
 
         @o
         @customize('voltage', 'post_set', ('append',))
-        def _post_setattr_voltage(self, feat, value, i_value, state=None):
+        def _post_setattr_voltage(feat, driver, value, i_value, response):
             """Make sure that in tracking mode the voltage cache is correct.
 
             """
-            if self.id != 0:
-                del self.parent.output[1].voltage
-                del self.parent.output[2].voltage
+            if driver.id != 0:
+                del driver.parent.outputs[1].voltage
+                del driver.parent.outputs[2].voltage
 
         @o
         @customize('voltage_range', 'get')
-        def _get_voltage_range(self, feat):
+        def _get_voltage_range(feat, driver):
             """Get the voltage range.
 
             """
-            return VOLTAGE_RANGES[self.id]
+            return VOLTAGE_RANGES[driver.id]
 
         @o
         @customize('current_range', 'get')
-        def _get_current_range(self, feat):
+        def _get_current_range(feat, driver):
             """Get the current range.
 
             """
-            return CURRENT_RANGES[self.id]
+            return CURRENT_RANGES[driver.id]
 
         @o
         @limit('voltage')
@@ -360,15 +390,15 @@ class KeysightE3631A(KeysightE363xA):
                 return FloatLimitsValidator(0, 1.03, 1e-3, unit='A')
 
 
-class KeysightE3633A(KeysightE363xA):
+class E3633A(E363xA):
     """Driver for the Keysight E3633A DC power source.
 
     """
     __version__ = '0.1.0'
 
-    output = channel((0,))
+    outputs = channel((0,))
 
-    with output as o:
+    with outputs as o:
 
         o.voltage_range = set_feat(values=(8, 20))
 
@@ -415,7 +445,7 @@ class KeysightE3633A(KeysightE363xA):
                 return - driver.high_level
 
             @ovp
-            @customize('low_level', 'get')
+            @customize('low_level', 'set')
             def _set_low_level(feat, driver, value):
                 driver.high_level = - value
 
@@ -460,7 +490,7 @@ class KeysightE3633A(KeysightE363xA):
                 return - driver.high_level
 
             @ovp
-            @customize('low_level', 'get')
+            @customize('low_level', 'set')
             def _set_low_level(feat, driver, value):
                 driver.high_level = - value
 
@@ -471,12 +501,12 @@ class KeysightE3633A(KeysightE363xA):
 
             Returns
             -------
-            status : unicode, {'disabled',
-                               'enabled:constant-voltage',
-                               'enabled:constant-current',
-                               'tripped:over-voltage',
-                               'tripped:over-current',
-                               'unregulated'}
+            status : str, {'disabled',
+                           'enabled:constant-voltage',
+                           'enabled:constant-current',
+                           'tripped:over-voltage',
+                           'tripped:over-current',
+                           'unregulated'}
 
             """
             status = self.parent.visa_resource.query('STAT:QUES:COND?')
@@ -515,15 +545,15 @@ class KeysightE3633A(KeysightE363xA):
                 return FloatLimitsValidator(0, 10.3, 1e-3, unit='A')
 
 
-class KeysightE3634A(KeysightE3633A):
+class E3634A(E3633A):
     """Driver for the Keysight E3634A DC power source.
 
     """
     __version__ = '0.1.0'
 
-    output = channel((0,))
+    outputs = channel((0,))
 
-    with output as o:
+    with outputs as o:
 
         o.voltage_range = set_feat(values=(25, 50))
 

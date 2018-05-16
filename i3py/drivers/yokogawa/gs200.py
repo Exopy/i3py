@@ -60,9 +60,9 @@ class GS200(DCPowerSource, IEEEInternalOperations,
     DEFAULTS = {'COMMON': {'read_termination': '\n',
                            'write_termination': '\n'}}
 
-    output = channel((0,))
+    outputs = channel((0,))
 
-    with output as o:
+    with outputs as o:
         #: Preferential working mode for the source. In voltage mode, the
         #: source tries to work as a voltage source, the current settings is
         #: simply used to protect the sample. In current mode it is the

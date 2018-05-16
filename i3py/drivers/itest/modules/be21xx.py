@@ -66,9 +66,9 @@ class BE21xx(BiltModule, DCPowerSourceWithMeasure):
                     customize(f, 'post_get')(_post_getter))
 
     #: DC outputs
-    output = channel((0,))
+    outputs = channel((0,))
 
-    with output as o:
+    with outputs as o:
 
         o.enabled = set_feat(getter='OUTP?', setter='OUTP {}',
                              mapping={False: '0', True: '1'}
@@ -407,9 +407,9 @@ class BE210x(BE21xx):
     """
     __version__ = '0.1.0'
 
-    output = channel((0,))
+    outputs = channel((0,))
 
-    with output as o:
+    with outputs as o:
         #: Set the voltage settling filter. Slow 100 ms, Fast 10 ms
         o.voltage_filter = Str('VOLT:FIL?', 'VOLT:FIL {}',
                                mapping={'Slow': '0', 'Fast': '1'},
@@ -452,9 +452,9 @@ class BE214x(BE21xx):
                              '/SN{serial:s} LC{_:s} VL{firmware:s}'
                              '\\{_:d}"')
 
-    output = channel((0, 1, 2, 3))
+    outputs = channel((0, 1, 2, 3))
 
-    with output as o:
+    with outputs as o:
 
         o.OUTPUT_STATES = {0: 'enabled:constant-voltage',
                            11: 'tripped:main-failure',

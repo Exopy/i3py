@@ -143,9 +143,9 @@ class Model7651(VisaMessageDriver, DCPowerSource):
         def _get_firmware(feat, driver):
             return driver._get_from_os(1)
 
-    output = channel((0,))
+    outputs = channel((0,))
 
-    with output as o:
+    with outputs as o:
         o.mode = Str('OD', 'F{}E',
                      mapping=({'voltage': '1', 'current': '5'},
                               {'V': 'voltage', 'A': 'current'}),

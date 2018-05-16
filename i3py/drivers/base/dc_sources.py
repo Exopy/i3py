@@ -21,13 +21,13 @@ class DCPowerSource(HasFeatures):
     """
 
     #: Outputs of the source. By default we declare a single output on index 0.
-    output = channel((0,))
+    outputs = channel((0,))
 
-    with output as o:
+    with outputs as o:
 
         #: Is the output on or off.
         #: Care should be taken that this value may not be up to date if a
-        #: failure occured. To know the current status of the output use
+        #: failure occurred. To know the current status of the output use
         #: read_output_status, this feature only store the target setting.
         o.enabled = Bool(aliases={True: ['On', 'ON', 'On'],
                                   False: ['Off', 'OFF', 'off']})
@@ -104,9 +104,9 @@ class DCPowerSourceWithMeasure(DCPowerSource):
 
     """
     #: Outputs of the source. By default we declare a single output on index 0.
-    output = channel((0,))
+    outputs = channel((0,))
 
-    with output as o:
+    with outputs as o:
 
         @o
         @Action()

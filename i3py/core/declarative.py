@@ -343,9 +343,9 @@ class channel(SubpartDecl):
 
     checks : str, optional
         Booelan tests to execute before anything else when attempting use a
-        Feature or an Action of the channel. Multiple assertion can be separated
-        with ';'. The channel can be accessed through the name driver just like
-        in features.
+        Feature or an Action of the channel. Multiple assertion can be
+        separated with ';'. The channel can be accessed through the name driver
+        just like in features.
 
     options : str, optional
         Booelan tests on options to execute before creating the subpart.

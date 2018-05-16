@@ -38,14 +38,16 @@ class GS200(DCPowerSource, IEEEInternalOperations,
             SCPIErrorReading):
     """Driver for the Yokogawa GS200 DC power source.
 
+    Because the over-voltage (current) protection is always enabled in
+    current (voltage) mode, they basically act as limits and fully the same
+    role as target voltage (current) for a power source lacking mode selection.
+    As a consequence they are implemented in the same way.
+
     Notes
     -----
     - the measurement option is not yet supported.
     - add support for programs
     - add RS232 support
-
-    XXX add motivation for use of limits (basically always enabled and behave
-    just like a target value)
 
     """
     __version__ = '0.1.0'

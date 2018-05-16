@@ -13,7 +13,7 @@ switched on and off and whose output value can vary (and has a large impedance)
 
 """
 # Visa connection info
-VISA_RESOURCE_NAME = 'GPIB::10::INSTR'
+VISA_RESOURCE_NAME = 'GPIB::2::INSTR'
 
 from i3py.core.errors import I3pyFailedCall, I3pyFailedSet
 from i3py.drivers.keysight import E3631A
@@ -26,8 +26,12 @@ with E3631A(VISA_RESOURCE_NAME) as driver:
     print('Serial number', driver.identity.serial)
     print('Firmware', driver.identity.firmware)
 
+    print('Outputs enabled', driver.outputs_enabled)
+    print('Coupled triggers', driver.coupled_triggers)
+    print('Outputs tracking', driver.outputs_tracking)
+
     print('Testing output')
-    for output in driver.output:
+    for output in driver.outputs:
         for f_name in output.__feats__:
             print('    ', f_name, getattr(output, f_name))
 
@@ -39,8 +43,7 @@ with E3631A(VISA_RESOURCE_NAME) as driver:
 
         # Test action reading basic status
         print('Output status', output.read_output_status())
-        output.clear_output_status()
         print('Measured output voltage', output.measure('voltage'))
         print('Measured output current', output.measure('current'))
 
-    # XXX add more comprehensive tests
+    # TODO add more comprehensive tests

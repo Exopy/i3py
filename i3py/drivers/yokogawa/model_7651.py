@@ -37,7 +37,10 @@ class Model7651(VisaMessageDriver, DCPowerSource):
 
     This driver can also be used on Yokogawa GS200 used in compatibility mode.
 
-    XXX add motivation for use of limits
+    Because the over-voltage (current) protection is always enabled in
+    current (voltage) mode, they basically act as limits and fully the same
+    role as target voltage (current) for a power source lacking mode selection.
+    As a consequence they are implemented in the same way.
 
     Notes
     -----

@@ -8,6 +8,12 @@
 # -----------------------------------------------------------------------------
 """Driver for the Keysight E3631A, E3633A and E3634A DC power source.
 
+Notes
+-----
+
+WARNING : The drivers implemented in this module have been only very lightly
+tested.
+
 """
 from i3py.core import (FloatLimitsValidator, I3pyError, channel, customize,
                        limit, set_feat, subsystem)

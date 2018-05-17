@@ -17,6 +17,8 @@ from i3py.core.has_features import HasFeatures
 
 class DummyParent(HasFeatures):
 
+    retries_exceptions = ()
+
     def __init__(self, caching_allowed=False):
         super(DummyParent, self).__init__(caching_allowed)
         self.d_get_called = 0
@@ -34,8 +36,6 @@ class DummyParent(HasFeatures):
         self.pass_check = True
         self.check_mess = ''
         self.lock = RLock()
-        self.retries_exceptions = ()
-        self.root = self
 
     def default_get_feature(self, feat, cmd, *args, **kwargs):
         self.d_get_called += 1

@@ -40,7 +40,7 @@ def test_mapping_asymetric():
 
 
 def test_mapping_asymetric_no_get():
-    m = Mapping(mapping=(None, {'1': 'On', '0': 'Off'}))
+    m = Mapping(mapping=({'On': 'ON', 'Off': 'OFF'}, None))
     assert m.post_get(None, '1') == '1'
     assert m.post_get(None, '0') == '0'
 
@@ -49,7 +49,7 @@ def test_mapping_asymetric_no_get():
 
 
 def test_mapping_asymetric_no_set():
-    m = Mapping(mapping=({'On': 'ON', 'Off': 'OFF'}, None))
+    m = Mapping(mapping=(None, {'1': 'On', '0': 'Off'}))
     assert m.post_get(None, '1') == 'On'
     assert m.post_get(None, '0') == 'Off'
 

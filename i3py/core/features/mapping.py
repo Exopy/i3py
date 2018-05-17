@@ -24,7 +24,7 @@ class Mapping(Feature):
         Mapping between the user values and instrument values. If a tuple is
         provided the first element should be the mapping between user values
         and instrument input, the second between instrument output and user
-        values. This allows to handle asymetric case in which the instrument
+        values. This allows to handle asymmetric case in which the instrument
         expect a command (ex: CMD ON) but when queried return 1. None can be
         used to mark that the mapping should only occur in one direction.
 
@@ -42,7 +42,7 @@ class Mapping(Feature):
         Feature.__init__(self, getter, setter, extract, retries,
                          checks, discard, options)
 
-        mapping = mapping if mapping else {}
+        mapping = mapping or {}
 
         if isinstance(mapping, (tuple, list)):
             self._map = mapping[0]
@@ -55,11 +55,11 @@ class Mapping(Feature):
 
         if self._imap:
             self.modify_behavior('post_get', self.reverse_map_value.__func__,
-                                ('append',), 'reverse_map',  True)
+                                 ('append',), 'reverse_map',  True)
 
         if self._map:
             self.modify_behavior('pre_set', self.map_value.__func__,
-                                ('append',), 'map', True)
+                                 ('append',), 'map', True)
 
     def reverse_map_value(self, driver: AbstractHasFeatures, value: Any
                           ) -> Any:

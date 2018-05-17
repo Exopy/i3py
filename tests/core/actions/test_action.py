@@ -73,7 +73,7 @@ def test_handling_double_decoration():
 
 
 def test_retries_support():
-    """Test the get_chain capacity to iterate in case of driver issue.
+    """Test the action capacity to iterate in case of driver issue.
 
     """
     class Dummy(DummyParent):
@@ -83,7 +83,7 @@ def test_retries_support():
 
         @Action(retries=1)
         def test(self):
-            print(self.retries_exceptions)
+            print(type(self).retries_exceptions, self.retries_exceptions)
             Dummy.called += 1
             raise RuntimeError()
 

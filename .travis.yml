@@ -26,7 +26,6 @@ before_install:
   - SRC_DIR=$(pwd)
   - export ENV_NAME=travis
 
-install:
   - conda create --yes -n $ENV_NAME python=$TRAVIS_PYTHON_VERSION pip > ${REDIRECT_TO};
   - source activate $ENV_NAME
   - conda install --yes --quiet pytest> ${REDIRECT_TO};
@@ -38,6 +37,10 @@ install:
   - if [ $PYVISA == 'Y' ]; then pip install -q https://github.com/hgrecco/pyvisa-py/zipball/master; fi
   - if [ $PYVISA == 'Y' ]; then pip install -q https://github.com/hgrecco/pyvisa-sim/zipball/master; fi
   - pip install -q codecov
+
+install:
+  - cd $TRAVIS_BUILD_DIR
+  - python setup.py develop
 
 script:
   - cd ${SRC_DIR}

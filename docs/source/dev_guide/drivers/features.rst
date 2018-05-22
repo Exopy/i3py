@@ -6,7 +6,7 @@ Features
 ========
 
 Features are descriptors just like standard Python property. They live on the
-class and define what happens when one gets or set the attribute associated
+class and define what happens when one gets or sets the attribute associated
 with the feature on a class instance, that is to say when one writes:
 
 .. code-block:: python
@@ -66,7 +66,7 @@ sequence, in three steps as follows:
   of the instrument response and turn it into the proper type, such as
   an integer or a float. It can also check for an error state on the
   instrument even so get operation should not cause any issue and such
-  checks be left to setting.
+  checks should be left to the setting.
 
 The value coming out of the post_get step is cached and then returned
 to the user. If an error occurs during any of the step, if it is one
@@ -123,37 +123,45 @@ provides a number of often required checks, data extraction and data conversion
 utilities. The following list illustrates them:
 
 - 'options': available on all |Feature| subclasses
-  A ; separated list of checks to perform on options values to determine if
+
+  A ";" separated list of checks to perform on options values to determine if
   the Feature can be used. Options are defined using the |Options| feature.
   The test is performed a single time and then cached.
 
 - 'checks': available on all |Feature| subclasses
+
   Similar to options, but can be used to check any value and is performed
   each time the feature is get or set.
 
 - 'extract': available on all |Feature| subclasses
+
   A format string specifying how to extract the value of interest from the
   instrument response.
 
 - 'discard': available on all |Feature| subclasses
+
   A list of features whose cache value should be discarded when the feature
   value is set. Alternatively a dict whose keys are 'features' and 'limits'
   can be used to also specify to discard some cached limits. One can access to
   the features and limits defined on the parent component using leading dots.
 
 - 'values': available on |Str|, |Int| and |Float|
+
   A tuple of acceptable values for the feature.
 
 - 'mapping': available on |Str|, |Int| and |Float|
+
   A mapping between user meaningful values and instrument meaningful ones.
 
 - 'limits': available on |Int| and |Float|
+
   A 2-tuple, 3-tuple or str specifying the minimal and maximal values
   allowed and optionally the resolution that the feature can take. In the
   case of a str, the string specifies the named limit to use (see the
   following paragraph about defining limits).
 
 - 'aliases': available on |Bool|
+
   A dictionary whose keys are True and False and whose values (list)
   specifies accepted aliases for True and False for setting.
 

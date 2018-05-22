@@ -73,7 +73,7 @@ on the base class as base class for the subsystem.
 Options and checks
 ^^^^^^^^^^^^^^^^^^
 
-As mentioned in introduction, subsystems can define tests (options and
+As mentioned in the introduction, subsystems can define tests (options and
 checks) that apply to all their features and actions. Those can be declared
 just like for features and actions by passing strings defining the options
 ('options' argument) and checks ('checks' argument).
@@ -222,7 +222,7 @@ methods, a channel add its id under the keyword argument `ch_id` to the
 keyword arguments and propagate the call the parent driver. For the third
 method the call is simply forwarded on the parent.
 
-The default behaviour is well fitted for VISA messaged based instrument when
+The default behaviour is well fitted for VISA message based instruments when
 the channel id is part of the command as in this case things work out the
 box. The user simply has to indicate where to format the channel id, as
 illustrated in the above example. For instrument that requires first the

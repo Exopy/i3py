@@ -67,8 +67,9 @@ on the base class as base class for the subsystem.
 
     In the case of multiple inheritance, if several of the driver base
     classes declare the same subsystem, the framework will use the one
-    present on the first class of the mro. Other classes can be added as
-    arguments.
+    present on the first class of the mro (Method Resolution Order, ie the
+    leftmost in the class creation). Other classes can be added as arguments of
+    |subsystem|.
 
 Options and checks
 ^^^^^^^^^^^^^^^^^^

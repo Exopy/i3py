@@ -211,18 +211,18 @@ Actions can also be attached to a subsystems:
             def is_sync(self):
                 pass
 
-By default, a subsystem is a subclass of || and any subsystem of the parent
-class of the driver. You can specify additional base classes as a tuple passed
-as first argument to subsystem.
+By default, a subsystem is a subclass of |SubSystem| and any subsystem of the
+parent class of the driver. You can specify additional base classes as a tuple
+passed as first argument to subsystem.
 
 Channels are similar to subsytems but are identified by an id as an instrument
-may have an arbitrary number of channel of the same kind. Adding a channel to
-an instrument is similar to adding a subsystem save that one must specify
-what are the valid channel ids. One can specify a static list of ids or a the
-name of a method on the parent listing the available channel when called. This
-method should take no argument. Furthermore one can declare, aliases for the
-channel ids to provide more user friendly name than the ones used by the
-driver.
+may have an arbitrary number of channel of the same kind (the default class is
+|Channel|). Adding a channel to an instrument is similar to adding a subsystem
+save that one must specify what are the valid channel ids. One can specify a
+static list of ids or a the name of a method on the parent listing the
+available channels when called. This method should take no argument.
+Furthermore one can declare, aliases for the channel ids to provide more user
+friendly name than the ones used by the driver.
 
 For more details please refer to the API documentation or to the dedicated
 section of the documentation about subsystems and channels

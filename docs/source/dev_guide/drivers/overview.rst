@@ -250,8 +250,8 @@ format in which to specify the checks is the following:
 	'feature_options_name['option_name'] == option_value'
 
 Actually any valid boolean assertion can be evaluated so if an option can only
-be True or False the equality test is useless. Furthermore multiple test can be
-separated by ; .
+be True or False the equality test is useless. Furthermore multiple tests can
+be separated by ";" .
 
 .. note::
 
@@ -271,7 +271,7 @@ parameters to use (such as termination characters, which may differ between
 interfaces). All those information can be specified to I3py drivers through
 the use of the class level variables listed below.
 
-..note::
+.. note::
 
     To avoid polluting the driver namespace, VISA specific method are grouped
     in the visa_resource subsystem, accessible from the top level driver.
@@ -298,8 +298,8 @@ number is required and can be specified as follow.
 
 .. code-block:: python
 
-INTERFACES = {'TCPIP': {'resource_class': 'SOCKET',
-                       'port': '50000'}}
+    INTERFACES = {'TCPIP': {'resource_class': 'SOCKET',
+                            'port': '50000'}}
 
 The valid keys for each interface matches the named used in VISA resource
 names which are described in PyVISA documentation_.
@@ -325,7 +325,7 @@ NON_VISA_NAMES
 ^^^^^^^^^^^^^^
 
 By default all arguments passed to a VISA driver are used to build the
-resource name. This class hold a tuple of named reserved to other usage.
+resource name. This class holds a tuple of named reserved to other use.
 By default it is set to `('parameters', 'backend')`, which should be
 sufficient be sufficient in most cases.
 
@@ -346,7 +346,7 @@ Making the driver accessible from the top level manufacturer package
 --------------------------------------------------------------------
 
 Drivers in I3py are organized by manufacturers (inside each manufacturer
-package, they can be organized by instrument type). However because building,
+package, they can be organized by instrument type). However because building
 the driver class is more expensive than regular Python classes, I3py provides
 a way to make drivers visible from the top level manufacturer package that
 does not lead to their automatic import when the manufacturer package is

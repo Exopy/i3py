@@ -20,7 +20,7 @@ their own part :ref:`dev-driv-advanced`.
     If some cases, an action may start an operation that the instrument will
     take a long time to process. In such a case it is best to return an
     |InstrJob| object that can be used at the appropriate time to wait for
-    completion than to block for a long time.
+    completion than to block the interface for a long time.
 
 Working principle
 -----------------
@@ -53,13 +53,13 @@ utilities. The following list illustrates them:
 
 	- 'options': available on all |BaseAction| subclasses
 
-      A ; separated list of checks to perform on options values to determine if
+      A ";" separated list of checks to perform on options values to determine if
       the Action can be used. Options are defined using the |Options| feature.
       The test is performed a single time and then cached.
 
 	- 'checks': available on |Action|
 
-      A ; separated list of checks to perform each time the action is called.
+      A ";" separated list of checks to perform each time the action is called.
       All the method arguments are available in the assertion execution
       namespace so one can access to the driver using self and to the arguments
       using their name (the signature of the wrapper is made to match the

@@ -29,7 +29,7 @@ class DCPowerSource(HasFeatures):
         #: Care should be taken that this value may not be up to date if a
         #: failure occurred. To know the current status of the output use
         #: read_output_status, this feature only store the target setting.
-        o.enabled = Bool(aliases={True: ['On', 'ON', 'On'],
+        o.enabled = Bool(aliases={True: ['On', 'ON', 'on'],
                                   False: ['Off', 'OFF', 'off']})
 
         #: Target voltage for the output. If the source is a "current" source
@@ -40,7 +40,7 @@ class DCPowerSource(HasFeatures):
         o.voltage_range = Float(unit='V')
 
         #: How does the source behave if it cannot reach the target voltage
-        #: because its reached the target current first.
+        #: because it reached the target current first.
         #: - regulate: we stop at the reached voltage when the target current
         #:             is reached.
         #: - trip: the output is disabled if the current reaches or gets
@@ -56,7 +56,7 @@ class DCPowerSource(HasFeatures):
         o.current_range = Float(unit='A')
 
         #: How does the source behave if it cannot reach the target voltage
-        #: because its reached the target current first.
+        #: because it reached the target current first.
         #: - regulate: we stop at the reached voltage when the target current
         #:             is reached.
         #: - trip: the output is disabled if the voltage reaches or gets

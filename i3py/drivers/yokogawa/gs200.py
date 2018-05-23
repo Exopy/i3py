@@ -39,7 +39,7 @@ class GS200(DCPowerSource, IEEEInternalOperations,
     """Driver for the Yokogawa GS200 DC power source.
 
     Because the over-voltage (current) protection is always enabled in
-    current (voltage) mode, they basically act as limits and fully the same
+    current (voltage) mode, they basically act as limits and fullfill the same
     role as target voltage (current) for a power source lacking mode selection.
     As a consequence they are implemented in the same way.
 
@@ -90,7 +90,7 @@ class GS200(DCPowerSource, IEEEInternalOperations,
         o.voltage_range = set_feat(getter=True,
                                    setter=':SOUR:RANG {}',
                                    checks=(None, 'driver.mode == "voltage"'),
-                                   values=(10e-3, 100e-3, 1.0, 10.0, 30.0),
+                                   values=tuple(VOLTAGE_RESOLUTION.keys()),
                                    discard={'limits': ('voltage',)})
 
         o.current_limit_behavior = set_feat(getter=constant("regulate"))
@@ -101,7 +101,7 @@ class GS200(DCPowerSource, IEEEInternalOperations,
 
         o.current_range = set_feat(getter=True,
                                    setter=':SOUR:RANG {}',
-                                   values=(1e-3, 10e-3, 100e-3, 200e-3),
+                                   values=tuple(CURRENT_RESOLUTION.keys()),
                                    discard={'limits': 'current'})
 
         o.voltage_limit_behavior = set_feat(getter=constant("regulate"))

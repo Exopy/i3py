@@ -55,8 +55,8 @@ class DCPowerSource(HasFeatures):
         #: Range in which the current can be set.
         o.current_range = Float(unit='A')
 
-        #: How does the source behave if it cannot reach the target voltage
-        #: because it reached the target current first.
+        #: How does the source behave if it cannot reach the target current
+        #: because it reached the target voltage first.
         #: - regulate: we stop at the reached voltage when the target current
         #:             is reached.
         #: - trip: the output is disabled if the voltage reaches or gets

@@ -19,7 +19,7 @@ from .abstracts import AbstractBaseDriver
 from .has_features import HasFeatures
 
 
-class InstrumentSigleton(type):
+class InstrumentSingleton(type):
     """Metaclass ensuring that a single driver is created per instrument.
 
     """
@@ -54,7 +54,7 @@ class InstrumentSigleton(type):
         cache = cls._instances_cache[cls]
         driver_id = cls.compute_id(args, kwargs)  # type: ignore
         if driver_id not in cache:
-            dr = super(InstrumentSigleton, cls).__call__(*args, **kwargs)
+            dr = super(InstrumentSingleton, cls).__call__(*args, **kwargs)
 
             cache[driver_id] = dr
         else:
@@ -64,7 +64,7 @@ class InstrumentSigleton(type):
         return dr
 
 
-class BaseDriver(HasFeatures, metaclass=InstrumentSigleton):
+class BaseDriver(HasFeatures, metaclass=InstrumentSingleton):
     """ Base class of all instrument drivers in I3py.
 
     This class defines the common interface drivers are expected to implement

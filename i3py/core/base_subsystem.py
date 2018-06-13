@@ -19,7 +19,7 @@ from .utils import check_options
 
 
 class SubSystem(HasFeatures):
-    """SubSystem allow to split the implementation of a driver into multiple
+    """SubSystem allows one to split the implementation of a driver into multiple
     parts.
 
     This mechanism allow to avoid crowding the instrument namespace with very

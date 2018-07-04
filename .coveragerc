@@ -2,7 +2,7 @@
 omit =
     *i3py/version.py
     */__init__.py
-    *i3py/drivers/
+    *i3py/drivers/*
 
 [report]
 # Regexes for lines to exclude from consideration

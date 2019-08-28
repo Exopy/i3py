@@ -11,7 +11,7 @@
 """
 from pytest import raises, fixture
 
-from i3py.core.base_driver import BaseDriver
+from i3py.core.base_driver import BaseDriver, MissingVersionError
 
 
 @fixture
@@ -41,8 +41,8 @@ def test_driver_enforce_version():
 
     """
     del BaseDriver.__version__
-    assert "__version__" not in dir(BaseDriver)
-    with raises(AttributeError) as excinfo:
+    assert not hasattr(BaseDriver, "__version__")
+    with raises(MissingVersionError) as excinfo:
         class A(BaseDriver):
             pass
         A()
@@ -52,7 +52,7 @@ def test_driver_enforce_version():
     class A(BaseDriver):
         __version__ = "0.0.1"
 
-    with raises(AttributeError) as excinfo:
+    with raises(MissingVersionError) as excinfo:
         class B(A):
             pass
         B()

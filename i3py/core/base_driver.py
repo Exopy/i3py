@@ -19,6 +19,13 @@ from .abstracts import AbstractBaseDriver
 from .has_features import HasFeatures
 
 
+class MissingVersionError(AttributeError):
+    """Specific error notifying that a driver is missing a version string.
+
+    """
+    pass
+
+
 class InstrumentSigleton(type):
     """Metaclass ensuring that a single driver is created per instrument.
 
@@ -27,7 +34,16 @@ class InstrumentSigleton(type):
     _instances_cache: WeakKeyDictionary = WeakKeyDictionary()
 
     def __call__(cls, *args, **kwargs) -> 'BaseDriver':
+
+        msg = ('%s does not have a version attr. All drivers must have a '
+               'version string of the form "{major}.{minor}.{micro}" set '
+               'in the __version__ attribute. It cannot be simply '
+               'inherited.' % cls.__name__)
+
         # Enforce the presence of a version string per driver.
+        if '__version__' not in dir(cls):
+            raise MissingVersionError(msg)
+
         new_attr = set(dir(cls))
         for ancestor in cls.mro()[1:]:
             # New attributes not present on any parent class
@@ -37,11 +53,7 @@ class InstrumentSigleton(type):
         if ('__version__' not in new_attr and
                 any(cls.__version__ is getattr(ancestor, '__version__', '')
                     for ancestor in cls.mro()[1:])):
-            raise AttributeError('%s does not have a version attr. All drivers'
-                                 ' must have a version string of '
-                                 'the form "{major}.{minor}.{micro}" set '
-                                 'in the __version__ attribute. It cannot be '
-                                 'simply inherited.' % cls.__name__)
+            raise MissingVersionError(msg)
 
         # This is done on first call rather than init to avoid useless memory
         # allocation.

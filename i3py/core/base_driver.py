@@ -28,16 +28,13 @@ class InstrumentSigleton(type):
 
     def __call__(cls, *args, **kwargs) -> 'BaseDriver':
         # Enforce the presence of a version string per driver.
-        if '__version__' not in dir(cls):
-            raise AttributeError('All drivers must have a version string of '
-                                 'the form "{major}.{minor}.{micro}" set '
-                                 'in the __version__ attribute. It cannot be '
-                                 'simply inherited.')
-
-        non_new = set(dir(cls))
+        new_attr = set(dir(cls))
         for ancestor in cls.mro()[1:]:
-            non_new -= set(dir(ancestor))
-        if ('__version__' not in non_new and
+            # New attributes not present on any parent class
+            new_attr -= set(dir(ancestor))
+
+        # Check that the version we have is not from a parent class
+        if ('__version__' not in new_attr and
                 any(cls.__version__ is getattr(ancestor, '__version__', '')
                     for ancestor in cls.mro()[1:])):
             raise AttributeError('%s does not have a version attr. All drivers'

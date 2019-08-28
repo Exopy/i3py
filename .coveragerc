@@ -1,4 +1,5 @@
 [run]
+branch = True
 omit =
     *i3py/version.py
     */__init__.py
